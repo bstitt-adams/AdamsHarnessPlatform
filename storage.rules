@@ -1,0 +1,77 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+    
+    function isValidFileSize(maxSizeMB) {
+      return request.resource.size < maxSizeMB * 1024 * 1024;
+    }
+    
+    function isValidImageType() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    function isValidDocumentType() {
+      return request.resource.contentType.matches('application/pdf') ||
+             request.resource.contentType.matches('application/msword') ||
+             request.resource.contentType.matches('application/vnd.openxmlformats-officedocument.*') ||
+             request.resource.contentType.matches('text/.*');
+    }
+
+    // User avatars
+    match /avatars/{userId}/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() && 
+                      isOwner(userId) && 
+                      isValidImageType() && 
+                      isValidFileSize(5);
+    }
+
+    // Organization logos
+    match /organizations/{orgId}/logo/{fileName} {
+      allow read: if true;
+      allow write: if isAuthenticated() && 
+                      isValidImageType() && 
+                      isValidFileSize(5);
+    }
+
+    // Project documents
+    match /projects/{projectId}/documents/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+                      (isValidDocumentType() || isValidImageType()) && 
+                      isValidFileSize(50);
+    }
+
+    // Organization documents
+    match /organizations/{orgId}/documents/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+                      (isValidDocumentType() || isValidImageType()) && 
+                      isValidFileSize(50);
+    }
+
+    // Meeting recordings and attachments
+    match /meetings/{meetingId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidFileSize(500);
+    }
+
+    // Certification documents
+    match /certifications/{orgId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && 
+                      isValidDocumentType() && 
+                      isValidFileSize(25);
+    }
+  }
+}

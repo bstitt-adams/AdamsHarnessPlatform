@@ -1,0 +1,1002 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function getUserRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && getUserRole() in ['admin', 'superadmin'];
+    }
+
+    // Users collection
+    match /users/{userId} {
+      allow read: if isAuthenticated() && (request.auth.uid == userId || isAdmin());
+      allow create: if isAuthenticated() && request.auth.uid == userId;
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        request.auth.uid == userId &&
+        request.resource.data.role == resource.data.role &&
+        request.resource.data.isSuperAdmin == resource.data.isSuperAdmin
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Organizations collection
+    match /organizations/{orgId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+      
+      // Certifications subcollection
+      match /certifications/{certId} {
+        allow read: if true;
+        allow write: if true;
+      }
+      
+      // Capabilities subcollection
+      match /capabilities/{capId} {
+        allow read: if true;
+        allow write: if true;
+      }
+    }
+
+    // Opportunities collection
+    // TODO: Restrict to role-based access in production
+    match /opportunities/{oppId} {
+      allow read, update: if isAuthenticated();
+      allow create: if true;
+      allow delete: if isAdmin();
+    }
+
+    // Projects collection
+    // TODO: Restrict to role-based access in production
+    match /projects/{projectId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+      
+      // Milestones subcollection
+      match /milestones/{milestoneId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // Meetings collection
+    // TODO: Restrict to role-based access in production
+    match /meetings/{meetingId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+      
+      // Action items subcollection
+      match /actionItems/{actionId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // Action Items collection (top-level)
+    // TODO: Restrict to role-based access in production
+    match /actionItems/{actionId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Rocks collection
+    // TODO: Restrict to role-based access in production
+    match /rocks/{rockId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+      
+      // Rock milestones subcollection
+      match /milestones/{milestoneId} {
+        allow read, write: if isAuthenticated();
+      }
+    }
+
+    // Documents collection
+    // TODO: Restrict to role-based access in production
+    match /documents/{docId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Services collection
+    match /services/{serviceId} {
+      allow read: if true; // Public read for marketing
+      allow write: if isAdmin();
+    }
+
+    // Activities collection
+    match /activities/{activityId} {
+      allow read, create: if isAuthenticated();
+      allow update, delete: if isAdmin();
+    }
+
+    // Notes collection
+    match /notes/{noteId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // Affiliate Networking System Collections
+    // =========================================================================
+
+    // Affiliate Biographies - affiliates can manage their own
+    match /affiliateBiographies/{bioId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.affiliateId == request.auth.uid;
+      allow update: if resource.data.affiliateId == request.auth.uid || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // GAINS Profiles - affiliates can manage their own
+    match /gainsProfiles/{profileId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.affiliateId == request.auth.uid;
+      allow update: if resource.data.affiliateId == request.auth.uid || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Contact Spheres - affiliates can manage their own
+    match /contactSpheres/{sphereId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.affiliateId == request.auth.uid;
+      allow update: if resource.data.affiliateId == request.auth.uid || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Previous Customers - affiliates can manage their own
+    match /previousCustomers/{customersId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.affiliateId == request.auth.uid;
+      allow update: if resource.data.affiliateId == request.auth.uid || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // One-to-One Meetings - participants can read/update
+    match /oneToOneMeetings/{meetingId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.initiatorId == request.auth.uid ||
+        resource.data.partnerId == request.auth.uid
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.initiatorId == request.auth.uid ||
+        resource.data.partnerId == request.auth.uid
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Referrals - referrer and recipient can access
+    match /referrals/{referralId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.referrerId == request.auth.uid ||
+        resource.data.recipientId == request.auth.uid
+      );
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.referrerId == request.auth.uid ||
+        resource.data.recipientId == request.auth.uid
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Affiliate Stats - affiliates can read their own, admins can read all
+    match /affiliateStats/{statsId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.affiliateId == request.auth.uid
+      );
+      allow create: if isAdmin();
+      allow update: if isAdmin(); // Stats are updated by system/admin
+      allow delete: if isAdmin();
+    }
+
+    // AI Match Suggestions - affiliates can read their own suggestions
+    match /aiMatchSuggestions/{suggestionId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.affiliateId == request.auth.uid
+      );
+      allow create: if isAdmin(); // Only system creates suggestions
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.affiliateId == request.auth.uid // Can accept/decline
+      );
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // Strategic Partners
+    // =========================================================================
+
+    // Strategic Partners - read/write allowed for development
+    // TODO: Restrict to authenticated users in production
+    match /strategicPartners/{partnerId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // Team Members are visible to authenticated portal users; only admins manage records.
+    match /teamMembers/{memberId} {
+      allow read: if isAuthenticated();
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin() || (
+        isAuthenticated() &&
+        request.auth.token.email == request.resource.data.emailPrimary &&
+        request.resource.data.firebaseUid == request.auth.uid
+      );
+    }
+
+    // Platform settings may contain integration credentials; only admins can read/write them.
+    match /platformSettings/{settingsId} {
+      allow read: if isAdmin() || (isAuthenticated() && settingsId == "feature-visibility");
+      allow create, update, delete: if isAdmin();
+      match /notifications/{notificationId} {
+        allow read: if isAuthenticated();
+        allow create, update, delete: if isAdmin();
+      }
+    }
+
+    // =========================================================================
+    // Apollo Integration Collections
+    // =========================================================================
+
+    // Apollo Purchased Contacts - read/write allowed for development
+    // TODO: Restrict to authenticated users in production
+    match /apolloPurchasedContacts/{contactId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // Apollo Saved Lists - read/write allowed for development
+    // TODO: Restrict to authenticated users in production
+    match /apolloSavedLists/{listId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // ThomasNet Supplier Search Collections
+    // =========================================================================
+
+    // ThomasNet Saved Suppliers - read/write allowed for development
+    // TODO: Restrict to authenticated users in production
+    match /thomasnetSavedSuppliers/{supplierId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // ThomasNet Saved Lists - read/write allowed for development
+    // TODO: Restrict to authenticated users in production
+    match /thomasnetSavedLists/{listId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // =========================================================================
+    // Networking Profile Collections
+    // =========================================================================
+
+    // Networking profile collections
+    match /affiliateBiographies/{bioId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.affiliateId == request.auth.uid;
+      allow update: if resource.data.affiliateId == request.auth.uid || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /gainsProfiles/{profileId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.affiliateId == request.auth.uid;
+      allow update: if resource.data.affiliateId == request.auth.uid || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /contactSpheres/{sphereId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.affiliateId == request.auth.uid;
+      allow update: if resource.data.affiliateId == request.auth.uid || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    match /previousCustomers/{customersId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.affiliateId == request.auth.uid;
+      allow update: if resource.data.affiliateId == request.auth.uid || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // Software License Keys
+    // =========================================================================
+
+    // Software Keys - admin only for management
+    match /softwareKeys/{keyId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    // Key Activations - track key usage
+    match /keyActivations/{activationId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated();
+    }
+
+    // =========================================================================
+    // White-Label Deployments
+    // =========================================================================
+
+    // White-Label Deployments - admin management
+    match /whiteLabelDeployments/{deploymentId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    // Deployment Analytics
+    match /deploymentAnalytics/{analyticsId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    // Deployment Audit Logs
+    match /deploymentAuditLogs/{logId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    // =========================================================================
+    // GoHighLevel Integration Collections
+    // TODO: Restrict to authenticated users in production
+    // =========================================================================
+
+    // GoHighLevel Integrations - open for development
+    match /gohighlevelIntegrations/{integrationId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // GoHighLevel Sync Logs - open for development
+    match /gohighlevelSyncLogs/{logId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // GoHighLevel Workflows - open for development
+    match /ghlWorkflows/{workflowId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // GoHighLevel Imported Workflows - open for development
+    match /ghlImportedWorkflows/{workflowId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // =========================================================================
+    // Calendar & Scheduling Collections
+    // TODO: Restrict to authenticated users in production
+    // =========================================================================
+
+    // Calendar Events - open for development
+    match /calendarEvents/{eventId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // 1-to-1 Scheduling Queue - open for development
+    match /oneToOneQueue/{queueId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // Team Member Availability - open for development
+    match /teamMemberAvailability/{availabilityId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // Bookings - open for development
+    match /bookings/{bookingId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // GHL Calendar Events Cache - open for development
+    match /ghlCalendarEvents/{eventId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // GHL Sync Status - open for development
+    match /ghlSyncStatus/{statusId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // =========================================================================
+    // Traction/EOS2 Collections
+    // TODO: Restrict to authenticated users in production
+    // =========================================================================
+
+    // Traction Rocks - open for development
+    match /tractionRocks/{rockId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // Traction Scorecard Metrics - open for development
+    match /tractionScorecardMetrics/{metricId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // Traction Issues - open for development
+    match /tractionIssues/{issueId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // Traction Todos - open for development
+    match /tractionTodos/{todoId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // Traction Meetings - open for development
+    match /tractionMeetings/{meetingId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // Traction Team Members - open for development
+    match /tractionTeamMembers/{memberId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // =========================================================================
+    // Mattermost Playbooks Collections
+    // TODO: Restrict to authenticated users in production
+    // =========================================================================
+
+    // Mattermost Playbooks - open for development
+    match /mattermostPlaybooks/{playbookId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // Mattermost Playbook Runs - open for development
+    match /mattermostPlaybookRuns/{runId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if true;
+    }
+
+    // =========================================================================
+    // Adams Electric Academy LMS Collections
+    // =========================================================================
+
+    // Subscription Tiers - public read, admin write
+    match /subscriptionTiers/{tierId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // User Subscriptions - users can read their own
+    match /userSubscriptions/{subscriptionId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || resource.data.userId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Course Categories - public read, admin write
+    match /courseCategories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Courses - public read for published, admin write
+    match /courses/{courseId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      // Course Modules subcollection
+      match /modules/{moduleId} {
+        allow read: if true;
+        allow write: if isAdmin();
+
+        // Lessons subcollection
+        match /lessons/{lessonId} {
+          allow read: if true;
+          allow write: if isAdmin();
+        }
+      }
+    }
+
+    // Course Enrollments - users can manage their own
+    match /courseEnrollments/{enrollmentId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || resource.data.userId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        isAdmin() || resource.data.userId == request.auth.uid
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Lesson Progress - users can manage their own
+    match /lessonProgress/{progressId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || resource.data.userId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // Assessments - public read for published, admin write
+    match /assessments/{assessmentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      // Assessment Questions subcollection
+      match /questions/{questionId} {
+        allow read: if isAuthenticated();
+        allow write: if isAdmin();
+      }
+    }
+
+    // Assessment Attempts - users can manage their own
+    match /assessmentAttempts/{attemptId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || resource.data.userId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // Workshops - public read for published, admin write
+    match /workshops/{workshopId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Workshop Registrations - users can manage their own
+    match /workshopRegistrations/{registrationId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || resource.data.userId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && (
+        isAdmin() || resource.data.userId == request.auth.uid
+      );
+      allow delete: if isAdmin();
+    }
+
+    // Learning Paths - public read for published, admin write
+    match /learningPaths/{pathId} {
+      allow read: if true;
+      allow write: if isAdmin();
+
+      // Learning Path Items subcollection
+      match /items/{itemId} {
+        allow read: if true;
+        allow write: if isAdmin();
+      }
+    }
+
+    // User Learning Path Progress - users can manage their own
+    match /userLearningPaths/{progressId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || resource.data.userId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // Certificates - users can read their own, public verification
+    match /certificates/{certificateId} {
+      allow read: if true; // Public for verification
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // User Performance Metrics - users can read their own
+    match /userPerformanceMetrics/{metricId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || resource.data.userId == request.auth.uid
+      );
+      allow write: if isAdmin(); // System-generated
+    }
+
+    // Discussion Threads - authenticated users can participate
+    match /discussionThreads/{threadId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && (
+        isAdmin() || resource.data.userId == request.auth.uid
+      );
+      allow delete: if isAdmin();
+
+      // Discussion Replies subcollection
+      match /replies/{replyId} {
+        allow read: if isAuthenticated();
+        allow create: if isAuthenticated();
+        allow update: if isAuthenticated() && (
+          isAdmin() || resource.data.userId == request.auth.uid
+        );
+        allow delete: if isAdmin();
+      }
+    }
+
+    // Quiz Leads - for Adams IQ Quiz submissions
+    match /quizLeads/{leadId} {
+      allow read: if isAdmin();
+      allow create: if true; // Public can submit quiz
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Quiz Results - users can read their own
+    match /quizResults/{resultId} {
+      allow read: if true; // Public for sharing results
+      allow create: if true; // Public can submit quiz
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // =========================================================================
+    // Proposals & CRM Collections
+    // =========================================================================
+
+    // Proposals - team members can manage
+    match /proposals/{proposalId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Proposal Templates - admin managed
+    match /proposalTemplates/{templateId} {
+      allow read: if isAuthenticated();
+      allow write: if isAdmin();
+    }
+
+    // Blog Posts - public read, admin write
+    match /blogPosts/{postId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Blog Categories - public read, admin write
+    match /blogCategories/{categoryId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // =========================================================================
+    // AI Workforce Collections (migrated from localStorage)
+    // =========================================================================
+
+    // AI Employees - users can manage their own
+    match /aiEmployees/{employeeId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || resource.data.userId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // AI Chats - users can manage their own chat histories
+    match /aiChats/{chatId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || resource.data.userId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    match /aiEmployeeChats/{chatId} {
+      allow read: if isAuthenticated() && (
+        isAdmin() || resource.data.userId == request.auth.uid
+      );
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+
+    // User Settings - users can manage their own settings
+    match /userSettings/{settingsId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAuthenticated();
+    }
+
+    // =========================================================================
+    // Site Calendars (safety office / job site TV displays)
+    // =========================================================================
+
+    match /siteCalendars/{siteId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
+
+    match /siteCalendarItems/{itemId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
+
+    function isHarnessAdmin() {
+      return isAuthenticated() && getUserRole() in ['superadmin', 'admin'];
+    }
+
+    match /departments/{departmentId} {
+      allow read: if isHarnessAdmin();
+      allow write: if false;
+    }
+
+    match /processInterviews/{interviewId} {
+      allow read: if isHarnessAdmin() || resource.data.createdByUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /solutionSpecifications/{specId} {
+      allow read: if isHarnessAdmin() || resource.data.createdByUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /adamsAuditLogs/{logId} {
+      allow read: if isHarnessAdmin();
+      allow write: if false;
+    }
+
+    match /moduleBuilds/{buildId} {
+      allow read: if isHarnessAdmin() || resource.data.requestedByUid == request.auth.uid;
+      allow write: if false;
+    }
+
+    match /moduleRecords/{recordId} {
+      allow read, write: if false;
+    }
+
+    match /moduleNotifications/{notificationId} {
+      allow read, write: if false;
+    }
+
+    match /moduleUploads/{uploadId} {
+      allow read, write: if false;
+    }
+
+    match /moduleScheduleRuns/{runId} {
+      allow read: if isHarnessAdmin();
+      allow write: if false;
+    }
+
+    match /adamsBrains/{brainId} {
+      allow read, write: if false;
+    }
+
+    match /brainSources/{sourceId} {
+      allow read, write: if false;
+    }
+
+    match /brainChunks/{chunkId} {
+      allow read, write: if false;
+    }
+
+    match /brainQueries/{queryId} {
+      allow read, write: if false;
+    }
+
+    match /backupMetadata/{id} { allow read, write: if isHarnessAdmin(); }
+    match /backupSchedules/{id} { allow read, write: if isHarnessAdmin(); }
+    match /backupStorageProviders/{id} { allow read, write: if isHarnessAdmin(); }
+    match /bugTrackerItems/{id} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isHarnessAdmin();
+    }
+    match /docusealSubmissions/{id} { allow read, write: if isHarnessAdmin(); }
+    match /docusealTemplates/{id} { allow read, write: if isHarnessAdmin(); }
+    match /eventRegistrations/{id} {
+      allow create: if true;
+      allow read, update, delete: if isHarnessAdmin();
+    }
+    match /events/{id} {
+      allow read: if true;
+      allow write: if isHarnessAdmin();
+    }
+    match /heroSlides/{id} {
+      allow read: if true;
+      allow write: if isHarnessAdmin();
+    }
+    match /quizQuestions/{id} {
+      allow read: if true;
+      allow write: if isHarnessAdmin();
+    }
+    match /quizReportTemplates/{id} {
+      allow read: if true;
+      allow write: if isHarnessAdmin();
+    }
+    match /quizSubmissions/{id} {
+      allow create: if true;
+      allow read, update, delete: if isHarnessAdmin();
+    }
+    match /successStories/{id} {
+      allow read: if true;
+      allow write: if isHarnessAdmin();
+    }
+    match /userChatChannels/{id} {
+      allow read, create, update: if isAuthenticated() && (
+        id == request.auth.uid || isHarnessAdmin()
+      );
+      allow delete: if isHarnessAdmin();
+    }
+    match /userMicrosoftTokens/{id} {
+      allow read: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isHarnessAdmin()
+      );
+      allow create: if isAuthenticated() && (
+        request.resource.data.userId == request.auth.uid || isHarnessAdmin()
+      );
+      allow update: if isAuthenticated() && (
+        (
+          resource.data.userId == request.auth.uid &&
+          request.resource.data.userId == request.auth.uid
+        ) ||
+        isHarnessAdmin()
+      );
+      allow delete: if isAuthenticated() && (
+        resource.data.userId == request.auth.uid || isHarnessAdmin()
+      );
+    }
+
+    // Adams Academy / LMS
+    match /platformSecrets/{id} {
+      allow read, write: if isHarnessAdmin();
+    }
+
+    match /lms_courses/{id} {
+      allow read: if isHarnessAdmin() || resource.data.isPublished == true;
+      allow write: if isHarnessAdmin();
+    }
+    match /lms_course_modules/{id} {
+      allow read: if isHarnessAdmin();
+      allow write: if isHarnessAdmin();
+    }
+    match /lms_lessons/{id} {
+      allow read: if isHarnessAdmin() || resource.data.isPreview == true;
+      allow write: if isHarnessAdmin();
+    }
+    match /lms_categories/{id} {
+      allow read: if true;
+      allow write: if isHarnessAdmin();
+    }
+    match /lms_workshops/{id} {
+      allow read: if isHarnessAdmin() || resource.data.isPublished == true;
+      allow write: if isHarnessAdmin();
+    }
+    match /lms_subscription_tiers/{id} {
+      allow read: if true;
+      allow write: if isHarnessAdmin();
+    }
+    match /lms_enrollments/{id} {
+      allow read: if isHarnessAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isHarnessAdmin() || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
+      allow update: if isHarnessAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
+      allow delete: if isHarnessAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+    match /lms_lesson_progress/{id} {
+      allow read: if isHarnessAdmin() || (isAuthenticated() && resource.data.odUserId == request.auth.uid);
+      allow create, update: if isHarnessAdmin() || (isAuthenticated() && request.resource.data.odUserId == request.auth.uid);
+      allow delete: if isHarnessAdmin() || (isAuthenticated() && resource.data.odUserId == request.auth.uid);
+    }
+    match /lms_quiz_attempts/{id} {
+      allow read: if isHarnessAdmin() || (isAuthenticated() && resource.data.odUserId == request.auth.uid);
+      allow create, update: if isHarnessAdmin() || (isAuthenticated() && request.resource.data.odUserId == request.auth.uid);
+    }
+    match /lms_certificates/{id} {
+      allow read: if isHarnessAdmin() || (isAuthenticated() && resource.data.odUserId == request.auth.uid);
+      allow create: if isHarnessAdmin() || (isAuthenticated() && request.resource.data.odUserId == request.auth.uid);
+      allow update: if isHarnessAdmin();
+    }
+    match /lms_settings/{id} {
+      allow read: if isAuthenticated();
+      allow write: if isHarnessAdmin();
+    }
+    match /lms_user_badges/{id} {
+      allow read: if isHarnessAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow write: if isHarnessAdmin();
+    }
+    match /lms_user_points/{id} {
+      allow read: if isHarnessAdmin() || (isAuthenticated() && resource.data.odUserId == request.auth.uid);
+      allow write: if isHarnessAdmin();
+    }
+    match /lms_badges/{id} {
+      allow read: if true;
+      allow write: if isHarnessAdmin();
+    }
+    match /lms_learning_paths/{id} {
+      allow read: if isHarnessAdmin() || resource.data.isPublished == true;
+      allow write: if isHarnessAdmin();
+    }
+    match /lms_course_purchases/{id} {
+      allow read: if isHarnessAdmin() || (isAuthenticated() && resource.data.odUserId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.odUserId == request.auth.uid;
+      allow update: if isHarnessAdmin();
+    }
+    match /lms_workshop_registrations/{id} {
+      allow read: if isHarnessAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update: if isHarnessAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+    }
+  }
+}
