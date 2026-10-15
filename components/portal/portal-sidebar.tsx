@@ -49,7 +49,6 @@ import {
   Building,
   FileText,
   Calendar,
-  CalendarDays,
   CheckSquare,
   MessageSquare,
   Bell,
@@ -280,7 +279,7 @@ const adamsBusinessItems: { title: string; href: string; icon: React.ElementType
     featureKey: "systemDocs",
   },
   {
-    title: "Opportunities",
+    title: "Command Control",
     href: "/portal/opportunities",
     icon: Target,
     featureKey: "opportunities",
@@ -304,12 +303,6 @@ const adamsBusinessItems: { title: string; href: string; icon: React.ElementType
     featureKey: "meetings",
   },
   {
-    title: "Availability",
-    href: "/portal/availability",
-    icon: CalendarDays,
-    featureKey: "availability",
-  },
-  {
     title: "Proposal Creator",
     href: "/portal/proposals",
     icon: FileText,
@@ -321,12 +314,6 @@ const adamsBusinessItems: { title: string; href: string; icon: React.ElementType
     href: "/portal/admin/events",
     icon: Ticket,
     featureKey: "events",
-  },
-  {
-    title: "Networking",
-    href: "/portal/networking",
-    icon: Handshake,
-    featureKey: "networking",
   },
   {
     title: "Deals",
