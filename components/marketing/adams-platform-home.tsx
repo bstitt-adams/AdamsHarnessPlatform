@@ -90,6 +90,29 @@ const SAFETY_INITIATIVES = [
 export function AdamsPlatformHome() {
   return (
     <div className="relative isolate bg-[#030409] text-white">
+      <style>{`
+        @keyframes slowZoom {
+          0% { transform: scale(1); }
+          100% { transform: scale(1.08); }
+        }
+      `}</style>
+
+      {/* Animated abstract data-center background */}
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 opacity-40"
+        aria-hidden="true"
+      >
+        <div
+          className="absolute inset-[-5%] bg-cover bg-center"
+          style={{
+            backgroundImage:
+              "url('https://images.unsplash.com/photo-1660069243831-c441309929e2?fm=jpg&q=80&w=1920&auto=format&fit=crop')",
+            animation: "slowZoom 25s ease-in-out infinite alternate",
+          }}
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-[#030409]/70 via-[#030409]/50 to-[#030409]" />
+      </div>
+
       {/* Hero */}
       <section className="relative flex min-h-[calc(100vh-4rem)] flex-col overflow-hidden">
         <div className="relative z-10 flex flex-1 flex-col items-center justify-end px-6 pb-16 text-center sm:pb-24">
