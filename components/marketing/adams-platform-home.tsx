@@ -113,36 +113,16 @@ export function AdamsPlatformHome() {
 
         <div className="relative z-10 flex flex-1 flex-col items-center justify-end px-6 pb-16 text-center sm:pb-24">
           <div className="max-w-3xl space-y-6">
-            <motion.p
-              className="text-xs font-semibold uppercase tracking-[0.35em] text-blue-300/80 sm:text-sm"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.6 }}
-            >
+            <p className="text-xs font-semibold uppercase tracking-[0.35em] text-blue-300/80 sm:text-sm">
               Adams Electric presents
-            </motion.p>
-            <motion.h1
-              className="text-4xl font-extrabold tracking-tight drop-shadow-[0_0_30px_rgba(120,140,255,0.45)] sm:text-6xl md:text-7xl"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7 }}
-            >
+            </p>
+            <h1 className="text-4xl font-extrabold tracking-tight drop-shadow-[0_0_30px_rgba(120,140,255,0.45)] sm:text-6xl md:text-7xl">
               Adams Platform
-            </motion.h1>
-            <motion.p
-              className="mx-auto max-w-2xl text-lg text-blue-100/85 sm:text-xl md:text-2xl"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1, duration: 0.7 }}
-            >
+            </h1>
+            <p className="mx-auto max-w-2xl text-lg text-blue-100/85 sm:text-xl md:text-2xl">
               Streamlining how Adams Electric does business, using AI. Starting with the processes that keep our people safe.
-            </motion.p>
-            <motion.div
-              className="flex flex-col items-center justify-center gap-4 sm:flex-row"
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2, duration: 0.7 }}
-            >
+            </p>
+            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
               <Button asChild size="lg" className="bg-primary text-primary-foreground shadow-[0_0_40px_rgba(59,130,246,0.45)] hover:bg-primary/90">
                 <Link href="/interview">
                   Start an interview
@@ -152,7 +132,7 @@ export function AdamsPlatformHome() {
               <Button asChild variant="outline" size="lg" className="border-white/20 bg-white/5 text-white backdrop-blur hover:bg-white/10 hover:text-white">
                 <a href="#purpose">See how it works</a>
               </Button>
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
