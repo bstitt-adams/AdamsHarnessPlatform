@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { motion } from "framer-motion";
+
 import {
   ArrowRight,
   Bot,
@@ -88,13 +88,6 @@ const SAFETY_INITIATIVES = [
   },
 ];
 
-const fadeUp = {
-  initial: { opacity: 0, y: 28 },
-  whileInView: { opacity: 1, y: 0 },
-  viewport: { once: true, amount: 0.25 },
-  transition: { duration: 0.7, ease: "easeOut" as const },
-};
-
 export function AdamsPlatformHome() {
   return (
     <div className="relative isolate text-white">
@@ -102,14 +95,9 @@ export function AdamsPlatformHome() {
 
       {/* Hero */}
       <section className="relative flex min-h-[calc(100vh-4rem)] flex-col overflow-hidden">
-        <motion.div
-          className="pointer-events-none absolute left-1/2 top-[6%] w-[min(60vw,280px)] -translate-x-1/2"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ duration: 1 }}
-        >
+        <div className="pointer-events-none absolute left-1/2 top-[6%] w-[min(60vw,280px)] -translate-x-1/2">
           <PlasmaGlobe className="h-auto w-full" />
-        </motion.div>
+        </div>
 
         <div className="relative z-10 flex flex-1 flex-col items-center justify-end px-6 pb-16 text-center sm:pb-24">
           <div className="max-w-3xl space-y-6">
@@ -139,7 +127,7 @@ export function AdamsPlatformHome() {
 
       {/* Purpose */}
       <section id="purpose" className="mx-auto max-w-6xl scroll-mt-24 px-6 py-20 sm:py-28">
-        <motion.div {...fadeUp} className="mx-auto max-w-3xl text-center">
+        <div className="mx-auto max-w-3xl text-center">
           <p className="text-xs font-semibold uppercase tracking-[0.35em] text-blue-300/80">Why Adams Platform exists</p>
           <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-5xl">Streamline Adams Electric&apos;s business processes with AI</h2>
           <p className="mt-6 text-lg leading-relaxed text-blue-100/80">
@@ -148,14 +136,12 @@ export function AdamsPlatformHome() {
             interviewed by AI, written into a specification, approved by the department that owns them, and built inside one
             secure portal.
           </p>
-        </motion.div>
+        </div>
 
         <div className="mt-16 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
           {HOW_IT_WORKS.map((step, i) => (
-            <motion.div
+            <div
               key={step.title}
-              {...fadeUp}
-              transition={{ ...fadeUp.transition, delay: i * 0.1 }}
               className="relative rounded-2xl border border-white/10 bg-white/[0.04] p-6 backdrop-blur-sm"
             >
               <span className="absolute right-5 top-5 text-xs font-semibold text-blue-300/60">0{i + 1}</span>
@@ -164,7 +150,7 @@ export function AdamsPlatformHome() {
               </div>
               <h3 className="mt-5 text-lg font-semibold">{step.title}</h3>
               <p className="mt-2 text-sm leading-relaxed text-blue-100/70">{step.body}</p>
-            </motion.div>
+            </div>
           ))}
         </div>
       </section>
@@ -172,7 +158,7 @@ export function AdamsPlatformHome() {
       {/* Mission Critical Safety */}
       <section id="safety" className="relative border-y border-white/10 bg-white/[0.03] py-20 sm:py-28">
         <div className="mx-auto max-w-6xl px-6">
-          <motion.div {...fadeUp} className="grid items-start gap-10 lg:grid-cols-[1.1fr_1fr]">
+          <div className="grid items-start gap-10 lg:grid-cols-[1.1fr_1fr]">
             <div>
               <div className="inline-flex items-center gap-2 rounded-full border border-blue-400/30 bg-blue-500/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.25em] text-blue-200">
                 <ShieldCheck className="size-4" />
@@ -200,10 +186,8 @@ export function AdamsPlatformHome() {
             </div>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
               {SAFETY_INITIATIVES.map((item, i) => (
-                <motion.div
+                <div
                   key={item.title}
-                  {...fadeUp}
-                  transition={{ ...fadeUp.transition, delay: 0.15 + i * 0.08 }}
                   className="rounded-2xl border border-white/10 bg-[#070a16]/70 p-5"
                 >
                   <div className="flex items-start justify-between gap-3">
@@ -214,16 +198,16 @@ export function AdamsPlatformHome() {
                   </div>
                   <h3 className="mt-4 font-semibold">{item.title}</h3>
                   <p className="mt-2 text-sm leading-relaxed text-blue-100/65">{item.body}</p>
-                </motion.div>
+                </div>
               ))}
             </div>
-          </motion.div>
+          </div>
         </div>
       </section>
 
       {/* First initiative: the interview */}
       <section id="interview" className="mx-auto max-w-6xl scroll-mt-24 px-6 py-20 sm:py-28">
-        <motion.div {...fadeUp} className="grid items-center gap-12 lg:grid-cols-2">
+        <div className="grid items-center gap-12 lg:grid-cols-2">
           <div>
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-blue-300/80">First initiative</p>
             <h2 className="mt-4 text-3xl font-bold tracking-tight sm:text-5xl">Before we build anything, we listen</h2>
@@ -283,7 +267,7 @@ export function AdamsPlatformHome() {
               </div>
             </div>
           </div>
-        </motion.div>
+        </div>
       </section>
 
       <footer className="border-t border-white/10 px-6 py-8 text-center text-xs text-blue-200/50">
