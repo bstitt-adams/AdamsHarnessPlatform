@@ -42,7 +42,7 @@ const fallbackCourses = [
     duration: "8 hours",
     lessons: 24,
     level: "Intermediate",
-    image: "/academy/preconstruction.jpg",
+    image: "https://images.pexels.com/photos/834892/pexels-photo-834892.jpeg?auto=compress&cs=tinysrgb&w=800&h=450&fit=crop",
     slug: "preconstruction-planning-fundamentals",
     isFeatured: true,
   },
@@ -63,7 +63,7 @@ const fallbackCourses = [
     duration: "6 hours",
     lessons: 18,
     level: "Intermediate",
-    image: "/academy/field-leadership.jpg",
+    image: "https://images.pexels.com/photos/35571322/pexels-photo-35571322.jpeg?auto=compress&cs=tinysrgb&w=800&h=450&fit=crop",
     slug: "field-leadership-essentials",
   },
   {
@@ -73,7 +73,7 @@ const fallbackCourses = [
     duration: "5 hours",
     lessons: 15,
     level: "Beginner",
-    image: "/academy/bim-coordination.jpg",
+    image: "https://images.pexels.com/photos/6615103/pexels-photo-6615103.jpeg?auto=compress&cs=tinysrgb&w=800&h=450&fit=crop",
     slug: "bim-coordination-basics",
   },
 ];
