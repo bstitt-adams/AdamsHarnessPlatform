@@ -18,7 +18,6 @@ import {
   Wrench,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PlasmaGlobe, SpaceBackground } from "./adams-platform-intro";
 
 const INTERVIEW_TOPICS = [
   "Trigger",
@@ -90,15 +89,9 @@ const SAFETY_INITIATIVES = [
 
 export function AdamsPlatformHome() {
   return (
-    <div className="relative isolate text-white">
-      <SpaceBackground />
-
+    <div className="relative isolate bg-[#030409] text-white">
       {/* Hero */}
       <section className="relative flex min-h-[calc(100vh-4rem)] flex-col overflow-hidden">
-        <div className="pointer-events-none absolute left-1/2 top-[6%] w-[min(60vw,280px)] -translate-x-1/2">
-          <PlasmaGlobe className="h-auto w-full" />
-        </div>
-
         <div className="relative z-10 flex flex-1 flex-col items-center justify-end px-6 pb-16 text-center sm:pb-24">
           <div className="max-w-3xl space-y-6">
             <p className="text-xs font-semibold uppercase tracking-[0.35em] text-blue-300/80 sm:text-sm">
