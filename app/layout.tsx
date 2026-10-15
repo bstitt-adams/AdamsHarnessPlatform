@@ -1,18 +1,6 @@
 import type { Metadata } from "next";
-import { Manrope, DM_Sans } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import "./globals.css";
-
-const manrope = Manrope({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
-
-const dmSans = DM_Sans({
-  variable: "--font-heading",
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700", "800"],
-});
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://adams-electric.com"),
@@ -101,7 +89,7 @@ export default function RootLayout({
         {/* Skip to main content link for keyboard users - WCAG 2.4.1 */}
         <meta name="viewport" content="width=device-width, initial-scale=1" />
       </head>
-      <body className={`${manrope.variable} ${dmSans.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         {/* Skip to main content link - WCAG 2.4.1 Bypass Blocks */}
         <a
           href="#main-content"
