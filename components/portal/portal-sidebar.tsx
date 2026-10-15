@@ -90,6 +90,11 @@ import {
   Presentation,
   Quote,
   ArrowRightLeft,
+  Truck,
+  ClipboardList,
+  Package,
+  HardHat,
+  Award,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -161,6 +166,52 @@ const peopleItems: { title: string; href: string; icon: React.ElementType; badge
 
 // Productivity
 const productivityItems: { title: string; href: string; icon: React.ElementType; badge?: string; featureKey: FeatureKey }[] = [];
+
+// Mission Critical
+const missionCriticalItems: { title: string; href: string; icon: React.ElementType; badge?: string; featureKey: FeatureKey }[] = [
+  {
+    title: "Safety Calendar",
+    href: "/safety-calendar",
+    icon: CalendarClock,
+    featureKey: "safetyCalendar",
+  },
+  {
+    title: "Adams Learning Academy",
+    href: "/academy",
+    icon: GraduationCap,
+    featureKey: "adamsLearningAcademy",
+  },
+  {
+    title: "Certification Tracker",
+    href: "/portal/admin/academy/certificates",
+    icon: Award,
+    featureKey: "certificationTracker",
+  },
+  {
+    title: "Vehicle Inspection",
+    href: "/portal/vehicle-inspection",
+    icon: Truck,
+    featureKey: "vehicleInspection",
+  },
+  {
+    title: "Safety Request Box",
+    href: "/portal/safety-request-box",
+    icon: ClipboardList,
+    featureKey: "safetyRequestBox",
+  },
+  {
+    title: "Order Tracking",
+    href: "/portal/order-tracking",
+    icon: Package,
+    featureKey: "orderTracking",
+  },
+  {
+    title: "MindChuk Clone",
+    href: "/portal/mindchuk-clone",
+    icon: HardHat,
+    featureKey: "mindchukClone",
+  },
+];
 
 // Affiliate Center
 const affiliateCenterItems: { title: string; href: string; icon: React.ElementType; badge?: string; featureKey: FeatureKey }[] = [];
@@ -471,6 +522,7 @@ export function PortalSidebar() {
     content: false,
     admin: false,
     adamsBusiness: true,
+    missionCritical: true,
   });
 
   const toggleSection = (section: keyof typeof openSections) => {
@@ -645,6 +697,9 @@ export function PortalSidebar() {
 
         {/* Admin */}
         {renderSection("admin", "Admin", adminItems)}
+
+        {/* Mission Critical */}
+        {renderSection("missionCritical", "Mission Critical", missionCriticalItems)}
       </SidebarContent>
 
       <SidebarFooter className="border-t border-sidebar-border">

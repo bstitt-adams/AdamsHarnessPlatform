@@ -32,6 +32,7 @@ import {
   UserCheck,
   ChevronDown,
   ChevronRight,
+  Target,
 } from "lucide-react";
 import {
   UserRole,
@@ -63,6 +64,7 @@ const SECTION_ICONS: Record<SectionKey, React.ElementType> = {
   intelligence: Brain,
   admin: Shield,
   initiatives: Rocket,
+  missionCritical: Target,
 };
 
 // Separate component to avoid button nesting in Collapsible

@@ -73,6 +73,15 @@ export const SIDEBAR_FEATURES = {
   // Initiatives
   initiatives: { label: "Initiatives", section: "initiatives", href: "/portal/admin/initiatives" },
   tbmncSuppliers: { label: "TBMNC Suppliers", section: "initiatives", href: "/portal/admin/initiatives/tbmnc" },
+
+  // Mission Critical
+  safetyCalendar: { label: "Safety Calendar", section: "missionCritical", href: "/safety-calendar" },
+  adamsLearningAcademy: { label: "Adams Learning Academy", section: "missionCritical", href: "/academy" },
+  certificationTracker: { label: "Certification Tracker", section: "missionCritical", href: "/portal/admin/academy/certificates" },
+  vehicleInspection: { label: "Vehicle Inspection", section: "missionCritical", href: "/portal/vehicle-inspection" },
+  safetyRequestBox: { label: "Safety Request Box", section: "missionCritical", href: "/portal/safety-request-box" },
+  orderTracking: { label: "Order Tracking", section: "missionCritical", href: "/portal/order-tracking" },
+  mindchukClone: { label: "MindChuk Clone", section: "missionCritical", href: "/portal/mindchuk-clone" },
 } as const;
 
 export type FeatureKey = keyof typeof SIDEBAR_FEATURES;
@@ -97,6 +106,7 @@ export const SECTIONS = {
   intelligence: { label: "Intelligence" },
   admin: { label: "Admin" },
   initiatives: { label: "Initiatives" },
+  missionCritical: { label: "Mission Critical" },
 } as const;
 
 export type SectionKey = keyof typeof SECTIONS;
@@ -186,6 +196,13 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       adamsBrainAdmin: false,
       initiatives: false,
       tbmncSuppliers: false,
+      safetyCalendar: true,
+      adamsLearningAcademy: true,
+      certificationTracker: false,
+      vehicleInspection: true,
+      safetyRequestBox: true,
+      orderTracking: true,
+      mindchukClone: true,
     },
     sections: {
       navigation: true,
@@ -193,6 +210,7 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       intelligence: true,
       admin: false,
       initiatives: false,
+      missionCritical: true,
     },
     l83Tools: {
       transcription: true,
@@ -257,6 +275,13 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       adamsBrainAdmin: false,
       initiatives: false,
       tbmncSuppliers: false,
+      safetyCalendar: true,
+      adamsLearningAcademy: true,
+      certificationTracker: true,
+      vehicleInspection: true,
+      safetyRequestBox: true,
+      orderTracking: true,
+      mindchukClone: true,
     },
     sections: {
       navigation: true,
@@ -264,6 +289,7 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       intelligence: true,
       admin: false,
       initiatives: false,
+      missionCritical: true,
     },
     l83Tools: Object.keys(L83_TOOLS).reduce((acc, key) => ({ ...acc, [key]: true }), {} as Record<L83ToolKey, boolean>),
   },
