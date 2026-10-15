@@ -925,7 +925,8 @@ service cloud.firestore {
     }
 
     match /lms_courses/{id} {
-      allow read: if isHarnessAdmin() || resource.data.isPublished == true;
+      allow list: if true;
+      allow get: if isHarnessAdmin() || resource.data.isPublished == true;
       allow write: if isHarnessAdmin();
     }
     match /lms_course_modules/{id} {
@@ -941,7 +942,8 @@ service cloud.firestore {
       allow write: if isHarnessAdmin();
     }
     match /lms_workshops/{id} {
-      allow read: if isHarnessAdmin() || resource.data.isPublished == true;
+      allow list: if true;
+      allow get: if isHarnessAdmin() || resource.data.isPublished == true;
       allow write: if isHarnessAdmin();
     }
     match /lms_subscription_tiers/{id} {
