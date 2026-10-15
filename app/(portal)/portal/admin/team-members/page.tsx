@@ -67,7 +67,7 @@ import {
   Timestamp,
   writeBatch,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { COLLECTIONS, type TeamMemberDoc, type OneToOneQueueItemDoc } from "@/lib/schema";
 import { logTeamMemberAdded, logActivity } from "@/lib/activity-logger";
 import Link from "next/link";
@@ -92,6 +92,16 @@ export default function TeamMembersPage() {
   const [schedulingList, setSchedulingList] = useState<OneToOneQueueItemDoc[]>([]);
   const [showSchedulingPanel, setShowSchedulingPanel] = useState(false);
   const [loadingQueue, setLoadingQueue] = useState(false);
+  const [syncingAuth, setSyncingAuth] = useState(false);
+  const [createAuthDialogOpen, setCreateAuthDialogOpen] = useState(false);
+  const [createAuthForm, setCreateAuthForm] = useState({
+    firstName: "",
+    lastName: "",
+    email: "",
+    password: "",
+    role: "team" as "superadmin" | "admin" | "team" | "affiliate" | "consultant" | "client",
+  });
+  const [creatingAuthUser, setCreatingAuthUser] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -166,6 +176,70 @@ export default function TeamMembersPage() {
       console.error("Error fetching scheduling queue:", error);
     } finally {
       setLoadingQueue(false);
+    }
+  };
+
+  // Sync Firebase Auth users with Team Members by email
+  const handleSyncAuthUsers = async () => {
+    if (!auth?.currentUser) {
+      toast.error("You must be signed in to sync users");
+      return;
+    }
+    setSyncingAuth(true);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const response = await fetch("/api/admin/team-members/sync-auth", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Sync failed");
+      }
+      toast.success(`Synced auth users: ${data.matched} linked, ${data.alreadyLinked} already linked, ${data.unmatched} unmatched`);
+      await fetchMembers();
+    } catch (error) {
+      console.error("Sync auth users error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to sync auth users");
+    } finally {
+      setSyncingAuth(false);
+    }
+  };
+
+  // Create Firebase Auth user and matching Team Member
+  const handleCreateAuthUser = async () => {
+    if (!auth?.currentUser) {
+      toast.error("You must be signed in to create a user");
+      return;
+    }
+    if (!createAuthForm.email || !createAuthForm.password || !createAuthForm.firstName || !createAuthForm.lastName) {
+      toast.error("Please fill in all required fields");
+      return;
+    }
+    setCreatingAuthUser(true);
+    try {
+      const token = await auth.currentUser.getIdToken();
+      const response = await fetch("/api/admin/team-members/create-auth-user", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(createAuthForm),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to create user");
+      }
+      toast.success(`Created auth user and team member for ${data.email}`);
+      setCreateAuthDialogOpen(false);
+      setCreateAuthForm({ firstName: "", lastName: "", email: "", password: "", role: "team" });
+      await fetchMembers();
+    } catch (error) {
+      console.error("Create auth user error:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to create auth user");
+    } finally {
+      setCreatingAuthUser(false);
     }
   };
 
@@ -503,6 +577,18 @@ export default function TeamMembersPage() {
           </p>
         </div>
         <div className="flex gap-2">
+          {isSuperAdmin(currentUserRole) && (
+            <>
+              <Button variant="outline" onClick={handleSyncAuthUsers} disabled={syncingAuth}>
+                <RefreshCw className={`mr-2 h-4 w-4 ${syncingAuth ? "animate-spin" : ""}`} />
+                Sync Auth Users
+              </Button>
+              <Button variant="outline" onClick={() => setCreateAuthDialogOpen(true)}>
+                <UserCheck className="mr-2 h-4 w-4" />
+                Create Auth User
+              </Button>
+            </>
+          )}
           {members.length > 0 && (
             <Button variant="outline" onClick={updateWebsitesFromEmail}>
               <Globe className="mr-2 h-4 w-4" />
@@ -765,6 +851,90 @@ export default function TeamMembersPage() {
                 </Button>
                 <Button onClick={handleSaveMember} disabled={!formData.firstName || !formData.lastName || !formData.emailPrimary || !formData.expertise}>
                   {editingMember ? "Update Member" : "Add Member"}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          {/* Create Auth User Dialog */}
+          <Dialog open={createAuthDialogOpen} onOpenChange={setCreateAuthDialogOpen}>
+            <DialogContent className="sm:max-w-[500px]">
+              <DialogHeader>
+                <DialogTitle>Create Firebase Auth User</DialogTitle>
+                <DialogDescription>
+                  Creates a Firebase Authentication user and a matching Team Member record.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="authFirstName">First Name *</Label>
+                    <Input
+                      id="authFirstName"
+                      value={createAuthForm.firstName}
+                      onChange={(e) => setCreateAuthForm({ ...createAuthForm, firstName: e.target.value })}
+                      placeholder="John"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="authLastName">Last Name *</Label>
+                    <Input
+                      id="authLastName"
+                      value={createAuthForm.lastName}
+                      onChange={(e) => setCreateAuthForm({ ...createAuthForm, lastName: e.target.value })}
+                      placeholder="Doe"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="authEmail">Email *</Label>
+                  <Input
+                    id="authEmail"
+                    type="email"
+                    value={createAuthForm.email}
+                    onChange={(e) => setCreateAuthForm({ ...createAuthForm, email: e.target.value })}
+                    placeholder="john.doe@adams-electric.com"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="authPassword">Password *</Label>
+                  <Input
+                    id="authPassword"
+                    type="password"
+                    value={createAuthForm.password}
+                    onChange={(e) => setCreateAuthForm({ ...createAuthForm, password: e.target.value })}
+                    placeholder="Min 6 characters"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="authRole">Role *</Label>
+                  <Select
+                    value={createAuthForm.role}
+                    onValueChange={(value) => setCreateAuthForm({ ...createAuthForm, role: value as typeof createAuthForm.role })}
+                  >
+                    <SelectTrigger id="authRole">
+                      <SelectValue placeholder="Select role" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="superadmin">SuperAdmin</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                      <SelectItem value="team">Team Member</SelectItem>
+                      <SelectItem value="affiliate">Affiliate</SelectItem>
+                      <SelectItem value="consultant">Consultant</SelectItem>
+                      <SelectItem value="client">Client</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setCreateAuthDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateAuthUser}
+                  disabled={creatingAuthUser || !createAuthForm.firstName || !createAuthForm.lastName || !createAuthForm.email || !createAuthForm.password}
+                >
+                  {creatingAuthUser ? "Creating..." : "Create User"}
                 </Button>
               </DialogFooter>
             </DialogContent>

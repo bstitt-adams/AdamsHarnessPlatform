@@ -924,6 +924,14 @@ service cloud.firestore {
       allow read, write: if isHarnessAdmin();
     }
 
+    // Platform Development Tracking
+    match /platformDevTasks/{id} {
+      allow read, write: if isHarnessAdmin();
+    }
+    match /platformDevReports/{id} {
+      allow read, write: if isHarnessAdmin();
+    }
+
     match /lms_courses/{id} {
       allow list: if true;
       allow get: if isHarnessAdmin() || resource.data.isPublished == true;

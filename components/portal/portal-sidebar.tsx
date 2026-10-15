@@ -94,6 +94,7 @@ import {
   Package,
   HardHat,
   Award,
+  Wrench,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -261,6 +262,12 @@ const adminItems: { title: string; href: string; icon: React.ElementType; badge?
     href: "/portal/admin/adams-brain",
     icon: Database,
     featureKey: "adamsBrainAdmin",
+  },
+  {
+    title: "Platform Development",
+    href: "/portal/admin/platform-development",
+    icon: Wrench,
+    featureKey: "platformDevelopment",
   },
 ];
 

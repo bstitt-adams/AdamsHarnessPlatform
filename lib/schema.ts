@@ -804,6 +804,42 @@ export interface TeamMemberDoc {
   updatedAt: Timestamp;
 }
 
+/** Platform Development Task document in Firestore */
+export interface PlatformDevTaskDoc {
+  id: string;
+  title: string;
+  description: string;
+  category: "Firebase" | "Vercel" | "Portal UI" | "LMS" | "Safety Calendar" | "Hermes" | "Integrations" | "Other";
+  systemsAffected: string[];
+  aiCapability?: string;
+  status: "planned" | "in-progress" | "completed" | "blocked";
+  hoursSpent: number;
+  taskDate: Timestamp;
+  createdByUid: string;
+  createdByName: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/** Platform Development Weekly Report document in Firestore */
+export interface PlatformDevReportDoc {
+  id: string;
+  reportDate: Timestamp;
+  periodStart: Timestamp;
+  periodEnd: Timestamp;
+  tasks: string[]; // Task IDs included
+  summaryText: string;
+  newCapabilitiesText: string;
+  recipientEmail: string;
+  pdfBase64: string;
+  pdfFileName: string;
+  generatedByUid: string;
+  generatedByName: string;
+  sentAt?: Timestamp;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 /** Event Ticket Type */
 export interface EventTicketType {
   id: string;
@@ -2170,6 +2206,9 @@ export const COLLECTIONS = {
   // AI Workforce
   AI_EMPLOYEES: "aiEmployees",
   AI_EMPLOYEE_CHATS: "aiEmployeeChats",
+  // Platform Development Tracking
+  PLATFORM_DEV_TASKS: "platformDevTasks",
+  PLATFORM_DEV_REPORTS: "platformDevReports",
   // Bug Tracker
   BUG_TRACKER_ITEMS: "bugTrackerItems",
   // Backup System
@@ -2256,6 +2295,10 @@ export const bugTrackerItemsCollection = () => getCollection<BugTrackerItemDoc>(
 
 // Success Stories collection reference
 export const successStoriesCollection = () => getCollection<SuccessStoryDoc>(COLLECTIONS.SUCCESS_STORIES);
+
+// Platform Development Tracking collection references
+export const platformDevTasksCollection = () => getCollection<PlatformDevTaskDoc>(COLLECTIONS.PLATFORM_DEV_TASKS);
+export const platformDevReportsCollection = () => getCollection<PlatformDevReportDoc>(COLLECTIONS.PLATFORM_DEV_REPORTS);
 
 // Site Calendars collection references
 export const siteCalendarsCollection = () => getCollection<SiteCalendarDoc>(COLLECTIONS.SITECALENDARS);

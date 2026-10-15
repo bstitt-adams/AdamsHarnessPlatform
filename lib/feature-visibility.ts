@@ -69,6 +69,7 @@ export const SIDEBAR_FEATURES = {
   departments: { label: "Departments", section: "admin", href: "/portal/admin/departments" },
   moduleBuilds: { label: "Module Builds", section: "admin", href: "/portal/admin/modules" },
   adamsBrainAdmin: { label: "AdamsBrain Admin", section: "admin", href: "/portal/admin/adams-brain" },
+  platformDevelopment: { label: "Platform Development", section: "admin", href: "/portal/admin/platform-development" },
 
   // Initiatives
   initiatives: { label: "Initiatives", section: "initiatives", href: "/portal/admin/initiatives" },
@@ -139,6 +140,7 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       departments: false,
       moduleBuilds: false,
       adamsBrainAdmin: false,
+      platformDevelopment: false,
     },
     sections: Object.keys(SECTIONS).reduce((acc, key) => ({ ...acc, [key]: true }), {} as Record<SectionKey, boolean>),
     l83Tools: Object.keys(L83_TOOLS).reduce((acc, key) => ({ ...acc, [key]: true }), {} as Record<L83ToolKey, boolean>),
@@ -194,6 +196,7 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       departments: false,
       moduleBuilds: false,
       adamsBrainAdmin: false,
+      platformDevelopment: false,
       initiatives: false,
       tbmncSuppliers: false,
       safetyCalendar: true,
@@ -273,6 +276,7 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       departments: false,
       moduleBuilds: false,
       adamsBrainAdmin: false,
+      platformDevelopment: false,
       initiatives: false,
       tbmncSuppliers: false,
       safetyCalendar: true,
