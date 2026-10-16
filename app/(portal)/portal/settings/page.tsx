@@ -73,6 +73,7 @@ import {
 import { FeatureVisibilitySettings } from "@/components/portal/feature-visibility-settings";
 import { TelegramUsersManager } from "@/components/portal/telegram-users-manager";
 import { TeamsUsersManager } from "@/components/portal/teams-users-manager";
+import { AdamsBrainConfigManager } from "@/components/portal/adams-brain-config-manager";
 import { useUserProfile } from "@/contexts/user-profile-context";
 import { isSuperAdmin } from "@/lib/permissions";
 
@@ -104,7 +105,7 @@ const SETTINGS_DOC_ID = "global";
 function SettingsPageContent() {
   const searchParams = useSearchParams();
   const rawTab = searchParams.get("tab") || "integrations";
-  const isIntegrationSubTab = ["llm", "hermes", "telegram", "teams"].includes(rawTab);
+  const isIntegrationSubTab = ["llm", "hermes", "gbrain", "telegram", "teams"].includes(rawTab);
   const defaultTab = isIntegrationSubTab ? "integrations" : rawTab;
   const [activeTab, setActiveTab] = useState(defaultTab);
   const [integrationSubTab, setIntegrationSubTab] = useState(
@@ -596,6 +597,7 @@ function SettingsPageContent() {
             <TabsList className="flex-wrap h-auto gap-1">
               <TabsTrigger value="llm">LLM Configuration</TabsTrigger>
               <TabsTrigger value="hermes">Hermes Integration</TabsTrigger>
+              <TabsTrigger value="gbrain">AdamsBrain (GBrain)</TabsTrigger>
               <TabsTrigger value="telegram">Telegram</TabsTrigger>
               <TabsTrigger value="teams">Microsoft Teams</TabsTrigger>
             </TabsList>
@@ -815,6 +817,11 @@ function SettingsPageContent() {
               <p className="text-xs text-muted-foreground">The API key is sent only to the server for the connection test and is never returned by the test endpoint. Save settings after testing.</p>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* AdamsBrain (GBrain) Sub-Tab */}
+        <TabsContent value="gbrain" className="space-y-6">
+          <AdamsBrainConfigManager />
         </TabsContent>
 
         {/* Telegram Integration Tab */}

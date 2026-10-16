@@ -102,6 +102,9 @@ export async function POST(request: NextRequest) {
 
     const ref = db.collection(COLLECTIONS.ADAMS_BRAINS).doc();
     const now = new Date() as unknown as BrainDoc["createdAt"];
+    const defaultApiKey =
+      parsed.data.gbrainRepo?.apiKey ||
+      `gbrain_${ref.id.slice(0, 8)}_${Math.random().toString(36).slice(2, 18)}`;
     const brain: BrainDoc = {
       id: ref.id,
       name: parsed.data.name,
@@ -110,6 +113,14 @@ export async function POST(request: NextRequest) {
       ownerIds: parsed.data.ownerIds,
       audience: parsed.data.audience,
       isActive: parsed.data.isActive,
+      gbrainRepo: {
+        enabled: parsed.data.gbrainRepo?.enabled ?? true,
+        githubRepo: parsed.data.gbrainRepo?.githubRepo ?? "bstitt-adams/AdamsHarnessPlatform",
+        branch: parsed.data.gbrainRepo?.branch ?? "main",
+        basePath: parsed.data.gbrainRepo?.basePath ?? `gbrain/${parsed.data.departmentId}`,
+        hermesWorkspacePath: parsed.data.gbrainRepo?.hermesWorkspacePath ?? "",
+        apiKey: defaultApiKey,
+      },
       createdByUid: actor.uid,
       createdAt: now,
       updatedAt: now,

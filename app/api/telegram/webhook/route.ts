@@ -10,6 +10,7 @@ import { COLLECTIONS } from "@/lib/schema";
 import { handleMailCommand } from "@/lib/mail/command-handler";
 import { sendTelegramMessage, resolveTelegramConfig } from "@/lib/mail/telegram-bot";
 import { requestHermesStructured } from "@/lib/hermes/client";
+import { queryAnyActiveBrain } from "@/lib/adams-brain/retrieval";
 
 interface TelegramUpdate {
   message?: {
@@ -116,6 +117,11 @@ export async function POST(request: NextRequest) {
 
     const isMailSlashCommand = /^\/?(summary|search|send|help)\b/i.test(text);
     if (!isMailSlashCommand && channelData.hermesEnabled !== false) {
+      const gbrainHit = await queryAnyActiveBrain(text);
+      if (gbrainHit && !gbrainHit.insufficientEvidence) {
+        await sendTelegramMessage(chatId, gbrainHit.answer);
+        return NextResponse.json({ success: true });
+      }
       try {
         const { data } = await requestHermesStructured({
           systemPrompt:

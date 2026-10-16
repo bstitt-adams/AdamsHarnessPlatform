@@ -425,6 +425,25 @@ export interface ModuleScheduleRunDoc {
   updatedAt: Timestamp;
 }
 
+export const gbrainPageTypeSchema = z.enum([
+  "sop",
+  "faq",
+  "entity",
+  "module_reference",
+  "document",
+]);
+export type GBrainPageType = z.infer<typeof gbrainPageTypeSchema>;
+
+export interface GBrainRepoConfig {
+  enabled?: boolean;
+  githubRepo?: string; // e.g. "bstitt-adams/AdamsGBrain"
+  branch?: string; // default "main"
+  basePath?: string; // default "brain"
+  hermesWorkspacePath?: string;
+  apiKey?: string;
+  lastSyncedAt?: string;
+}
+
 export interface BrainDoc {
   id: string;
   name: string;
@@ -433,16 +452,20 @@ export interface BrainDoc {
   ownerIds: string[];
   audience: "department" | "admins";
   isActive: boolean;
+  gbrainRepo?: GBrainRepoConfig;
   createdByUid: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
-export const brainSourceTypeSchema = z.enum(["upload", "platform"]);
+export const brainSourceTypeSchema = z.enum(["upload", "platform", "gbrain_page"]);
 export const brainConnectorSchema = z.enum([
   "approved_specifications",
   "site_calendars",
   "module_definitions",
+  "module_records",
+  "user_assets",
+  "system_docs",
 ]);
 export type BrainConnector = z.infer<typeof brainConnectorSchema>;
 export const brainSourceStatusSchema = z.enum([
@@ -458,6 +481,12 @@ export interface BrainSourceDoc {
   departmentId: string;
   type: z.infer<typeof brainSourceTypeSchema>;
   connector?: BrainConnector;
+  pageType?: GBrainPageType;
+  slug?: string;
+  tags?: string[];
+  compiledTruth?: string;
+  timelineNotes?: string;
+  markdownContent?: string;
   title: string;
   logicalKey: string;
   version: number;
@@ -499,6 +528,18 @@ export interface BrainQueryDoc {
   createdAt: Timestamp;
 }
 
+export const gbrainRepoConfigSchema = z
+  .object({
+    enabled: z.boolean().optional(),
+    githubRepo: z.string().trim().max(300).optional(),
+    branch: z.string().trim().max(100).optional(),
+    basePath: z.string().trim().max(200).optional(),
+    hermesWorkspacePath: z.string().trim().max(500).optional(),
+    apiKey: z.string().trim().max(200).optional(),
+    lastSyncedAt: z.string().max(100).optional(),
+  })
+  .optional();
+
 export const brainInputSchema = z.strictObject({
   name: trimmedString(200),
   description: z.string().trim().max(2000).default(""),
@@ -506,6 +547,7 @@ export const brainInputSchema = z.strictObject({
   ownerIds: stringList(50, 200),
   audience: z.enum(["department", "admins"]),
   isActive: z.boolean().default(true),
+  gbrainRepo: gbrainRepoConfigSchema,
 });
 
 export const brainPatchSchema = z.strictObject({
@@ -514,6 +556,7 @@ export const brainPatchSchema = z.strictObject({
   ownerIds: stringList(50, 200).optional(),
   audience: z.enum(["department", "admins"]).optional(),
   isActive: z.boolean().optional(),
+  gbrainRepo: gbrainRepoConfigSchema,
 });
 
 export const brainQueryInputSchema = z.strictObject({

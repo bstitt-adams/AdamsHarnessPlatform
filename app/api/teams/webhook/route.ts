@@ -10,6 +10,7 @@ import { COLLECTIONS } from "@/lib/schema";
 import { handleMailCommand } from "@/lib/mail/command-handler";
 import { sendTeamsReply, resolveTeamsConfig, type TeamsActivity } from "@/lib/mail/teams-bot";
 import { requestHermesStructured } from "@/lib/hermes/client";
+import { queryAnyActiveBrain } from "@/lib/adams-brain/retrieval";
 
 const hermesReplySchema = z.object({
   reply: z.string(),
@@ -114,6 +115,11 @@ export async function POST(request: NextRequest) {
         : channelData.hermesEnabled !== false;
 
     if (!isMailSlashCommand && hermesAllowed) {
+      const gbrainHit = await queryAnyActiveBrain(text);
+      if (gbrainHit && !gbrainHit.insufficientEvidence) {
+        await sendTeamsReply(activity, gbrainHit.answer);
+        return NextResponse.json({ success: true });
+      }
       try {
         const { data } = await requestHermesStructured({
           systemPrompt:
