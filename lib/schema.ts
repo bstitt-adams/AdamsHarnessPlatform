@@ -1419,12 +1419,19 @@ export interface UserMicrosoftTokenDoc {
   updatedAt: Timestamp;
 }
 
-/** Chat channel connections for a user (Telegram + Teams) */
+/** Chat channel connections for a user (Telegram + Teams + Hermes) */
 export interface UserChatChannelDoc {
   id: string;
   userId: string;
+  teamMemberId?: string;
+  displayName?: string;
+  email?: string;
+  role?: "superadmin" | "admin" | "team" | "affiliate" | "consultant" | "client";
+  telegramUserId?: string;
   telegramChatId?: string;
   telegramUsername?: string;
+  hermesEnabled?: boolean;
+  isActive?: boolean;
   teamsConversationId?: string;
   teamsUserEmail?: string;
   preferredChannel?: "telegram" | "teams" | "both";

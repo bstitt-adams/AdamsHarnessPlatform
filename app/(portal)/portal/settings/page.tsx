@@ -71,6 +71,7 @@ import {
   getBrowserNotificationStatus 
 } from "@/lib/notifications";
 import { FeatureVisibilitySettings } from "@/components/portal/feature-visibility-settings";
+import { TelegramUsersManager } from "@/components/portal/telegram-users-manager";
 import { useUserProfile } from "@/contexts/user-profile-context";
 import { isSuperAdmin } from "@/lib/permissions";
 
@@ -1016,6 +1017,8 @@ function SettingsPageContent() {
               <p className="text-xs text-muted-foreground">The test calls Telegram&apos;s API, registers the webhook, and stores the configuration for the application webhook.</p>
             </CardContent>
           </Card>
+
+          <TelegramUsersManager />
         </TabsContent>
 
         {/* Webhooks Tab */}
