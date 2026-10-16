@@ -85,6 +85,13 @@ export const SIDEBAR_FEATURES = {
   safetyRequestBox: { label: "Safety Request Box", section: "missionCritical", href: "/portal/safety-request-box" },
   orderTracking: { label: "Order Tracking", section: "missionCritical", href: "/portal/order-tracking" },
   mindchukClone: { label: "MindChuk Clone", section: "missionCritical", href: "/portal/mindchuk-clone" },
+
+  // My Mission Critical (User-scoped)
+  myTasks: { label: "My Tasks", section: "myMissionCritical", href: "/portal/my-tasks" },
+  myAssets: { label: "My Assets", section: "myMissionCritical", href: "/portal/my-assets" },
+  myTrainingAndCerts: { label: "My Training and Certs", section: "myMissionCritical", href: "/portal/my-training" },
+  myOrders: { label: "My Orders", section: "myMissionCritical", href: "/portal/my-orders" },
+  myIdeas: { label: "My Ideas", section: "myMissionCritical", href: "/portal/my-ideas" },
 } as const;
 
 export type FeatureKey = keyof typeof SIDEBAR_FEATURES;
@@ -110,6 +117,7 @@ export const SECTIONS = {
   admin: { label: "Admin" },
   initiatives: { label: "Initiatives" },
   missionCritical: { label: "Mission Critical" },
+  myMissionCritical: { label: "My Mission Critical" },
 } as const;
 
 export type SectionKey = keyof typeof SECTIONS;
@@ -212,6 +220,11 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       safetyRequestBox: true,
       orderTracking: true,
       mindchukClone: true,
+      myTasks: true,
+      myAssets: true,
+      myTrainingAndCerts: true,
+      myOrders: true,
+      myIdeas: true,
     },
     sections: {
       navigation: true,
@@ -220,6 +233,7 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       admin: false,
       initiatives: false,
       missionCritical: true,
+      myMissionCritical: true,
     },
     l83Tools: {
       transcription: true,
@@ -294,6 +308,11 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       safetyRequestBox: true,
       orderTracking: true,
       mindchukClone: true,
+      myTasks: true,
+      myAssets: true,
+      myTrainingAndCerts: true,
+      myOrders: true,
+      myIdeas: true,
     },
     sections: {
       navigation: true,
@@ -302,6 +321,7 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       admin: false,
       initiatives: false,
       missionCritical: true,
+      myMissionCritical: true,
     },
     l83Tools: Object.keys(L83_TOOLS).reduce((acc, key) => ({ ...acc, [key]: true }), {} as Record<L83ToolKey, boolean>),
   },

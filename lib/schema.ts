@@ -840,6 +840,59 @@ export interface PlatformDevReportDoc {
   updatedAt: Timestamp;
 }
 
+/** Tracked Asset assigned to a specific user */
+export interface UserAssetDoc {
+  id: string;
+  assignedToTeamMemberId: string;
+  assignedToName: string;
+  assignedToEmail: string;
+  assignedToUid?: string;
+  assetType: string; // e.g., "laptop", "cell phone", "ipad", "vehicle", "hotspot", or custom
+  assetName: string;
+  identifier: string; // Serial #, Phone #, Plate/VIN, Asset Tag
+  status: "active" | "maintenance" | "returned" | "lost";
+  notes?: string;
+  assignedByUid: string;
+  assignedByName: string;
+  assignedAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/** Material / Equipment Order associated with a user */
+export interface UserOrderDoc {
+  id: string;
+  requesterTeamMemberId: string;
+  requesterName: string;
+  requesterEmail: string;
+  requesterUid?: string;
+  orderNumber: string;
+  itemSummary: string;
+  jobsite: string;
+  vendor?: string;
+  quantity: number;
+  status: "requested" | "approved" | "ordered" | "shipped" | "delivered";
+  expectedDeliveryDate?: string;
+  notes?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/** User-submitted Idea / Process Improvement */
+export interface UserIdeaDoc {
+  id: string;
+  authorTeamMemberId: string;
+  authorName: string;
+  authorEmail: string;
+  authorUid?: string;
+  title: string;
+  category: string;
+  description: string;
+  impactSummary?: string;
+  status: "submitted" | "under_review" | "approved" | "implemented";
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 /** Event Ticket Type */
 export interface EventTicketType {
   id: string;
@@ -2249,6 +2302,9 @@ export const COLLECTIONS = {
   MODULE_NOTIFICATIONS: "moduleNotifications",
   MODULE_UPLOADS: "moduleUploads",
   MODULE_SETTINGS: "moduleSettings",
+  USER_ASSETS: "userAssets",
+  USER_ORDERS: "userOrders",
+  USER_IDEAS: "userIdeas",
   ADAMS_BRAINS: "adamsBrains",
   BRAIN_SOURCES: "brainSources",
   BRAIN_CHUNKS: "brainChunks",

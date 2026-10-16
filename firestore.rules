@@ -242,12 +242,35 @@ service cloud.firestore {
 
     // Platform settings may contain integration credentials; only admins can read/write them.
     match /platformSettings/{settingsId} {
-      allow read: if isAdmin() || (isAuthenticated() && settingsId == "feature-visibility");
+      allow read: if isAdmin() || (isAuthenticated() && (settingsId == "feature-visibility" || settingsId == "asset-types"));
       allow create, update, delete: if isAdmin();
       match /notifications/{notificationId} {
         allow read: if isAuthenticated();
         allow create, update, delete: if isAdmin();
       }
+    }
+
+    // User Assets (My Assets)
+    match /userAssets/{assetId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    // User Orders (My Orders)
+    match /userOrders/{orderId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // User Ideas (My Ideas)
+    match /userIdeas/{ideaId} {
+      allow read, create, update: if isAuthenticated();
+      allow delete: if isAdmin();
+    }
+
+    // Module App Settings
+    match /moduleSettings/{slug} {
+      allow read, write: if isAuthenticated();
     }
 
     // =========================================================================

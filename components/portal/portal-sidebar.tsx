@@ -97,6 +97,8 @@ import {
   Award,
   Wrench,
   X,
+  Laptop,
+  Lightbulb,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -168,6 +170,40 @@ const peopleItems: { title: string; href: string; icon: React.ElementType; badge
 
 // Productivity
 const productivityItems: { title: string; href: string; icon: React.ElementType; badge?: string; featureKey: FeatureKey }[] = [];
+
+// My Mission Critical (User-scoped)
+const myMissionCriticalItems: { title: string; href: string; icon: React.ElementType; badge?: string; featureKey: FeatureKey }[] = [
+  {
+    title: "My Tasks",
+    href: "/portal/my-tasks",
+    icon: CheckSquare,
+    featureKey: "myTasks",
+  },
+  {
+    title: "My Assets",
+    href: "/portal/my-assets",
+    icon: Laptop,
+    featureKey: "myAssets",
+  },
+  {
+    title: "My Training and Certs",
+    href: "/portal/my-training",
+    icon: GraduationCap,
+    featureKey: "myTrainingAndCerts",
+  },
+  {
+    title: "My Orders",
+    href: "/portal/my-orders",
+    icon: Package,
+    featureKey: "myOrders",
+  },
+  {
+    title: "My Ideas",
+    href: "/portal/my-ideas",
+    icon: Lightbulb,
+    featureKey: "myIdeas",
+  },
+];
 
 // Mission Critical
 const missionCriticalItems: { title: string; href: string; icon: React.ElementType; badge?: string; featureKey: FeatureKey }[] = [
@@ -527,6 +563,7 @@ export function PortalSidebar() {
     admin: false,
     adamsBusiness: true,
     missionCritical: true,
+    myMissionCritical: true,
   });
 
   const toggleSection = (section: keyof typeof openSections) => {
@@ -658,6 +695,9 @@ export function PortalSidebar() {
             </p>
           </div>
         )}
+
+        {/* My Mission Critical (User-scoped) */}
+        {renderSection("myMissionCritical", "My Mission Critical", myMissionCriticalItems)}
 
         {/* Adams Electric */}
         {(visibleAdamsBusinessItems.length > 0 || showSuperAdminInAdams) && (

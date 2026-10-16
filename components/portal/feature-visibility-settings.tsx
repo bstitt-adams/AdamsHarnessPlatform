@@ -67,6 +67,7 @@ const SECTION_ICONS: Record<SectionKey, React.ElementType> = {
   admin: Shield,
   initiatives: Rocket,
   missionCritical: Target,
+  myMissionCritical: UserCheck,
 };
 
 // Separate component to avoid button nesting in Collapsible
