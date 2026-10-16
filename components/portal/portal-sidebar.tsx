@@ -139,31 +139,10 @@ const projectManagementItems: { title: string; href: string; icon: React.Element
     badge: "AI",
     featureKey: "aiWorkforce",
   },
-  {
-    title: "EOS2 Dashboard",
-    href: "/portal/eos2",
-    icon: Target,
-    badge: "EOS",
-    featureKey: "eos2",
-  },
-  {
-    title: "Action Items",
-    href: "/portal/rocks",
-    icon: CheckSquare,
-    featureKey: "rocks",
-  },
 ];
 
 // Data
-const dataItems: { title: string; href: string; icon: React.ElementType; badge?: string; featureKey: FeatureKey }[] = [
-  {
-    title: "Apollo Search",
-    href: "/portal/apollo-search",
-    icon: Search,
-    badge: "AI",
-    featureKey: "apolloSearch",
-  },
-];
+const dataItems: { title: string; href: string; icon: React.ElementType; badge?: string; featureKey: FeatureKey }[] = [];
 
 // People
 const peopleItems: { title: string; href: string; icon: React.ElementType; badge?: string; featureKey: FeatureKey }[] = [];
@@ -342,36 +321,11 @@ const adamsBusinessItems: { title: string; href: string; icon: React.ElementType
     featureKey: "calendar",
   },
   {
-    title: "Meetings",
-    href: "/portal/meetings",
-    icon: Users,
-    featureKey: "meetings",
-  },
-  {
     title: "Proposal Creator",
     href: "/portal/proposals",
     icon: FileText,
     badge: "AI",
     featureKey: "proposals",
-  },
-  {
-    title: "Events",
-    href: "/portal/admin/events",
-    icon: Ticket,
-    featureKey: "events",
-  },
-  {
-    title: "Deals",
-    href: "/portal/deals",
-    icon: DollarSign,
-    featureKey: "deals",
-  },
-  {
-    title: "Supplier Search",
-    href: "/portal/supplier-search",
-    icon: Factory,
-    badge: "AI",
-    featureKey: "supplierSearch",
   },
   {
     title: "Team Members",
@@ -380,41 +334,10 @@ const adamsBusinessItems: { title: string; href: string; icon: React.ElementType
     featureKey: "teamMembers",
   },
   {
-    title: "Affiliates",
-    href: "/portal/affiliates",
-    icon: Users,
-    featureKey: "affiliates",
-  },
-  {
-    title: "Customers",
-    href: "/portal/customers",
-    icon: Building,
-    featureKey: "customers",
-  },
-  {
     title: "Documents",
     href: "/portal/documents",
     icon: FileText,
     featureKey: "documents",
-  },
-  {
-    title: "GoHighLevel",
-    href: "/portal/gohighlevel",
-    icon: Plug,
-    badge: "CRM",
-    featureKey: "gohighlevel",
-  },
-  {
-    title: "GHL Integration",
-    href: "/portal/admin/ghl-migration",
-    icon: ArrowRightLeft,
-    featureKey: "ghlMigration",
-  },
-  {
-    title: "Hero Carousel",
-    href: "/portal/admin/hero",
-    icon: Presentation,
-    featureKey: "heroManagement",
   },
   {
     title: "Image Manager",
@@ -441,28 +364,10 @@ const adamsBusinessItems: { title: string; href: string; icon: React.ElementType
     featureKey: "navigationManager",
   },
   {
-    title: "Revenue Config",
-    href: "/portal/admin/revenue",
-    icon: DollarSign,
-    featureKey: "revenueConfig",
-  },
-  {
-    title: "Alignable",
-    href: "/portal/admin/alignable",
-    icon: Network,
-    featureKey: "alignable",
-  },
-  {
     title: "Backup & Restore",
     href: "/portal/admin/backups",
     icon: Database,
     featureKey: "backups",
-  },
-  {
-    title: "Success Stories",
-    href: "/portal/admin/success-stories",
-    icon: Quote,
-    featureKey: "successStories",
   },
 ];
 
