@@ -1434,7 +1434,7 @@ export interface CalendarEventDoc {
   startDate: Timestamp;
   endDate: Timestamp;
   allDay?: boolean;
-  type: 'meeting' | 'rock' | 'todo' | 'issue' | 'custom' | 'one-to-one';
+  type: 'meeting' | 'rock' | 'todo' | 'issue' | 'training' | 'custom' | 'one-to-one';
   color?: string;
   attendees?: string[];
   location?: string;
@@ -1444,11 +1444,14 @@ export interface CalendarEventDoc {
   // GHL sync fields
   ghlEventId?: string;
   syncedToGhl?: boolean;
-  // Traction references
+  // Traction & Training references
   rockId?: string;
   todoId?: string;
   issueId?: string;
   meetingId?: string;
+  trainingCertId?: string;
+  workshopId?: string;
+  courseId?: string;
   // 1-to-1 reference
   oneToOneQueueItemId?: string;
   createdAt: Timestamp;

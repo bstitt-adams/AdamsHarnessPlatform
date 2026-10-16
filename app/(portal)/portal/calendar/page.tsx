@@ -44,10 +44,11 @@ import {
   Check,
   CalendarPlus,
   X,
+  GraduationCap,
 } from "lucide-react";
 import { collection, getDocs, updateDoc, deleteDoc, doc, Timestamp, addDoc, query, orderBy, onSnapshot } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { COLLECTIONS, type OneToOneQueueItemDoc, type CalendarEventDoc } from "@/lib/schema";
+import { COLLECTIONS, type OneToOneQueueItemDoc, type CalendarEventDoc, type UserTrainingCertDoc } from "@/lib/schema";
 import { showError, showSuccess } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
@@ -168,21 +169,67 @@ export default function CalendarPage() {
     }
   };
 
-  // Listen to built-in Firestore calendar events in real time
+  // Listen to built-in Firestore calendar events + training events in real time
   const loadCalendarEvents = () => {
     if (!db) return;
+
+    let baseCalendarEvents: CalendarEventData[] = [];
+    let trainingCertEvents: CalendarEventData[] = [];
+    let workshopTrainingEvents: CalendarEventData[] = [];
+    const syncedCertIds = new Set<string>();
+    const syncedWorkshopIds = new Set<string>();
+
+    const mergeAndDedupe = () => {
+      const combined = [
+        ...baseCalendarEvents,
+        ...trainingCertEvents.filter((e) => {
+          const certId = e.id.replace(/^cert-(comp|exp)-/, "");
+          return !syncedCertIds.has(certId);
+        }),
+        ...workshopTrainingEvents.filter((e) => {
+          const wsId = e.id.replace(/^workshop-/, "");
+          return !syncedWorkshopIds.has(wsId);
+        }),
+      ];
+
+      const seenIds = new Set<string>();
+      const seenSignatures = new Set<string>();
+      const deduped: CalendarEventData[] = [];
+
+      for (const ev of combined) {
+        if (seenIds.has(ev.id)) continue;
+        const d = ev.startDate;
+        const dateKey = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+        const sig = `${ev.title.trim().toLowerCase()}|${dateKey}|${ev.type}`;
+        if (seenSignatures.has(sig)) continue;
+        seenIds.add(ev.id);
+        seenSignatures.add(sig);
+        deduped.push(ev);
+      }
+
+      setEvents((prev) => {
+        const ghlOnly = prev.filter((event) => event.id.startsWith("ghl-"));
+        return [...ghlOnly, ...deduped];
+      });
+    };
 
     const eventsQuery = query(
       collection(db, COLLECTIONS.CALENDAR_EVENTS),
       orderBy("startDate", "asc")
     );
 
-    return onSnapshot(
+    const unsubCalendar = onSnapshot(
       eventsQuery,
       (snapshot) => {
         const firestoreEvents: CalendarEventData[] = [];
+        syncedCertIds.clear();
+        syncedWorkshopIds.clear();
+
         snapshot.forEach((docSnap) => {
           const data = docSnap.data() as CalendarEventDoc;
+          if (data.trainingCertId) syncedCertIds.add(data.trainingCertId);
+          if (data.workshopId) syncedWorkshopIds.add(data.workshopId);
+
           firestoreEvents.push({
             id: docSnap.id,
             title: data.title || "Untitled Event",
@@ -198,16 +245,97 @@ export default function CalendarPage() {
           });
         });
 
-        setEvents((prev) => {
-          // Keep GHL events and replace Firestore events
-          const ghlEvents = prev.filter((event) => event.id.startsWith("ghl-"));
-          return [...ghlEvents, ...firestoreEvents];
-        });
+        baseCalendarEvents = firestoreEvents;
+        mergeAndDedupe();
       },
       (error) => {
         console.error("Error loading calendar events:", error);
       }
     );
+
+    const parseLocalYmd = (ymd: string, hour: number) => {
+      const [y, m, d] = ymd.split("-").map(Number);
+      return new Date(y, (m || 1) - 1, d || 1, hour, 0, 0, 0);
+    };
+
+    const unsubTrainingCerts = onSnapshot(
+      collection(db, COLLECTIONS.USER_TRAINING_CERTS),
+      (snapshot) => {
+        const items: CalendarEventData[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() as UserTrainingCertDoc;
+          const userLabel = data.userName ? ` (${data.userName})` : "";
+          if (data.completionDate) {
+            items.push({
+              id: `cert-comp-${docSnap.id}`,
+              title: `Training: ${data.trainingTitle}${userLabel}`,
+              description: `${data.trainingCategory} · Issued by ${data.issuingOrganization}`,
+              startDate: parseLocalYmd(data.completionDate, 9),
+              endDate: parseLocalYmd(data.completionDate, 10),
+              allDay: true,
+              type: "training",
+              color: "#0ea5e9",
+              attendees: data.userName ? [data.userName] : [],
+              location: data.issuingOrganization,
+            });
+          }
+          if (data.expirationDate) {
+            items.push({
+              id: `cert-exp-${docSnap.id}`,
+              title: `Cert Expires: ${data.trainingTitle}${userLabel}`,
+              description: `Expiration / Renewal required · Issued by ${data.issuingOrganization}`,
+              startDate: parseLocalYmd(data.expirationDate, 9),
+              endDate: parseLocalYmd(data.expirationDate, 10),
+              allDay: true,
+              type: "training",
+              color: "#f59e0b",
+              attendees: data.userName ? [data.userName] : [],
+              location: data.issuingOrganization,
+            });
+          }
+        });
+        trainingCertEvents = items;
+        mergeAndDedupe();
+      },
+      () => {}
+    );
+
+    const unsubWorkshops = onSnapshot(
+      collection(db, "lms_workshops"),
+      (snapshot) => {
+        const items: CalendarEventData[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data.scheduledStart?.toDate) {
+            const start = data.scheduledStart.toDate() as Date;
+            const end = data.scheduledEnd?.toDate
+              ? (data.scheduledEnd.toDate() as Date)
+              : new Date(start.getTime() + 60 * 60 * 1000);
+            items.push({
+              id: `workshop-${docSnap.id}`,
+              title: `Training Workshop: ${data.title || "Workshop"}`,
+              description: data.description || data.shortDescription || "",
+              startDate: start,
+              endDate: end,
+              allDay: false,
+              type: "training",
+              color: "#0ea5e9",
+              attendees: data.instructorName ? [String(data.instructorName)] : [],
+              location: data.meetingUrl || "Adams Learning Academy",
+            });
+          }
+        });
+        workshopTrainingEvents = items;
+        mergeAndDedupe();
+      },
+      () => {}
+    );
+
+    return () => {
+      unsubCalendar();
+      unsubTrainingCerts();
+      unsubWorkshops();
+    };
   };
 
   // Initial load: Do full historical sync first time, then incremental syncs
@@ -280,21 +408,7 @@ export default function CalendarPage() {
         updatedAt: Timestamp.now(),
       });
       
-      // Add to local events
-      const newEvent: CalendarEventData = {
-        id: eventRef.id,
-        title: `1-to-1 with ${selectedQueueItem.teamMemberName}`,
-        description: `1-to-1 meeting with ${selectedQueueItem.teamMemberName}`,
-        startDate: scheduledDate,
-        endDate: endDate,
-        type: 'meeting',
-        color: '#f59e0b',
-        attendees: [selectedQueueItem.teamMemberName],
-        location: scheduleForm.location,
-      };
-      setEvents(prev => [...prev, newEvent]);
-      
-      // Remove from queue
+      // Remove from queue (calendar event state updates automatically via onSnapshot)
       setOneToOneQueue(prev => prev.filter(item => item.id !== selectedQueueItem.id));
       
       // Reset form
@@ -400,17 +514,34 @@ export default function CalendarPage() {
     // Save each event to Firestore AND sync to GHL immediately
     const savedEvents: CalendarEventData[] = [];
     let ghlSyncCount = 0;
+
+    const getDefaultHexColor = (type: CalendarEventData["type"]): string => {
+      switch (type) {
+        case "meeting":
+          return "#a855f7";
+        case "rock":
+          return "#3b82f6";
+        case "todo":
+          return "#22c55e";
+        case "issue":
+          return "#ef4444";
+        case "training":
+          return "#0ea5e9";
+        default:
+          return "#64748b";
+      }
+    };
     
     for (const newEvent of eventsToCreate) {
       try {
-        // 1. Save to Firestore first for persistence
+        // 1. Save to Firestore first for persistence (onSnapshot updates state automatically without duplicates)
         const firestoreEvent: Omit<CalendarEventDoc, 'id'> = {
           title: newEvent.title,
           description: newEvent.description || '',
           startDate: Timestamp.fromDate(newEvent.startDate),
           endDate: Timestamp.fromDate(newEvent.endDate),
           type: newEvent.type,
-          color: newEvent.color || '#3b82f6',
+          color: newEvent.color || getDefaultHexColor(newEvent.type),
           attendees: newEvent.attendees || [],
           location: newEvent.location || '',
           allDay: newEvent.allDay || false,
@@ -420,7 +551,7 @@ export default function CalendarPage() {
         };
         
         const docRef = await addDoc(collection(db, COLLECTIONS.CALENDAR_EVENTS), firestoreEvent);
-        const savedEvent = { ...newEvent, id: docRef.id };
+        const savedEvent = { ...newEvent, id: docRef.id, color: firestoreEvent.color };
         savedEvents.push(savedEvent);
         
         // 2. Sync to GoHighLevel immediately
@@ -461,14 +592,11 @@ export default function CalendarPage() {
       }
     }
     
-    // Add all saved events to state
-    setEvents((prev) => [...prev, ...savedEvents]);
-    
-    // Show success message
+    // Show success message (onSnapshot handles adding savedEvents to state cleanly without duplicates)
     if (event.recurring) {
-      showSuccess(`Created ${savedEvents.length} recurring events (${ghlSyncCount} synced to GHL)`);
+      showSuccess(`Created ${savedEvents.length} recurring events`);
     } else {
-      showSuccess(ghlSyncCount > 0 ? "Event created and synced to GoHighLevel" : "Event created locally");
+      showSuccess("Event created");
     }
   };
 
@@ -512,8 +640,22 @@ export default function CalendarPage() {
     }
   };
 
-  const handleEventDelete = (id: string) => {
+  const handleEventDelete = async (id: string) => {
     setEvents((prev) => prev.filter((event) => event.id !== id));
+    if (
+      db &&
+      !id.startsWith("ghl-") &&
+      !id.startsWith("cert-") &&
+      !id.startsWith("workshop-")
+    ) {
+      try {
+        await deleteDoc(doc(db, COLLECTIONS.CALENDAR_EVENTS, id));
+        showSuccess("Event deleted");
+      } catch (err) {
+        console.error("Error deleting calendar event:", err);
+        showError("Failed to delete event");
+      }
+    }
   };
 
   // Get unique team members from events (attendees)
@@ -535,6 +677,7 @@ export default function CalendarPage() {
 
   // Stats
   const meetingCount = events.filter((e) => e.type === "meeting").length;
+  const trainingCount = events.filter((e) => e.type === "training").length;
   const rockCount = events.filter((e) => e.type === "rock").length;
   const todoCount = events.filter((e) => e.type === "todo").length;
   const issueCount = events.filter((e) => e.type === "issue").length;
@@ -602,7 +745,7 @@ export default function CalendarPage() {
         {/* Calendar Tab */}
         <TabsContent value="calendar" className="space-y-6">
           {/* Stats */}
-          <div className="grid grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-4">
             <Card
               className={`cursor-pointer transition-all ${filterType === "meeting" ? "ring-2 ring-blue-500" : ""}`}
               onClick={() => setFilterType(filterType === "meeting" ? null : "meeting")}
@@ -614,6 +757,20 @@ export default function CalendarPage() {
                     <p className="text-2xl font-bold text-blue-600">{meetingCount}</p>
                   </div>
                   <Users className="h-8 w-8 text-blue-200" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card
+              className={`cursor-pointer transition-all ${filterType === "training" ? "ring-2 ring-sky-500" : ""}`}
+              onClick={() => setFilterType(filterType === "training" ? null : "training")}
+            >
+              <CardContent className="pt-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Training</p>
+                    <p className="text-2xl font-bold text-sky-600">{trainingCount}</p>
+                  </div>
+                  <GraduationCap className="h-8 w-8 text-sky-200" />
                 </div>
               </CardContent>
             </Card>
@@ -676,6 +833,7 @@ export default function CalendarPage() {
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="meeting">Meetings</SelectItem>
+                  <SelectItem value="training">Training &amp; Certs</SelectItem>
                   <SelectItem value="rock">Rocks</SelectItem>
                   <SelectItem value="todo">To-Dos</SelectItem>
                   <SelectItem value="issue">Issues</SelectItem>
@@ -760,6 +918,10 @@ export default function CalendarPage() {
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-blue-500" />
                   <span className="text-sm">Meetings</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-3 h-3 rounded-full bg-sky-500" />
+                  <span className="text-sm">Training &amp; Certs</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-3 h-3 rounded-full bg-purple-500" />

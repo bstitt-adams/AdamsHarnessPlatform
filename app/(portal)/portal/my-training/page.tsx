@@ -331,7 +331,7 @@ export default function MyTrainingAndCertsPage() {
         ? Number(formData.trainingHours)
         : undefined;
 
-      await addDoc(collection(db, COLLECTIONS.USER_TRAINING_CERTS), {
+      const certDocRef = await addDoc(collection(db, COLLECTIONS.USER_TRAINING_CERTS), {
         userId: targetUid || targetMemberId,
         teamMemberId: targetMemberId || targetUid,
         userName: viewedName,
@@ -354,7 +354,57 @@ export default function MyTrainingAndCertsPage() {
         updatedAt: Timestamp.now(),
       });
 
-      toast.success("Training & certification artifact uploaded and saved");
+      // Automatically sync training completion & expiration dates to the Adams Master Calendar
+      try {
+        const parseLocalDate = (ymd: string, hour: number) => {
+          const [y, m, d] = ymd.split("-").map(Number);
+          return new Date(y, (m || 1) - 1, d || 1, hour, 0, 0, 0);
+        };
+
+        if (formData.completionDate) {
+          const compStart = parseLocalDate(formData.completionDate, 9);
+          const compEnd = parseLocalDate(formData.completionDate, 10);
+          await addDoc(collection(db, COLLECTIONS.CALENDAR_EVENTS), {
+            title: `Training: ${formData.trainingTitle.trim()} (${viewedName})`,
+            description: `${formData.trainingCategory} · Issued by ${formData.issuingOrganization.trim()}${
+              formData.credentialId.trim() ? ` · ID: ${formData.credentialId.trim()}` : ""
+            }`,
+            startDate: Timestamp.fromDate(compStart),
+            endDate: Timestamp.fromDate(compEnd),
+            allDay: true,
+            type: "training",
+            color: "#0ea5e9",
+            attendees: [viewedName],
+            location: formData.issuingOrganization.trim(),
+            trainingCertId: certDocRef.id,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+          });
+        }
+
+        if (formData.expirationDate) {
+          const expStart = parseLocalDate(formData.expirationDate, 9);
+          const expEnd = parseLocalDate(formData.expirationDate, 10);
+          await addDoc(collection(db, COLLECTIONS.CALENDAR_EVENTS), {
+            title: `Cert Expires: ${formData.trainingTitle.trim()} (${viewedName})`,
+            description: `Renewal required for ${formData.trainingTitle.trim()} · Issued by ${formData.issuingOrganization.trim()}`,
+            startDate: Timestamp.fromDate(expStart),
+            endDate: Timestamp.fromDate(expEnd),
+            allDay: true,
+            type: "training",
+            color: "#f59e0b",
+            attendees: [viewedName],
+            location: formData.issuingOrganization.trim(),
+            trainingCertId: certDocRef.id,
+            createdAt: Timestamp.now(),
+            updatedAt: Timestamp.now(),
+          });
+        }
+      } catch (calErr) {
+        console.warn("Could not sync training event to Master Calendar:", calErr);
+      }
+
+      toast.success("Training & certification saved and added to Master Calendar");
       setFormData({
         trainingTitle: "",
         trainingCategory: "OSHA / Safety Compliance",
@@ -396,6 +446,20 @@ export default function MyTrainingAndCertsPage() {
     if (!confirm(`Delete training certificate "${item.trainingTitle}"?`)) return;
     try {
       await deleteDoc(doc(db, COLLECTIONS.USER_TRAINING_CERTS, item.id));
+      // Also remove linked Master Calendar events
+      try {
+        const linkedCalSnap = await getDocs(
+          query(
+            collection(db, COLLECTIONS.CALENDAR_EVENTS),
+            where("trainingCertId", "==", item.id)
+          )
+        );
+        for (const calDoc of linkedCalSnap.docs) {
+          await deleteDoc(doc(db, COLLECTIONS.CALENDAR_EVENTS, calDoc.id));
+        }
+      } catch {
+        // non-blocking
+      }
       toast.success("Training record removed");
       await loadTraining();
     } catch {

@@ -33,6 +33,7 @@ import {
   Mountain,
   Flag,
   ListTodo,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -44,7 +45,7 @@ export interface CalendarEventData {
   startDate: Date;
   endDate: Date;
   allDay?: boolean;
-  type: "meeting" | "rock" | "todo" | "issue" | "custom";
+  type: "meeting" | "rock" | "todo" | "issue" | "training" | "custom";
   color?: string;
   attendees?: string[];
   location?: string;
@@ -112,6 +113,7 @@ const getEventColor = (type: CalendarEventData["type"]): string => {
     case "rock": return "bg-blue-500";
     case "todo": return "bg-green-500";
     case "issue": return "bg-red-500";
+    case "training": return "bg-sky-500";
     default: return "bg-gray-500";
   }
 };
@@ -122,6 +124,7 @@ const getEventIcon = (type: CalendarEventData["type"]) => {
     case "rock": return <Mountain className="h-3 w-3" />;
     case "todo": return <ListTodo className="h-3 w-3" />;
     case "issue": return <Flag className="h-3 w-3" />;
+    case "training": return <GraduationCap className="h-3 w-3" />;
     default: return <CalendarIcon className="h-3 w-3" />;
   }
 };
@@ -155,10 +158,17 @@ function EventForm({ event, selectedDate, onSave, onCancel }: EventFormProps) {
   const [title, setTitle] = useState(event?.title || "");
   const [description, setDescription] = useState(event?.description || "");
   const [type, setType] = useState<CalendarEventData["type"]>(event?.type || "custom");
+  const formatLocalDateInput = (d: Date) => {
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth() + 1).padStart(2, "0");
+    const dd = String(d.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  };
+
   const [startDate, setStartDate] = useState(
-    event?.startDate.toISOString().split("T")[0] || 
-    selectedDate?.toISOString().split("T")[0] || 
-    new Date().toISOString().split("T")[0]
+    event?.startDate ? formatLocalDateInput(event.startDate) :
+    selectedDate ? formatLocalDateInput(selectedDate) :
+    formatLocalDateInput(new Date())
   );
   const [startTime, setStartTime] = useState(
     event?.startDate ? `${event.startDate.getHours().toString().padStart(2, "0")}:${event.startDate.getMinutes().toString().padStart(2, "0")}` : "09:00"
@@ -173,21 +183,19 @@ function EventForm({ event, selectedDate, onSave, onCancel }: EventFormProps) {
   const [isRecurring, setIsRecurring] = useState(!!event?.recurring);
   const [recurringFrequency, setRecurringFrequency] = useState<"daily" | "weekly" | "monthly">(event?.recurring?.frequency || "weekly");
   const [recurringUntil, setRecurringUntil] = useState(
-    event?.recurring?.until?.toISOString().split("T")[0] || 
-    new Date(new Date().setMonth(new Date().getMonth() + 3)).toISOString().split("T")[0]
+    event?.recurring?.until ? formatLocalDateInput(event.recurring.until) :
+    formatLocalDateInput(new Date(new Date().setMonth(new Date().getMonth() + 3)))
   );
 
   const handleSubmit = () => {
     if (!title.trim()) return;
 
+    const [year, month, day] = startDate.split("-").map(Number);
     const [startHour, startMin] = startTime.split(":").map(Number);
     const [endHour, endMin] = endTime.split(":").map(Number);
 
-    const start = new Date(startDate);
-    start.setHours(startHour, startMin, 0, 0);
-
-    const end = new Date(startDate);
-    end.setHours(endHour, endMin, 0, 0);
+    const start = new Date(year, (month || 1) - 1, day || 1, startHour || 0, startMin || 0, 0, 0);
+    const end = new Date(year, (month || 1) - 1, day || 1, endHour || 0, endMin || 0, 0, 0);
 
     const eventData: Omit<CalendarEventData, "id"> = {
       title,
@@ -201,9 +209,10 @@ function EventForm({ event, selectedDate, onSave, onCancel }: EventFormProps) {
 
     // Add recurring info if enabled
     if (isRecurring) {
+      const [uYear, uMonth, uDay] = recurringUntil.split("-").map(Number);
       eventData.recurring = {
         frequency: recurringFrequency,
-        until: new Date(recurringUntil),
+        until: new Date(uYear, (uMonth || 1) - 1, uDay || 1, 23, 59, 59, 999),
         dayOfWeek: start.getDay(),
       };
     }
@@ -232,6 +241,7 @@ function EventForm({ event, selectedDate, onSave, onCancel }: EventFormProps) {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="meeting">Meeting</SelectItem>
+              <SelectItem value="training">Training / Certification</SelectItem>
               <SelectItem value="rock">Rock Milestone</SelectItem>
               <SelectItem value="todo">To-Do</SelectItem>
               <SelectItem value="issue">Issue</SelectItem>
@@ -678,6 +688,10 @@ export function BuiltInCalendar({
               <div className="flex items-center gap-1">
                 <div className="w-3 h-3 rounded bg-red-500" />
                 <span>Issue</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 rounded bg-sky-500" />
+                <span>Training</span>
               </div>
             </div>
           </>

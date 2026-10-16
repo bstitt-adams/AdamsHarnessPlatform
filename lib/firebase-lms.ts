@@ -1017,6 +1017,35 @@ export async function createWorkshop(data: {
 
   await setDoc(newDocRef, workshopDoc);
 
+  // Also add to Adams Master Calendar (calendarEvents)
+  if (data.scheduledStart) {
+    try {
+      const end =
+        data.scheduledEnd ||
+        new Date(data.scheduledStart.getTime() + 60 * 60 * 1000);
+      const calRef = doc(collection(db, "calendarEvents"));
+      await setDoc(calRef, {
+        title: `Training Workshop: ${data.title}`,
+        description:
+          data.description ||
+          data.shortDescription ||
+          `Instructor: ${data.instructorName}`,
+        startDate: Timestamp.fromDate(data.scheduledStart),
+        endDate: Timestamp.fromDate(end),
+        allDay: false,
+        type: "training",
+        color: "#0ea5e9",
+        attendees: [data.instructorName],
+        location: data.meetingUrl || "Adams Learning Academy",
+        workshopId: newDocRef.id,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+    } catch (calErr) {
+      console.warn("Could not add workshop to Master Calendar:", calErr);
+    }
+  }
+
   // Update category workshop count
   if (data.categoryId) {
     const categoryRef = doc(db, LMS_COLLECTIONS.CATEGORIES, data.categoryId);
