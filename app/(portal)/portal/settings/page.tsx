@@ -88,101 +88,7 @@ interface ApiKeyConfig {
   lastTested?: string;
 }
 
-const apiConfigs: ApiKeyConfig[] = [
-  {
-    id: "mattermost",
-    name: "Mattermost",
-    description: "Team communication and collaboration platform",
-    icon: MessageSquare,
-    keyField: "Personal Access Token",
-    webhookField: "Incoming Webhook URL",
-    additionalFields: [
-      { name: "serverUrl", label: "Server URL", placeholder: "https://your-mattermost-server.com" },
-      { name: "teamId", label: "Team ID", placeholder: "team-id" },
-    ],
-    status: "disconnected",
-  },
-  {
-    id: "apollo",
-    name: "Apollo.AI",
-    description: "Sales intelligence and engagement platform",
-    icon: Zap,
-    keyField: "API Key",
-    additionalFields: [
-      { name: "accountId", label: "Account ID", placeholder: "your-account-id" },
-    ],
-    status: "disconnected",
-  },
-  {
-    id: "gohighlevel",
-    name: "GoHighLevel",
-    description: "All-in-one marketing and CRM platform",
-    icon: Zap,
-    keyField: "Private API Key",
-    additionalFields: [
-      { name: "locationId", label: "Location ID", placeholder: "location-id" },
-      { name: "agencyId", label: "Agency ID", placeholder: "agency-id" },
-    ],
-    status: "disconnected",
-  },
-  {
-    id: "zoom",
-    name: "Zoom",
-    description: "Video conferencing and meetings",
-    icon: Video,
-    keyField: "API Key",
-    additionalFields: [
-      { name: "apiSecret", label: "API Secret", placeholder: "your-api-secret" },
-      { name: "accountId", label: "Account ID", placeholder: "account-id" },
-    ],
-    status: "disconnected",
-  },
-  {
-    id: "linkedin",
-    name: "LinkedIn",
-    description: "Professional networking and content publishing",
-    icon: Zap,
-    keyField: "Access Token",
-    additionalFields: [
-      { name: "clientId", label: "Client ID", placeholder: "your-client-id" },
-      { name: "clientSecret", label: "Client Secret", placeholder: "your-client-secret" },
-      { name: "organizationId", label: "Organization ID (optional)", placeholder: "organization-urn" },
-    ],
-    status: "disconnected",
-  },
-  {
-    id: "docuseal",
-    name: "DocuSeal",
-    description: "Electronic document signing and management",
-    icon: FileSignature,
-    keyField: "API Key",
-    additionalFields: [
-      { name: "webhookSecret", label: "Webhook Secret (optional)", placeholder: "your-webhook-secret" },
-    ],
-    status: "disconnected",
-  },
-  {
-    id: "mercury",
-    name: "Mercury Bank",
-    description: "Business banking with API access for accounts and transactions",
-    icon: Server,
-    keyField: "API Token",
-    additionalFields: [],
-    status: "disconnected",
-  },
-  {
-    id: "stripe",
-    name: "Stripe",
-    description: "Payment processing for event tickets and subscriptions",
-    icon: Zap,
-    keyField: "Secret Key",
-    additionalFields: [
-      { name: "publishableKey", label: "Publishable Key", placeholder: "pk_live_..." },
-      { name: "webhookSecret", label: "Webhook Secret", placeholder: "whsec_..." },
-    ],
-    status: "disconnected",
-  },
-];
+const apiConfigs: ApiKeyConfig[] = [];
 
 const llmProviders = [
   { id: "openai", name: "OpenAI", models: ["gpt-4o", "gpt-4-turbo", "gpt-3.5-turbo"], supportsCustomUrl: false },
@@ -197,8 +103,13 @@ const SETTINGS_DOC_ID = "global";
 
 function SettingsPageContent() {
   const searchParams = useSearchParams();
-  const defaultTab = searchParams.get("tab") || "integrations";
+  const rawTab = searchParams.get("tab") || "integrations";
+  const isIntegrationSubTab = ["llm", "hermes", "telegram", "teams"].includes(rawTab);
+  const defaultTab = isIntegrationSubTab ? "integrations" : rawTab;
   const [activeTab, setActiveTab] = useState(defaultTab);
+  const [integrationSubTab, setIntegrationSubTab] = useState(
+    isIntegrationSubTab ? rawTab : "llm",
+  );
   const [showKeys, setShowKeys] = useState<Record<string, boolean>>({});
   const [apiKeys, setApiKeys] = useState<Record<string, Record<string, string>>>({});
   const [testingStatus, setTestingStatus] = useState<Record<string, "testing" | "success" | "error" | null>>({});
@@ -670,161 +581,28 @@ function SettingsPageContent() {
       <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
         <TabsList className="flex-wrap h-auto gap-1">
           <TabsTrigger value="integrations">Integrations</TabsTrigger>
-          <TabsTrigger value="llm">LLM Configuration</TabsTrigger>
-          <TabsTrigger value="hermes">Hermes Integration</TabsTrigger>
-          <TabsTrigger value="telegram">Telegram</TabsTrigger>
-          <TabsTrigger value="teams">Microsoft Teams</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="social">Social Links</TabsTrigger>
           <TabsTrigger value="visibility">Feature Visibility</TabsTrigger>
         </TabsList>
 
-        {/* Integrations Tab */}
+        {/* Integrations Tab (contains LLM Configuration, Hermes Integration, Telegram, Microsoft Teams) */}
         <TabsContent value="integrations" className="space-y-6">
-          <div className="grid gap-6">
-            {apiConfigs.map((config) => (
-              <Card key={config.id}>
-                <CardHeader>
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 rounded-lg bg-primary/10">
-                        <config.icon className="h-6 w-6 text-primary" />
-                      </div>
-                      <div>
-                        <CardTitle className="flex items-center gap-2">
-                          {config.name}
-                          <Badge
-                            variant={
-                              testingStatus[config.id] === "success"
-                                ? "default"
-                                : testingStatus[config.id] === "error"
-                                ? "destructive"
-                                : "secondary"
-                            }
-                          >
-                            {testingStatus[config.id] === "success"
-                              ? "Connected"
-                              : testingStatus[config.id] === "error"
-                              ? "Error"
-                              : "Not Connected"}
-                          </Badge>
-                        </CardTitle>
-                        <CardDescription>{config.description}</CardDescription>
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => testConnection(config.id)}
-                      disabled={testingStatus[config.id] === "testing"}
-                    >
-                      {testingStatus[config.id] === "testing" ? (
-                        <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
-                      ) : (
-                        <TestTube className="mr-2 h-4 w-4" />
-                      )}
-                      Test Connection
-                    </Button>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <Label htmlFor={`${config.id}-key`}>{config.keyField}</Label>
-                      <div className="relative">
-                        <Input
-                          id={`${config.id}-key`}
-                          type={showKeys[config.id] ? "text" : "password"}
-                          placeholder={`Enter your ${config.keyField.toLowerCase()}`}
-                          value={apiKeys[config.id]?.apiKey || ""}
-                          onChange={(e) => updateApiKey(config.id, "apiKey", e.target.value)}
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="absolute right-0 top-0 h-full"
-                          onClick={() => toggleShowKey(config.id)}
-                        >
-                          {showKeys[config.id] ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
+          <Tabs
+            value={integrationSubTab}
+            onValueChange={setIntegrationSubTab}
+            className="space-y-6"
+          >
+            <TabsList className="flex-wrap h-auto gap-1">
+              <TabsTrigger value="llm">LLM Configuration</TabsTrigger>
+              <TabsTrigger value="hermes">Hermes Integration</TabsTrigger>
+              <TabsTrigger value="telegram">Telegram</TabsTrigger>
+              <TabsTrigger value="teams">Microsoft Teams</TabsTrigger>
+            </TabsList>
 
-                    {config.webhookField && (
-                      <div className="space-y-2">
-                        <Label htmlFor={`${config.id}-webhook`}>{config.webhookField}</Label>
-                        <Input
-                          id={`${config.id}-webhook`}
-                          placeholder={`Enter your ${config.webhookField.toLowerCase()}`}
-                          value={apiKeys[config.id]?.webhook || ""}
-                          onChange={(e) => updateApiKey(config.id, "webhook", e.target.value)}
-                        />
-                      </div>
-                    )}
-
-                    {config.additionalFields?.map((field) => (
-                      <div key={field.name} className="space-y-2">
-                        <Label htmlFor={`${config.id}-${field.name}`}>{field.label}</Label>
-                        <Input
-                          id={`${config.id}-${field.name}`}
-                          placeholder={field.placeholder}
-                          value={apiKeys[config.id]?.[field.name] || ""}
-                          onChange={(e) => updateApiKey(config.id, field.name, e.target.value)}
-                        />
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Stripe-specific link to Event Management */}
-                  {config.id === "stripe" && (
-                    <div className="mt-4 pt-4 border-t">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium">Event Ticketing</p>
-                          <p className="text-xs text-muted-foreground">
-                            Stripe is used for processing event ticket payments
-                          </p>
-                        </div>
-                        <Button variant="outline" size="sm" asChild>
-                          <a href="/portal/admin/events">
-                            Manage Events
-                          </a>
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* GoHighLevel-specific link to integration management */}
-                  {config.id === "gohighlevel" && (
-                    <div className="mt-4 pt-4 border-t">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium">Integration Management</p>
-                          <p className="text-xs text-muted-foreground">
-                            Manage connected accounts, workflows, and sync settings
-                          </p>
-                        </div>
-                        <Button variant="outline" size="sm" asChild>
-                          <a href="/portal/gohighlevel">
-                            Manage GoHighLevel
-                          </a>
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-
-        {/* LLM Configuration Tab */}
-        <TabsContent value="llm" className="space-y-6">
+            {/* LLM Configuration Sub-Tab */}
+            <TabsContent value="llm" className="space-y-6">
           <Card>
             <CardHeader>
               <div className="flex items-center gap-3">
@@ -1196,6 +974,8 @@ function SettingsPageContent() {
           </Card>
 
           <TeamsUsersManager />
+            </TabsContent>
+          </Tabs>
         </TabsContent>
 
         {/* Webhooks Tab */}
