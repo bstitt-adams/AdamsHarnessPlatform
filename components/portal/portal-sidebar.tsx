@@ -375,7 +375,7 @@ export function PortalSidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { getDisplayName, getInitials, profile, linkedTeamMember, actualTeamMember, isAuthenticated } = useUserProfile();
-  const { canSeeFeature, canSeeSection, isPreviewMode } = useFeatureVisibility();
+  const { canSeeFeature, canSeeSection, isPreviewMode, effectiveRole } = useFeatureVisibility();
   const [opportunitiesCount, setOpportunitiesCount] = useState(0);
   const [projectsCount, setProjectsCount] = useState(0);
   const [navSearch, setNavSearch] = useState("");
@@ -704,7 +704,9 @@ export function PortalSidebar() {
                   </Avatar>
                   <div className="flex flex-col items-start text-sm">
                     <span className="font-medium">{getDisplayName()}</span>
-                    <span className="text-xs text-sidebar-foreground/60 capitalize">{profile.role.replace("_", " ")}</span>
+                    <span className="text-xs text-sidebar-foreground/60 capitalize">
+                      {effectiveRole === "team" ? "Team Member" : effectiveRole.replace("_", " ")}
+                    </span>
                   </div>
                   <ChevronUp className="ml-auto h-4 w-4" />
                 </SidebarMenuButton>

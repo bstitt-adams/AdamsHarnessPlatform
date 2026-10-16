@@ -100,9 +100,13 @@ export default function MyAssetsPage() {
   } = useUserProfile();
   const { effectiveRole } = useFeatureVisibility();
 
-  // Check if the logged-in user is an admin (unless previewing a non-admin role)
-  const actualRole = actualTeamMember?.role || linkedTeamMember?.role || "team";
-  const isAdmin = isAdminRole(actualRole) && isAdminRole(effectiveRole);
+  // Only show Admin / SuperAdmin controls when the user's effective role is admin or superadmin
+  const viewedRole = linkedTeamMember?.role || "team";
+  const actualRole = actualTeamMember?.role || viewedRole;
+  const isAdmin =
+    isAdminRole(actualRole) &&
+    isAdminRole(viewedRole) &&
+    isAdminRole(effectiveRole);
 
   const [assets, setAssets] = useState<UserAssetDoc[]>([]);
   const [teamMembers, setTeamMembers] = useState<TeamMemberDoc[]>([]);

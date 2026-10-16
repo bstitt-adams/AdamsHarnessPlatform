@@ -18,7 +18,7 @@ export interface UserProfile {
   location: string;
   bio: string;
   avatarUrl: string;
-  role: "admin" | "affiliate" | "customer" | "team_member" | "client";
+  role: "superadmin" | "admin" | "affiliate" | "customer" | "team_member" | "client";
   
   // Affiliate-specific fields
   isAffiliate: boolean;
@@ -159,7 +159,8 @@ function mapTeamMemberToProfile(teamMember: TeamMemberDoc): Partial<UserProfile>
     location: teamMember.location || "",
     bio: teamMember.bio || "",
     avatarUrl: teamMember.avatar || "",
-    role: teamMember.role === "admin" ? "admin" : 
+    role: teamMember.role === "superadmin" ? "superadmin" :
+          teamMember.role === "admin" ? "admin" : 
           teamMember.role === "affiliate" ? "affiliate" : 
           teamMember.role === "consultant" ? "affiliate" :
           teamMember.role === "client" ? "client" : "team_member",
