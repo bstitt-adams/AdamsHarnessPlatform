@@ -27,6 +27,7 @@ import {
   SidebarMenuBadge,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -95,6 +96,7 @@ import {
   HardHat,
   Award,
   Wrench,
+  X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -435,9 +437,14 @@ export function PortalSidebar() {
   const { canSeeFeature, canSeeSection, isPreviewMode } = useFeatureVisibility();
   const [opportunitiesCount, setOpportunitiesCount] = useState(0);
   const [projectsCount, setProjectsCount] = useState(0);
+  const [navSearch, setNavSearch] = useState("");
   const currentUserRole = linkedTeamMember?.role || "affiliate";
   const actualUserRole = actualTeamMember?.role || currentUserRole;
   const showSuperAdminLink = isSuperAdmin(actualUserRole) && canSeeFeature("superadminControls");
+  const normalizedSearch = navSearch.trim().toLowerCase();
+
+  const matchesSearch = (title: string) =>
+    normalizedSearch === "" || title.toLowerCase().includes(normalizedSearch);
 
   // Handle sign out
   const handleSignOut = async () => {
@@ -536,28 +543,30 @@ export function PortalSidebar() {
   // Helper to render menu items
   const renderMenuItems = (items: typeof systemManagementItems) => (
     <SidebarMenu>
-      {items.filter(item => canSeeFeature(item.featureKey)).map((item) => {
-        const dynamicCount = getDynamicCount(item.href);
-        return (
-          <SidebarMenuItem key={item.href}>
-            <SidebarMenuButton
-              asChild
-              isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
-              tooltip={item.title}
-            >
-              <Link href={item.href}>
-                <item.icon className="h-4 w-4" />
-                <span>{item.title}</span>
-              </Link>
-            </SidebarMenuButton>
-            {dynamicCount !== null ? (
-              <SidebarMenuBadge>{dynamicCount}</SidebarMenuBadge>
-            ) : item.badge ? (
-              <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
-            ) : null}
-          </SidebarMenuItem>
-        );
-      })}
+      {items
+        .filter((item) => canSeeFeature(item.featureKey) && matchesSearch(item.title))
+        .map((item) => {
+          const dynamicCount = getDynamicCount(item.href);
+          return (
+            <SidebarMenuItem key={item.href}>
+              <SidebarMenuButton
+                asChild
+                isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
+                tooltip={item.title}
+              >
+                <Link href={item.href}>
+                  <item.icon className="h-4 w-4" />
+                  <span>{item.title}</span>
+                </Link>
+              </SidebarMenuButton>
+              {dynamicCount !== null ? (
+                <SidebarMenuBadge>{dynamicCount}</SidebarMenuBadge>
+              ) : item.badge ? (
+                <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
+              ) : null}
+            </SidebarMenuItem>
+          );
+        })}
     </SidebarMenu>
   );
 
@@ -567,16 +576,20 @@ export function PortalSidebar() {
     label: string,
     items: typeof systemManagementItems
   ) => {
-    const visibleItems = items.filter(item => canSeeFeature(item.featureKey));
+    const visibleItems = items.filter(
+      (item) => canSeeFeature(item.featureKey) && matchesSearch(item.title)
+    );
     if (visibleItems.length === 0) return null;
 
+    const isOpen = normalizedSearch !== "" ? true : openSections[sectionKey];
+
     return (
-      <Collapsible open={openSections[sectionKey]} onOpenChange={() => toggleSection(sectionKey)}>
+      <Collapsible open={isOpen} onOpenChange={() => toggleSection(sectionKey)}>
         <SidebarGroup>
           <CollapsibleTrigger asChild>
             <SidebarGroupLabel className="cursor-pointer hover:bg-sidebar-accent/50 rounded-md flex items-center justify-between pr-2">
               <span>{label}</span>
-              {openSections[sectionKey] ? (
+              {isOpen ? (
                 <ChevronDown className="h-4 w-4 text-sidebar-foreground/60" />
               ) : (
                 <ChevronRight className="h-4 w-4 text-sidebar-foreground/60" />
@@ -593,10 +606,16 @@ export function PortalSidebar() {
     );
   };
 
+  const visibleAdamsBusinessItems = adamsBusinessItems.filter(
+    (item) => canSeeFeature(item.featureKey) && matchesSearch(item.title)
+  );
+  const showSuperAdminInAdams = showSuperAdminLink && matchesSearch("SuperAdmin Controls");
+  const isAdamsBusinessOpen = normalizedSearch !== "" ? true : openSections.adamsBusiness;
+
   return (
     <Sidebar>
-      <SidebarHeader className="border-b border-sidebar-border">
-        <Link href="/portal" className="flex items-center gap-2 px-2 py-4">
+      <SidebarHeader className="border-b border-sidebar-border pb-3">
+        <Link href="/portal" className="flex items-center gap-2 px-2 pt-3 pb-2">
           <NextImage
             src="/images/adamselectric_logo.png"
             alt="Adams Electric"
@@ -605,6 +624,29 @@ export function PortalSidebar() {
             className="h-10 w-auto"
           />
         </Link>
+        <div className="px-2">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              value={navSearch}
+              onChange={(e) => setNavSearch(e.target.value)}
+              placeholder="Search navigation..."
+              aria-label="Search navigation"
+              className="h-8 pl-8 pr-7 text-xs bg-sidebar-accent/40 border-sidebar-border"
+            />
+            {navSearch && (
+              <button
+                type="button"
+                onClick={() => setNavSearch("")}
+                aria-label="Clear navigation search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
       </SidebarHeader>
 
       <SidebarContent>
@@ -618,58 +660,60 @@ export function PortalSidebar() {
         )}
 
         {/* Adams Electric */}
-        <Collapsible open={openSections.adamsBusiness} onOpenChange={() => toggleSection("adamsBusiness")}>
-          <SidebarGroup>
-            <CollapsibleTrigger asChild>
-              <SidebarGroupLabel className="cursor-pointer hover:bg-sidebar-accent/50 rounded-md flex items-center justify-between pr-2">
-                <span>Adams Electric</span>
-                {openSections.adamsBusiness ? (
-                  <ChevronDown className="h-4 w-4 text-sidebar-foreground/60" />
-                ) : (
-                  <ChevronRight className="h-4 w-4 text-sidebar-foreground/60" />
-                )}
-              </SidebarGroupLabel>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {adamsBusinessItems.filter(item => canSeeFeature(item.featureKey)).map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
-                        tooltip={item.title}
-                      >
-                        <Link href={item.href}>
-                          <item.icon className="h-4 w-4" />
-                          <span>{item.title}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                      {item.badge && (
-                        <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
-                      )}
-                    </SidebarMenuItem>
-                  ))}
-                  {/* SuperAdmin Controls - Only visible to superadmins */}
-                  {showSuperAdminLink && (
-                    <SidebarMenuItem>
-                      <SidebarMenuButton
-                        asChild
-                        isActive={pathname === "/portal/admin/superadmin"}
-                        tooltip="SuperAdmin Controls"
-                      >
-                        <Link href="/portal/admin/superadmin">
-                          <Shield className="h-4 w-4" />
-                          <span>SuperAdmin Controls</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
+        {(visibleAdamsBusinessItems.length > 0 || showSuperAdminInAdams) && (
+          <Collapsible open={isAdamsBusinessOpen} onOpenChange={() => toggleSection("adamsBusiness")}>
+            <SidebarGroup>
+              <CollapsibleTrigger asChild>
+                <SidebarGroupLabel className="cursor-pointer hover:bg-sidebar-accent/50 rounded-md flex items-center justify-between pr-2">
+                  <span>Adams Electric</span>
+                  {isAdamsBusinessOpen ? (
+                    <ChevronDown className="h-4 w-4 text-sidebar-foreground/60" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 text-sidebar-foreground/60" />
                   )}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
-          </SidebarGroup>
-        </Collapsible>
+                </SidebarGroupLabel>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {visibleAdamsBusinessItems.map((item) => (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={pathname === item.href || pathname.startsWith(item.href + "/")}
+                          tooltip={item.title}
+                        >
+                          <Link href={item.href}>
+                            <item.icon className="h-4 w-4" />
+                            <span>{item.title}</span>
+                          </Link>
+                        </SidebarMenuButton>
+                        {item.badge && (
+                          <SidebarMenuBadge>{item.badge}</SidebarMenuBadge>
+                        )}
+                      </SidebarMenuItem>
+                    ))}
+                    {/* SuperAdmin Controls - Only visible to superadmins */}
+                    {showSuperAdminInAdams && (
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={pathname === "/portal/admin/superadmin"}
+                          tooltip="SuperAdmin Controls"
+                        >
+                          <Link href="/portal/admin/superadmin">
+                            <Shield className="h-4 w-4" />
+                            <span>SuperAdmin Controls</span>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        )}
 
         {/* System Management */}
         {renderSection("systemManagement", "System Management", systemManagementItems)}
