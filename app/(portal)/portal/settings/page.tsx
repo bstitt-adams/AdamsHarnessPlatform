@@ -72,6 +72,7 @@ import {
 } from "@/lib/notifications";
 import { FeatureVisibilitySettings } from "@/components/portal/feature-visibility-settings";
 import { TelegramUsersManager } from "@/components/portal/telegram-users-manager";
+import { TeamsUsersManager } from "@/components/portal/teams-users-manager";
 import { useUserProfile } from "@/contexts/user-profile-context";
 import { isSuperAdmin } from "@/lib/permissions";
 
@@ -232,6 +233,15 @@ function SettingsPageContent() {
     webhookSecret: "",
     webhookUrl: "",
   });
+  const [teamsConfig, setTeamsConfig] = useState({
+    enabled: true,
+    appId: "",
+    appPassword: "",
+    tenantId: "",
+    incomingWebhookUrl: "",
+    webhookSecret: "",
+    webhookUrl: "",
+  });
 
   // Social links settings
   const [socialLinks, setSocialLinks] = useState({
@@ -342,6 +352,15 @@ function SettingsPageContent() {
               ...prev,
               enabled: data.telegram?.enabled !== false,
               webhookUrl: data.telegram?.webhookUrl || "",
+            }));
+          }
+          if (data.teams) {
+            setTeamsConfig((prev) => ({
+              ...prev,
+              enabled: data.teams?.enabled !== false,
+              appId: data.teams?.appId || "",
+              tenantId: data.teams?.tenantId || "",
+              webhookUrl: data.teams?.webhookUrl || "",
             }));
           }
 
@@ -509,6 +528,28 @@ function SettingsPageContent() {
       return;
     }
 
+    if (configId === "teams") {
+      try {
+        const user = auth?.currentUser;
+        if (!user) throw new Error("Not signed in");
+        const token = await user.getIdToken();
+        const response = await fetch("/api/admin/teams/configure", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify(teamsConfig),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error(result.error || "Microsoft Teams configuration failed");
+        setTeamsConfig((prev) => ({ ...prev, webhookUrl: result.webhookUrl }));
+        setTestingStatus(prev => ({ ...prev, teams: "success" }));
+        toast.success("Microsoft Teams bot configured and verified");
+      } catch (error) {
+        setTestingStatus(prev => ({ ...prev, teams: "error" }));
+        toast.error(error instanceof Error ? error.message : "Microsoft Teams configuration failed");
+      }
+      return;
+    }
+
     if (configId === "webhook" || configId === "mattermost") {
       // Test actual Mattermost webhook
       const webhookUrl = apiKeys["mattermost"]?.webhook || apiKeys["webhook"]?.url;
@@ -632,6 +673,7 @@ function SettingsPageContent() {
           <TabsTrigger value="llm">LLM Configuration</TabsTrigger>
           <TabsTrigger value="hermes">Hermes Integration</TabsTrigger>
           <TabsTrigger value="telegram">Telegram</TabsTrigger>
+          <TabsTrigger value="teams">Microsoft Teams</TabsTrigger>
           <TabsTrigger value="webhooks">Webhooks</TabsTrigger>
           <TabsTrigger value="notifications">Notifications</TabsTrigger>
           <TabsTrigger value="social">Social Links</TabsTrigger>
@@ -1019,6 +1061,141 @@ function SettingsPageContent() {
           </Card>
 
           <TelegramUsersManager />
+        </TabsContent>
+
+        {/* Microsoft Teams Integration Tab */}
+        <TabsContent value="teams" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <MessageSquare className="h-5 w-5" />
+                Microsoft Teams via Hermes
+              </CardTitle>
+              <CardDescription>
+                Configure the Microsoft Teams Bot Framework endpoint and webhook from Adams Platform. No separate Hermes setup is required.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="flex items-center justify-between rounded-lg border p-4">
+                <div>
+                  <Label htmlFor="teamsEnabled">Enable Microsoft Teams</Label>
+                  <p className="text-sm text-muted-foreground">
+                    Allow Microsoft Teams messages, commands, and notifications through the Adams Hermes assistant.
+                  </p>
+                </div>
+                <Switch
+                  id="teamsEnabled"
+                  checked={teamsConfig.enabled}
+                  onCheckedChange={(enabled) => {
+                    setTeamsConfig({ ...teamsConfig, enabled });
+                    setHasChanges(true);
+                  }}
+                />
+              </div>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="teamsAppId">Microsoft Bot App ID (Client ID)</Label>
+                  <Input
+                    id="teamsAppId"
+                    value={teamsConfig.appId}
+                    onChange={(e) => {
+                      setTeamsConfig({ ...teamsConfig, appId: e.target.value });
+                      setHasChanges(true);
+                    }}
+                    placeholder="00000000-0000-0000-0000-000000000000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="teamsTenantId">Directory (Tenant) ID (optional)</Label>
+                  <Input
+                    id="teamsTenantId"
+                    value={teamsConfig.tenantId}
+                    onChange={(e) => {
+                      setTeamsConfig({ ...teamsConfig, tenantId: e.target.value });
+                      setHasChanges(true);
+                    }}
+                    placeholder="botframework.com or Azure AD Tenant GUID"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="teamsAppPassword">Bot App Password (Client Secret)</Label>
+                <Input
+                  id="teamsAppPassword"
+                  type="password"
+                  value={teamsConfig.appPassword}
+                  onChange={(e) => {
+                    setTeamsConfig({ ...teamsConfig, appPassword: e.target.value });
+                    setHasChanges(true);
+                  }}
+                  placeholder="Enter Azure Bot client secret"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Stored server-side in protected Firestore secrets and never returned to the browser.
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="teamsIncomingWebhookUrl">Channel Incoming Webhook URL (optional)</Label>
+                <Input
+                  id="teamsIncomingWebhookUrl"
+                  type="password"
+                  value={teamsConfig.incomingWebhookUrl}
+                  onChange={(e) => {
+                    setTeamsConfig({ ...teamsConfig, incomingWebhookUrl: e.target.value });
+                    setHasChanges(true);
+                  }}
+                  placeholder="https://adams.webhook.office.com/webhookb2/..."
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="teamsWebhookUrl">Messaging Endpoint (Bot Webhook URL)</Label>
+                <Input
+                  id="teamsWebhookUrl"
+                  value={
+                    teamsConfig.webhookUrl ||
+                    (typeof window !== "undefined" ? `${window.location.origin}/api/teams/webhook` : "")
+                  }
+                  onChange={(e) => {
+                    setTeamsConfig({ ...teamsConfig, webhookUrl: e.target.value });
+                    setHasChanges(true);
+                  }}
+                  placeholder="https://adams-platform.vercel.app/api/teams/webhook"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Paste this URL into your Azure Bot Configuration → Messaging endpoint.
+                </p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="outline"
+                  onClick={() => testConnection("teams")}
+                  disabled={testingStatus.teams === "testing"}
+                >
+                  {testingStatus.teams === "testing" ? (
+                    <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  ) : testingStatus.teams === "success" ? (
+                    <CheckCircle className="mr-2 h-4 w-4 text-green-500" />
+                  ) : testingStatus.teams === "error" ? (
+                    <XCircle className="mr-2 h-4 w-4 text-red-500" />
+                  ) : (
+                    <TestTube className="mr-2 h-4 w-4" />
+                  )}
+                  Configure and test Microsoft Teams
+                </Button>
+                {testingStatus.teams === "success" && <Badge variant="secondary">Connected</Badge>}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Verifies your Bot Framework credentials with Microsoft Identity Platform and stores the configuration for the Teams webhook.
+              </p>
+            </CardContent>
+          </Card>
+
+          <TeamsUsersManager />
         </TabsContent>
 
         {/* Webhooks Tab */}

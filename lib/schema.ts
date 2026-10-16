@@ -1074,6 +1074,16 @@ export interface PlatformSettingsDoc {
     status?: "connected" | "disconnected" | "error";
     lastTested?: Timestamp;
   };
+  // Microsoft Teams bot configuration managed by the Admin portal
+  teams?: {
+    enabled?: boolean;
+    appId?: string;
+    tenantId?: string;
+    webhookSecret?: string;
+    webhookUrl?: string;
+    status?: "connected" | "disconnected" | "error";
+    lastTested?: Timestamp;
+  };
   // Webhook Events
   webhookEvents?: Record<string, boolean>;
   // Notification Settings
@@ -1432,8 +1442,11 @@ export interface UserChatChannelDoc {
   telegramUsername?: string;
   hermesEnabled?: boolean;
   isActive?: boolean;
+  teamsUserId?: string;
   teamsConversationId?: string;
   teamsUserEmail?: string;
+  teamsHermesEnabled?: boolean;
+  teamsIsActive?: boolean;
   preferredChannel?: "telegram" | "teams" | "both";
   createdAt: Timestamp;
   updatedAt: Timestamp;
