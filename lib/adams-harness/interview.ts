@@ -165,6 +165,194 @@ export type InterviewTurnResult = {
   model: string;
 };
 
+const GUIDED_QUESTIONS: {
+  key: (typeof REQUIRED_COVERAGE_KEYS)[number];
+  question: string;
+  applyAnswer: (answer: string, current: InterviewFacts) => Partial<InterviewFacts>;
+}[] = [
+  {
+    key: "task",
+    question:
+      "To get started, what specific process or workflow in your department are we streamlining, and what is its main goal?",
+    applyAnswer: (a) => ({ task: a }),
+  },
+  {
+    key: "trigger",
+    question:
+      "What triggers this process to start today, and how frequently does it happen (daily, weekly, per jobsite event)?",
+    applyAnswer: (a) => ({ trigger: a, frequency: a }),
+  },
+  {
+    key: "currentSteps",
+    question:
+      "Walk me through the current step-by-step process from start to finish. How does the work move from person to person today?",
+    applyAnswer: (a) => ({
+      currentSteps: a
+        .split(/\n|;|\. /)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }),
+  },
+  {
+    key: "actors",
+    question:
+      "Who are all the people or roles involved in this process (e.g., foremen, safety superintendents, project managers, office admins)?",
+    applyAnswer: (a) => ({
+      actors: a
+        .split(/,|\n|;/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }),
+  },
+  {
+    key: "systems",
+    question:
+      "What systems, spreadsheets, email threads, text messages, or paper forms are currently used to run this process, and is any data copied manually between them?",
+    applyAnswer: (a) => ({
+      systems: a
+        .split(/,|\n|;/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+      copiedData: [a],
+    }),
+  },
+  {
+    key: "painPoints",
+    question:
+      "Where does this process break down today? What are the biggest pain points, delays, or missed items?",
+    applyAnswer: (a) => ({
+      painPoints: a
+        .split(/\n|;|\. /)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }),
+  },
+  {
+    key: "desiredProcess",
+    question:
+      "In the ideal Adams Platform solution, how should this workflow run from beginning to end?",
+    applyAnswer: (a) => ({ desiredProcess: a }),
+  },
+  {
+    key: "notifications",
+    question:
+      "Who needs to be notified at each stage (assignment, reminder, completion), and should alerts go via In-App, Telegram, Microsoft Teams, or Email?",
+    applyAnswer: (a) => ({
+      notifications: a
+        .split(/\n|;|\. /)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }),
+  },
+  {
+    key: "completionEvidence",
+    question:
+      "What evidence proves that an item in this process is truly complete (e.g., uploaded photos, VIN/serial number, sign-off signature, checklist)?",
+    applyAnswer: (a) => ({
+      completionEvidence: a
+        .split(/,|\n|;/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }),
+  },
+  {
+    key: "timingEscalation",
+    question:
+      "What are the expected turnaround times or due dates, and who should be escalated to if an item becomes overdue?",
+    applyAnswer: (a) => ({ timingEscalation: a }),
+  },
+  {
+    key: "exceptions",
+    question:
+      "What exceptions, urgent edge cases, or field conditions need special handling in this workflow?",
+    applyAnswer: (a) => ({
+      exceptions: a
+        .split(/\n|;|\. /)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }),
+  },
+  {
+    key: "compliance",
+    question:
+      "Are there any safety, OSHA, NFPA 70E, general contractor, or audit compliance requirements this solution must enforce?",
+    applyAnswer: (a) => ({
+      compliance: a
+        .split(/\n|;|\. /)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }),
+  },
+  {
+    key: "integrations",
+    question:
+      "Does this solution need to connect to or expose API data to any other Adams Electric systems, calendars, or external tools?",
+    applyAnswer: (a) => ({
+      integrations: a
+        .split(/,|\n|;/)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }),
+  },
+  {
+    key: "humanApprovals",
+    question:
+      "Finally, which steps require a human supervisor or department owner approval before moving forward?",
+    applyAnswer: (a) => ({
+      humanApprovals: a
+        .split(/\n|;|\. /)
+        .map((s) => s.trim())
+        .filter(Boolean),
+    }),
+  },
+];
+
+function runGuidedFallbackTurn(interview: ProcessInterviewDoc): InterviewTurnResult {
+  const coverage: Record<string, boolean> = { ...interview.coverage, department: true };
+  let facts = { ...interview.facts };
+
+  // Seed task if provided on interview creation
+  if (interview.task && !facts.task) {
+    facts = mergeFacts(facts, { task: interview.task });
+    coverage.task = true;
+  }
+
+  // If the last message was from the user, attribute their answer to the first uncovered topic
+  const lastMsg = interview.messages[interview.messages.length - 1];
+  if (lastMsg && lastMsg.role === "user") {
+    const answeredStep = GUIDED_QUESTIONS.find((q) => !coverage[q.key]);
+    if (answeredStep) {
+      const extracted = answeredStep.applyAnswer(lastMsg.content, facts);
+      facts = mergeFacts(facts, extracted);
+      coverage[answeredStep.key] = true;
+    }
+  }
+
+  const nextStep = GUIDED_QUESTIONS.find((q) => !coverage[q.key]);
+  const readyForSpecification = !nextStep;
+  const assistantText = nextStep
+    ? nextStep.question
+    : "Thank you — all 15 required discovery topics are now covered! You can click 'Generate Specification' below to compile the versioned Solution Specification and launch your Solution App Workspace.";
+
+  const turn: InterviewAssistantTurn = {
+    assistantMessage: assistantText,
+    facts,
+    coverage,
+    unresolvedQuestions: [],
+    readyForSpecification,
+  };
+
+  return {
+    assistantMessage: newMessage("assistant", assistantText),
+    turn,
+    facts,
+    coverage,
+    unresolvedQuestions: [],
+    readyForSpecification,
+    model: "adams-guided-interviewer",
+  };
+}
+
 export async function runInterviewTurn(
   interview: ProcessInterviewDoc,
 ): Promise<InterviewTurnResult> {
@@ -173,34 +361,38 @@ export async function runInterviewTurn(
     content: m.content,
   }));
 
-  const { data, model } = await requestHermesStructured({
-    systemPrompt: `${SYSTEM_PROMPT}\n\nCurrent interview state:\n${buildStateSummary(interview)}`,
-    messages:
-      history.length > 0
-        ? history
-        : [
-            {
-              role: "user",
-              content:
-                "Begin the interview. Ask your first question about the process described in the seeded task.",
-            },
-          ],
-    schema: interviewAssistantTurnSchema,
-    temperature: 0.3,
-  });
+  try {
+    const { data, model } = await requestHermesStructured({
+      systemPrompt: `${SYSTEM_PROMPT}\n\nCurrent interview state:\n${buildStateSummary(interview)}`,
+      messages:
+        history.length > 0
+          ? history
+          : [
+              {
+                role: "user",
+                content:
+                  "Begin the interview. Ask your first question about the process described in the seeded task.",
+              },
+            ],
+      schema: interviewAssistantTurnSchema,
+      temperature: 0.3,
+    });
 
-  const facts = mergeFacts(interview.facts, data.facts);
-  const coverage = mergeCoverage(interview.coverage, data.coverage);
-  const unresolvedQuestions = data.unresolvedQuestions;
-  const readyForSpecification = computeReadiness(coverage, unresolvedQuestions);
+    const facts = mergeFacts(interview.facts, data.facts);
+    const coverage = mergeCoverage(interview.coverage, data.coverage);
+    const unresolvedQuestions = data.unresolvedQuestions;
+    const readyForSpecification = computeReadiness(coverage, unresolvedQuestions);
 
-  return {
-    assistantMessage: newMessage("assistant", data.assistantMessage),
-    turn: data,
-    facts,
-    coverage,
-    unresolvedQuestions,
-    readyForSpecification,
-    model,
-  };
+    return {
+      assistantMessage: newMessage("assistant", data.assistantMessage),
+      turn: data,
+      facts,
+      coverage,
+      unresolvedQuestions,
+      readyForSpecification,
+      model,
+    };
+  } catch {
+    return runGuidedFallbackTurn(interview);
+  }
 }

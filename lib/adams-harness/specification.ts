@@ -67,30 +67,137 @@ function transcriptForPrompt(interview: ProcessInterviewDoc): string {
   return lines.join("\n");
 }
 
+function buildFallbackSpecificationSections(
+  interview: ProcessInterviewDoc,
+): SpecificationSections {
+  const f = interview.facts;
+  return {
+    summary:
+      f.desiredProcess ||
+      f.task ||
+      interview.task ||
+      `Standardized Adams Platform solution for ${interview.title} in department ${interview.departmentId}.`,
+    currentProcess:
+      f.currentSteps.length > 0
+        ? `Trigger: ${f.trigger || "Manual / Event"}. Steps: ${f.currentSteps.join(" -> ")}`
+        : `Currently managed via ${f.systems.join(", ") || "manual communication"}.`,
+    futureProcess:
+      f.desiredProcess ||
+      `Digital workflow in Adams Platform with structured intake, owner assignment, ${f.timingEscalation || "due-date tracking"}, and automated notifications.`,
+    painPoints: f.painPoints.length > 0 ? f.painPoints : ["Manual tracking and delayed visibility"],
+    roles:
+      f.actors.length > 0
+        ? f.actors.map((actor) => ({
+            role: actor,
+            responsibilities: `Participates in ${interview.title} workflow and updates status.`,
+          }))
+        : [
+            {
+              role: "Department Owner",
+              responsibilities: "Reviews, approves, and oversees workflow execution.",
+            },
+          ],
+    dataEntities: [
+      {
+        name: "Title",
+        description: "Primary identifier and summary of the item.",
+      },
+      {
+        name: "Status & Priority",
+        description: "Lifecycle state and urgency level.",
+      },
+      ...(f.completionEvidence.map((ev) => ({
+        name: ev,
+        description: "Required completion evidence.",
+      })) || []),
+    ],
+    forms: [
+      {
+        name: `${interview.title} Intake Form`,
+        description: `Captures new ${interview.title} items and assigns ownership.`,
+      },
+    ],
+    notifications:
+      f.notifications.length > 0
+        ? f.notifications.map((n, idx) => ({
+            name: `Notification ${idx + 1}`,
+            description: n,
+          }))
+        : [
+            {
+              name: "Owner Assignment & Overdue Alert",
+              description: "Notifies assigned owner on creation and escalates when overdue.",
+            },
+          ],
+    integrations:
+      f.integrations.map((i) => ({
+        name: i,
+        description: "Connected platform or external system integration.",
+      })),
+    approvals:
+      f.humanApprovals.length > 0
+        ? f.humanApprovals.map((a, idx) => ({
+            step: `Approval Step ${idx + 1}`,
+            approver: "Department Owner / Supervisor",
+            condition: a,
+          }))
+        : [
+            {
+              step: "Completion Sign-Off",
+              approver: "Department Supervisor",
+              condition: "When required completion evidence is attached",
+            },
+          ],
+    permissions: `Scoped to ${interview.departmentId} department members, department owners, and Adams Platform admins.`,
+    auditRequirements:
+      f.compliance.length > 0
+        ? f.compliance
+        : ["Full timestamped audit log of creation, status changes, and approvals"],
+    acceptanceCriteria: [
+      "Metrics dashboard displays live counts, completion rate, and AI recommended charts",
+      "Global search and per-column filters work across all items",
+      "Each item has a dedicated detail page storing extended attributes, notes, and comments",
+      "App settings allow configuring visible columns, triggers, and external REST API keys",
+    ],
+    risks:
+      f.exceptions.length > 0
+        ? f.exceptions
+        : ["Ensure field crews have mobile/portal access for timely updates"],
+    outOfScope: ["Legacy external spreadsheets retired by this workflow"],
+  };
+}
+
 export async function generateSpecificationSections(
   interview: ProcessInterviewDoc,
 ): Promise<{ sections: SpecificationSections; model: string }> {
   const covered = REQUIRED_COVERAGE_KEYS.filter((k) => interview.coverage[k]);
   const factsJson = JSON.stringify(interview.facts);
 
-  const { data, model } = await requestHermesStructured({
-    systemPrompt: SPEC_SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: [
-          `Interview title: ${interview.title}`,
-          `Covered topics: ${covered.join(", ")}`,
-          `Extracted facts: ${factsJson}`,
-          "",
-          "Transcript:",
-          transcriptForPrompt(interview),
-        ].join("\n"),
-      },
-    ],
-    schema: specificationSectionsSchema,
-    temperature: 0.2,
-  });
+  try {
+    const { data, model } = await requestHermesStructured({
+      systemPrompt: SPEC_SYSTEM_PROMPT,
+      messages: [
+        {
+          role: "user",
+          content: [
+            `Interview title: ${interview.title}`,
+            `Covered topics: ${covered.join(", ")}`,
+            `Extracted facts: ${factsJson}`,
+            "",
+            "Transcript:",
+            transcriptForPrompt(interview),
+          ].join("\n"),
+        },
+      ],
+      schema: specificationSectionsSchema,
+      temperature: 0.2,
+    });
 
-  return { sections: data, model };
+    return { sections: data, model };
+  } catch {
+    return {
+      sections: buildFallbackSpecificationSections(interview),
+      model: "adams-specification-compiler",
+    };
+  }
 }
