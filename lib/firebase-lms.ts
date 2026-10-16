@@ -343,7 +343,7 @@ export async function getCategories(): Promise<CategoryDoc[]> {
   const q = query(categoriesRef, orderBy("sortOrder", "asc"));
   const snapshot = await getDocs(q);
 
-  return snapshot.docs.map((doc) => doc.data() as CategoryDoc);
+  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as CategoryDoc);
 }
 
 export async function updateCategory(
@@ -439,7 +439,7 @@ export async function getCourse(courseId: string): Promise<CourseDoc | null> {
   const docSnap = await getDoc(docRef);
 
   if (!docSnap.exists()) return null;
-  return docSnap.data() as CourseDoc;
+  return { id: docSnap.id, ...docSnap.data() } as CourseDoc;
 }
 
 export async function getCourseBySlug(slug: string): Promise<CourseDoc | null> {
@@ -450,7 +450,7 @@ export async function getCourseBySlug(slug: string): Promise<CourseDoc | null> {
   const snapshot = await getDocs(q);
 
   if (snapshot.empty) return null;
-  return snapshot.docs[0].data() as CourseDoc;
+  return { id: snapshot.docs[0].id, ...snapshot.docs[0].data() } as CourseDoc;
 }
 
 export async function getCourses(options?: {
@@ -488,7 +488,9 @@ export async function getCourses(options?: {
   const snapshot = await getDocs(q);
   
   // Sort by createdAt client-side if we have other filters (avoids composite index requirement)
-  const courses = snapshot.docs.map((doc) => doc.data() as CourseDoc);
+  const courses = snapshot.docs.map(
+    (docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as CourseDoc
+  );
   
   if (constraints.length > 0 && !constraints.some(c => c.type === 'orderBy')) {
     courses.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
@@ -1059,7 +1061,9 @@ export async function getWorkshops(options?: {
   const snapshot = await getDocs(q);
   
   // Sort by scheduledStart client-side if we have other filters (avoids composite index requirement)
-  const workshops = snapshot.docs.map((doc) => doc.data() as WorkshopDoc);
+  const workshops = snapshot.docs.map(
+    (docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as WorkshopDoc
+  );
   
   if (constraints.length > 0 && !constraints.some(c => c.type === 'orderBy')) {
     workshops.sort((a, b) => {

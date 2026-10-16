@@ -239,11 +239,6 @@ export default function AcademyPage() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </Link>
               </Button>
-              <Button size="lg" variant="outline" className="text-lg border-white/30 text-white hover:bg-white/10" asChild>
-                <Link href="#pricing">
-                  View Pricing
-                </Link>
-              </Button>
             </div>
 
             {/* Stats */}
@@ -303,8 +298,8 @@ export default function AcademyPage() {
             </div>
           ) : displayCourses.length > 0 ? (
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {displayCourses.map((course: any) => (
-                <Card key={course.id || course.slug} className="group overflow-hidden hover:shadow-lg transition-shadow">
+              {displayCourses.map((course: any, idx: number) => (
+                <Card key={course.id || course.slug || course.title || `course-${idx}`} className="group overflow-hidden hover:shadow-lg transition-shadow">
                   <div className="aspect-video bg-slate-200 relative overflow-hidden">
                     {course.thumbnailUrl ? (
                       <img
@@ -405,12 +400,12 @@ export default function AcademyPage() {
 
           <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {displayCategories.length > 0 ? (
-              displayCategories.map((category) => {
+              displayCategories.map((category, idx) => {
                 const IconComponent = CATEGORY_ICONS[category.slug] || Target;
                 const colorClass = CATEGORY_COLORS[category.slug] || "bg-blue-500";
                 return (
                   <Link
-                    key={category.id}
+                    key={category.id || category.slug || category.name || `cat-${idx}`}
                     href={`/academy/courses?category=${category.slug}`}
                     className="group"
                   >
@@ -463,8 +458,8 @@ export default function AcademyPage() {
 
           <div className="grid md:grid-cols-3 gap-6">
             {workshops.length > 0 ? (
-              workshops.map((workshop) => (
-                <Card key={workshop.id} className="hover:shadow-lg transition-shadow">
+              workshops.map((workshop, idx) => (
+                <Card key={workshop.id || workshop.title || `workshop-${idx}`} className="hover:shadow-lg transition-shadow">
                   <CardHeader>
                     <div className="flex items-center gap-2 mb-2">
                       <Badge variant="outline" className="text-blue-600 border-blue-500/50">
@@ -577,59 +572,6 @@ export default function AcademyPage() {
               </Link>
             </Button>
           </div>
-        </div>
-      </section>
-
-      {/* Pricing */}
-      <section id="pricing" className="py-20">
-        <div className="container">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold mb-2">Choose Your Learning Path</h2>
-            <p className="text-muted-foreground">Flexible plans designed for every stage of your career</p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-            {subscriptionTiers.map((tier) => (
-              <Card 
-                key={tier.name} 
-                className={`relative ${tier.popular ? 'border-blue-500 shadow-lg scale-105' : ''}`}
-              >
-                {tier.popular && (
-                  <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                    <Badge className="bg-blue-500 text-white">Most Popular</Badge>
-                  </div>
-                )}
-                <CardHeader className="text-center pb-2">
-                  <CardTitle className="text-2xl">{tier.name}</CardTitle>
-                  <CardDescription>{tier.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="text-center">
-                  <div className="my-6">
-                    <span className="text-4xl font-bold">${tier.price}</span>
-                    <span className="text-muted-foreground">/{tier.period}</span>
-                  </div>
-                  <ul className="space-y-3 text-left mb-8">
-                    {tier.features.map((feature) => (
-                      <li key={feature} className="flex items-start gap-2">
-                        <CheckCircle className="h-5 w-5 text-blue-500 shrink-0 mt-0.5" />
-                        <span className="text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                  <Button 
-                    className={`w-full ${tier.popular ? 'bg-blue-500 hover:bg-blue-600 text-slate-900' : ''}`}
-                    variant={tier.popular ? 'default' : 'outline'}
-                  >
-                    {tier.cta}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          <p className="text-center text-sm text-muted-foreground mt-8">
-            All plans include a 14-day free trial. Cancel anytime. Annual billing saves 20%.
-          </p>
         </div>
       </section>
 
