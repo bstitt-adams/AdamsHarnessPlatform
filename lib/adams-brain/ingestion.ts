@@ -16,15 +16,19 @@ const CHUNK_OVERLAP = 250;
 const MAX_CHUNKS = 250;
 const MAX_TERMS_PER_CHUNK = 200;
 
-const ALLOWED_EXTENSIONS: Record<string, "text" | "pdf" | "docx"> = {
+const ALLOWED_EXTENSIONS: Record<string, "text" | "pdf" | "docx" | "csv" | "json"> = {
   ".txt": "text",
   ".md": "text",
+  ".csv": "csv",
+  ".json": "json",
   ".pdf": "pdf",
   ".docx": "docx",
 };
 
 const ALLOWED_MIME_BY_KIND: Record<string, string[]> = {
-  text: ["text/plain"],
+  text: ["text/plain", "text/markdown", "application/octet-stream"],
+  csv: ["text/csv", "text/plain", "application/vnd.ms-excel", "application/octet-stream"],
+  json: ["application/json", "text/plain", "application/octet-stream"],
   pdf: ["application/pdf"],
   docx: [
     "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
@@ -34,21 +38,15 @@ const ALLOWED_MIME_BY_KIND: Record<string, string[]> = {
 export function classifyUpload(
   contentType: string,
   fileName: string,
-): "text" | "pdf" | "docx" {
+): "text" | "pdf" | "docx" | "csv" | "json" {
   const ext = fileName.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? "";
   const kind = ALLOWED_EXTENSIONS[ext];
-  const mime = contentType.toLowerCase().split(";")[0].trim();
+  const mime = (contentType || "application/octet-stream").toLowerCase().split(";")[0].trim();
   const allowedMimes = kind ? ALLOWED_MIME_BY_KIND[kind] : undefined;
-  const mdMarkdownFallback =
-    kind === "text" && ext === ".md" && mime === "text/markdown";
-  if (
-    !kind ||
-    !mime ||
-    (!allowedMimes!.includes(mime) && !mdMarkdownFallback)
-  ) {
+  if (!kind || !allowedMimes || !allowedMimes.includes(mime)) {
     throw new HttpError(
       400,
-      "Only .txt, .md, .pdf, and .docx files are supported",
+      "Only .txt, .md, .csv, .json, .pdf, and .docx files are supported",
     );
   }
   return kind;
@@ -69,14 +67,47 @@ export function normalizeText(text: string): string {
 
 export async function extractText(
   buffer: Buffer,
-  kind: "text" | "pdf" | "docx",
+  kind: "text" | "pdf" | "docx" | "csv" | "json",
 ): Promise<string> {
   let text: string;
-  if (kind === "text") {
+  if (kind === "text" || kind === "csv") {
     try {
       text = new TextDecoder("utf-8", { fatal: true }).decode(buffer);
     } catch {
       throw new HttpError(400, "File is not valid UTF-8 text");
+    }
+    if (kind === "csv") {
+      const lines = text.split(/\r?\n/).filter((l) => l.trim().length > 0);
+      if (lines.length > 1) {
+        const headers = lines[0].split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
+        const formattedRows = lines.slice(1).map((row, idx) => {
+          const cols = row.split(",").map((c) => c.trim().replace(/^"|"$/g, ""));
+          const pairs = headers
+            .map((h, i) => `${h || `Col${i + 1}`}: ${cols[i] ?? ""}`)
+            .join(" | ");
+          return `Row ${idx + 1}: ${pairs}`;
+        });
+        text = `CSV Dataset (${lines.length - 1} rows)\nColumns: ${headers.join(", ")}\n\n${formattedRows.join("\n\n")}`;
+      }
+    }
+  } else if (kind === "json") {
+    let rawJson: string;
+    try {
+      rawJson = new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+    } catch {
+      throw new HttpError(400, "File is not valid UTF-8 JSON");
+    }
+    try {
+      const parsed = JSON.parse(rawJson);
+      if (Array.isArray(parsed)) {
+        text = parsed
+          .map((item, idx) => `Record ${idx + 1}:\n${JSON.stringify(item, null, 2)}`)
+          .join("\n\n");
+      } else {
+        text = JSON.stringify(parsed, null, 2);
+      }
+    } catch {
+      text = rawJson;
     }
   } else if (kind === "pdf") {
     const { PDFParse } = await import("pdf-parse");

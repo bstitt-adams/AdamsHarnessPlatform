@@ -41,6 +41,7 @@ import {
 import { adamsFetch, adamsFetchJson } from "@/lib/adams-harness/client-api";
 import { useUserProfile } from "@/contexts/user-profile-context";
 import type { GBrainPageType, GBrainRepoConfig } from "@/lib/adams-harness/types";
+import { AdamsBrainImportWizard } from "@/components/portal/adams-brain-import-wizard";
 
 type BrainItem = {
   id: string;
@@ -97,6 +98,8 @@ const CONNECTORS = [
   { id: "module_records", label: "Live Solution Module Records" },
   { id: "site_calendars", label: "Company Safety Calendars" },
   { id: "user_assets", label: "Assigned User Assets Inventory" },
+  { id: "user_training_certs", label: "Workforce Training & Certifications" },
+  { id: "command_control_projects", label: "Command Control Opportunities & Projects" },
   { id: "system_docs", label: "Platform System Documentation" },
 ];
 
@@ -119,6 +122,7 @@ export function AdamsBrainConfigManager() {
   const [busy, setBusy] = useState(false);
   const [fetching, setFetching] = useState(true);
   const [health, setHealth] = useState<BrainHealth | null>(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   // Create new Brain Repository form
   const [newName, setNewName] = useState("");
@@ -427,6 +431,28 @@ export function AdamsBrainConfigManager() {
     }
   };
 
+  const handleSyncToHermesHarness = async () => {
+    if (!selected) return;
+    setBusy(true);
+    try {
+      const res = await adamsFetchJson<{
+        pagesCount: number;
+        chunksCount: number;
+      }>(
+        `/api/adams-harness/brains/${encodeURIComponent(selected.id)}/sync-hermes`,
+        { method: "POST" },
+      );
+      await loadBrainDetail(selected.id);
+      toast.success(
+        `Stored ${res.pagesCount} page(s) (${res.chunksCount} chunks) in Hermes Harness`,
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to sync to Hermes");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const handleRetireSource = async (sourceId: string) => {
     if (!selected) return;
     setBusy(true);
@@ -471,15 +497,44 @@ export function AdamsBrainConfigManager() {
           </p>
         </div>
 
-        {health && (
-          <div className="flex flex-wrap gap-1.5 text-xs">
-            <Badge variant={health.hermes?.healthy ? "default" : "secondary"}>
-              Hermes: {health.hermes?.healthy ? "Connected" : "Direct Index Mode"}
-            </Badge>
-            <Badge variant="outline">PDF / DOCX / MD Parsers Ready</Badge>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button onClick={() => setWizardOpen(true)}>
+            <Sparkles className="mr-2 h-4 w-4" />
+            Data Import &amp; Hermes Wizard
+          </Button>
+          {selected && (
+            <Button
+              variant="outline"
+              disabled={busy}
+              onClick={() => void handleSyncToHermesHarness()}
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Store in Hermes Harness
+            </Button>
+          )}
+          {health && (
+            <div className="flex flex-wrap gap-1.5 text-xs">
+              <Badge variant={health.hermes?.healthy ? "default" : "secondary"}>
+                Hermes: {health.hermes?.healthy ? "Connected" : "Direct Index Mode"}
+              </Badge>
+              <Badge variant="outline">PDF / DOCX / CSV / JSON / MD Ready</Badge>
+            </div>
+          )}
+        </div>
       </div>
+
+      <AdamsBrainImportWizard
+        open={wizardOpen}
+        onOpenChange={setWizardOpen}
+        brains={brains}
+        departments={departments}
+        defaultBrainId={selected?.id || brains[0]?.id}
+        onCompleted={async (targetId) => {
+          const list = await loadBrains();
+          setBrains(list);
+          await loadBrainDetail(targetId);
+        }}
+      />
 
       <div className="grid gap-6 lg:grid-cols-12">
         {/* Left Column: Repositories List + Create New Brain */}

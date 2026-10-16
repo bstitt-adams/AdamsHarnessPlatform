@@ -442,6 +442,12 @@ export interface GBrainRepoConfig {
   hermesWorkspacePath?: string;
   apiKey?: string;
   lastSyncedAt?: string;
+  hermesSyncStatus?: "synced" | "pending" | "error";
+  hermesLastSyncedAt?: string;
+  hermesSyncedPagesCount?: number;
+  hermesSyncedChunksCount?: number;
+  telegramEnabled?: boolean;
+  teamsEnabled?: boolean;
 }
 
 export interface BrainDoc {
@@ -465,6 +471,8 @@ export const brainConnectorSchema = z.enum([
   "module_definitions",
   "module_records",
   "user_assets",
+  "user_training_certs",
+  "command_control_projects",
   "system_docs",
 ]);
 export type BrainConnector = z.infer<typeof brainConnectorSchema>;

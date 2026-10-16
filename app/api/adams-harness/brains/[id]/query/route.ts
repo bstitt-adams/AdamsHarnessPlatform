@@ -11,7 +11,7 @@ import {
   writeAuditLog,
 } from "@/lib/adams-harness/server-store";
 import { getBrainForActor } from "@/lib/adams-brain/access";
-import { answerBrainQuestion } from "@/lib/adams-brain/retrieval";
+import { answerBrainQuestion, queryAnyActiveBrain } from "@/lib/adams-brain/retrieval";
 import { COLLECTIONS } from "@/lib/schema";
 import {
   brainQueryInputSchema,
@@ -24,13 +24,32 @@ export async function POST(request: NextRequest, { params }: Ctx) {
   try {
     const actor = await requireUser(request);
     const { id } = await params;
-    const { brain, canQuery } = await getBrainForActor(actor, id);
-    if (!canQuery) {
-      throw new HttpError(403, "Not authorized to query this brain");
-    }
     const parsed = brainQueryInputSchema.safeParse(await request.json());
     if (!parsed.success) {
       throw new HttpError(400, "Invalid question");
+    }
+
+    if (id === "__all__") {
+      const multiResult = await queryAnyActiveBrain(parsed.data.question);
+      const fallbackResult = multiResult ?? {
+        answer:
+          "No active AdamsBrain repository contained matching information yet. Use the Data Import & Hermes Wizard to ingest documents or platform datasets.",
+        citations: [],
+        insufficientEvidence: true,
+        model: "gbrain-direct-index",
+      };
+      return Response.json({
+        id: `query-${Date.now()}`,
+        answer: fallbackResult.answer,
+        citations: fallbackResult.citations,
+        insufficientEvidence: fallbackResult.insufficientEvidence,
+        model: fallbackResult.model,
+      });
+    }
+
+    const { brain, canQuery } = await getBrainForActor(actor, id);
+    if (!canQuery) {
+      throw new HttpError(403, "Not authorized to query this brain");
     }
     const result = await answerBrainQuestion(
       brain.id,

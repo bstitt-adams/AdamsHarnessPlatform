@@ -208,6 +208,64 @@ async function systemDocs(): Promise<PlatformDocument[]> {
   ];
 }
 
+async function userTrainingCerts(): Promise<PlatformDocument[]> {
+  const db = getDb();
+  const snap = await db.collection(COLLECTIONS.USER_TRAINING_CERTS).limit(300).get();
+  if (snap.empty) return [];
+  const lines = [
+    "Adams Electric Workforce Training & Certifications Registry:",
+    ...snap.docs.map((d) => {
+      const c = d.data();
+      return `- ${c.trainingTitle} (${c.trainingCategory}) | Team Member: ${c.userName} (${c.userEmail}) | Issued by: ${c.issuingOrganization} | Completed: ${c.completionDate || "N/A"} | Expires: ${c.expirationDate || "N/A"} | ID: ${c.credentialId || "N/A"} ${c.notes ? `| Notes: ${c.notes}` : ""}`;
+    }),
+  ];
+  return [
+    {
+      logicalKey: "company-training/certifications",
+      title: "Adams Electric Training & Certifications Registry",
+      text: lines.join("\n"),
+    },
+  ];
+}
+
+async function commandControlAndProjects(): Promise<PlatformDocument[]> {
+  const db = getDb();
+  const [oppsSnap, projectsSnap] = await Promise.all([
+    db.collection(COLLECTIONS.OPPORTUNITIES).limit(200).get(),
+    db.collection(COLLECTIONS.PROJECTS).limit(200).get(),
+  ]);
+  const docs: PlatformDocument[] = [];
+  if (!oppsSnap.empty) {
+    const lines = [
+      "Adams Electric Command Control Opportunities:",
+      ...oppsSnap.docs.map((d) => {
+        const o = d.data();
+        return `- Opportunity: ${o.name} | Stage: ${o.stage} | Value: $${Number(o.value || 0).toLocaleString()} | Probability: ${o.probability ?? 0}% | Notes: ${o.description || o.notes || ""}`;
+      }),
+    ];
+    docs.push({
+      logicalKey: "command-control/opportunities",
+      title: "Command Control Opportunities Pipeline",
+      text: lines.join("\n"),
+    });
+  }
+  if (!projectsSnap.empty) {
+    const lines = [
+      "Adams Electric Active Construction & Internal Projects:",
+      ...projectsSnap.docs.map((d) => {
+        const p = d.data();
+        return `- Project: ${p.name} | Status: ${p.status} | Progress: ${p.progress ?? 0}% | Description: ${p.description || ""}`;
+      }),
+    ];
+    docs.push({
+      logicalKey: "command-control/projects",
+      title: "Adams Electric Projects Directory",
+      text: lines.join("\n"),
+    });
+  }
+  return docs;
+}
+
 export async function collectPlatformDocuments(
   connector: BrainConnector,
   departmentId: string,
@@ -223,6 +281,10 @@ export async function collectPlatformDocuments(
       return moduleRecords(departmentId);
     case "user_assets":
       return userAssets();
+    case "user_training_certs":
+      return userTrainingCerts();
+    case "command_control_projects":
+      return commandControlAndProjects();
     case "system_docs":
       return systemDocs();
     default:
