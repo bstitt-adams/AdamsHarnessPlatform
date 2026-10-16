@@ -5,51 +5,90 @@ import Link from "next/link";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   ArrowRight,
   ArrowUpRight,
-  ArrowDownRight,
-  TrendingUp,
   Target,
   FolderKanban,
   CheckSquare,
   Users,
   Calendar,
-  Clock,
-  Video,
   FileText,
   AlertCircle,
-  MoreHorizontal,
   Plus,
   Bug,
+  Rocket,
+  Brain,
+  GraduationCap,
+  CalendarClock,
+  Laptop,
+  Package,
+  Lightbulb,
+  Wrench,
 } from "lucide-react";
 import { db, auth } from "@/lib/firebase";
-import { collection, query, where, orderBy, limit, getDocs, Timestamp, onSnapshot } from "firebase/firestore";
-import { COLLECTIONS, type OpportunityDoc, type ProjectDoc, type ActionItemDoc, type ActivityDoc, type TeamMemberDoc } from "@/lib/schema";
-import type { CalendarEventDoc } from "@/lib/schema";
+import {
+  collection,
+  query,
+  where,
+  orderBy,
+  limit,
+  getDocs,
+} from "firebase/firestore";
+import {
+  COLLECTIONS,
+  type OpportunityDoc,
+  type ProjectDoc,
+  type ActivityDoc,
+  type TeamMemberDoc,
+} from "@/lib/schema";
 import { DataMigrationBanner } from "@/components/portal/data-migration-banner";
 import { BugTrackerForm } from "@/components/bug-tracker";
+import { useUserProfile } from "@/contexts/user-profile-context";
+import { useFeatureVisibility } from "@/contexts/feature-visibility-context";
+import { isAdminRole } from "@/lib/permissions";
+import { adamsFetchJson } from "@/lib/adams-harness/client-api";
 
-// Types for dashboard data
 interface DashboardStats {
   pipeline: {
     value: number;
-    change: number;
-    trend: "up" | "down";
+    count: number;
   };
   activeProjects: {
     count: number;
     atRisk: number;
   };
-  actionItems: {
-    progress: number;
-    daysRemaining: number;
+  solutions: {
+    interviewsCount: number;
+    readySpecsCount: number;
+    activeWorkspacesCount: number;
+    moduleRecordsCount: number;
   };
-  teamOnline: number;
+  gbrain: {
+    repositoriesCount: number;
+  };
+  academy: {
+    publishedCourses: number;
+    certificatesIssued: number;
+  };
+  safetyCalendars: {
+    activeSites: number;
+  };
+  assets: {
+    assignedAssetsCount: number;
+    myAssetsCount: number;
+  };
+  ordersAndIdeas: {
+    totalOrders: number;
+    totalIdeas: number;
+  };
+  platformDev: {
+    tasksCount: number;
+    totalHours: number;
+  };
   bugTracker: {
     openBugs: number;
     totalItems: number;
@@ -64,14 +103,6 @@ interface OpportunityDisplay {
   value: number;
   daysAgo: number;
   owner: { name: string; initials: string };
-}
-
-interface MeetingDisplay {
-  id: string;
-  title: string;
-  time: string;
-  duration: string;
-  attendees: number;
 }
 
 interface ActionItemDisplay {
@@ -111,7 +142,10 @@ function getStageColor(stage: string) {
 }
 
 function formatStage(stage: string) {
-  return stage.split("-").map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(" ");
+  return stage
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 function getRelativeTime(date: Date): string {
@@ -135,42 +169,40 @@ function getDaysAgo(date: Date): number {
   return Math.floor(diffMs / 86400000);
 }
 
-function getCurrentQuarter(): string {
-  const now = new Date();
-  const quarter = Math.floor(now.getMonth() / 3) + 1;
-  return `Q${quarter} ${now.getFullYear()}`;
-}
-
-function getDaysRemainingInQuarter(): number {
-  const now = new Date();
-  const quarter = Math.floor(now.getMonth() / 3);
-  const quarterEnd = new Date(now.getFullYear(), (quarter + 1) * 3, 0);
-  const diffMs = quarterEnd.getTime() - now.getTime();
-  return Math.max(0, Math.ceil(diffMs / 86400000));
-}
-
 export default function CommandCenterPage() {
+  const { linkedTeamMember, actualTeamMember, profile } = useUserProfile();
+  const { effectiveRole } = useFeatureVisibility();
+  const actualRole = actualTeamMember?.role || linkedTeamMember?.role || "team";
+  const isAdmin = isAdminRole(actualRole) && isAdminRole(effectiveRole);
+
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
   const [stats, setStats] = useState<DashboardStats>({
-    pipeline: { value: 0, change: 0, trend: "up" },
+    pipeline: { value: 0, count: 0 },
     activeProjects: { count: 0, atRisk: 0 },
-    actionItems: { progress: 0, daysRemaining: getDaysRemainingInQuarter() },
-    teamOnline: 0,
+    solutions: {
+      interviewsCount: 0,
+      readySpecsCount: 0,
+      activeWorkspacesCount: 0,
+      moduleRecordsCount: 0,
+    },
+    gbrain: { repositoriesCount: 0 },
+    academy: { publishedCourses: 0, certificatesIssued: 0 },
+    safetyCalendars: { activeSites: 0 },
+    assets: { assignedAssetsCount: 0, myAssetsCount: 0 },
+    ordersAndIdeas: { totalOrders: 0, totalIdeas: 0 },
+    platformDev: { tasksCount: 0, totalHours: 0 },
     bugTracker: { openBugs: 0, totalItems: 0, criticalCount: 0 },
   });
   const [opportunities, setOpportunities] = useState<OpportunityDisplay[]>([]);
-  const [meetings, setMeetings] = useState<MeetingDisplay[]>([]);
   const [actionItems, setActionItems] = useState<ActionItemDisplay[]>([]);
   const [recentActivity, setRecentActivity] = useState<ActivityDisplay[]>([]);
   const [teamMembers, setTeamMembers] = useState<{ initials: string; name: string }[]>([]);
 
-  // Get user ID from auth or session storage
   useEffect(() => {
     if (auth?.currentUser) {
       setUserId(auth.currentUser.uid);
     } else {
-      // Fallback to session storage for team member ID
       const teamMemberId = sessionStorage.getItem("adams_team_member_id");
       if (teamMemberId) {
         setUserId(teamMemberId);
@@ -186,175 +218,230 @@ export default function CommandCenterPage() {
       }
 
       try {
-        // Fetch opportunities
+        const currentMemberId = linkedTeamMember?.id || "";
+        const currentEmail = (linkedTeamMember?.emailPrimary || profile.email || "").toLowerCase();
+
+        // 1. Command Control / Opportunities
         const oppsRef = collection(db, COLLECTIONS.OPPORTUNITIES);
-        const oppsQuery = query(oppsRef, orderBy("updatedAt", "desc"), limit(5));
-        const oppsSnapshot = await getDocs(oppsQuery);
-        
+        const oppsSnapshot = await getDocs(
+          query(oppsRef, orderBy("updatedAt", "desc"), limit(10))
+        ).catch(() => null);
+
         let totalPipelineValue = 0;
+        let activeOppCount = 0;
         const oppsData: OpportunityDisplay[] = [];
-        
-        oppsSnapshot.forEach((doc) => {
-          const data = doc.data() as OpportunityDoc;
+
+        oppsSnapshot?.forEach((docSnap) => {
+          const data = docSnap.data() as OpportunityDoc;
           if (data.stage !== "closed-won" && data.stage !== "closed-lost") {
             totalPipelineValue += data.value || 0;
+            activeOppCount++;
           }
           const updatedAt = data.updatedAt?.toDate() || new Date();
-          oppsData.push({
-            id: doc.id,
-            name: data.name || "Unnamed Opportunity",
-            stage: data.stage || "lead",
-            value: data.value || 0,
-            daysAgo: getDaysAgo(updatedAt),
-            owner: { name: "Owner", initials: "OW" },
-          });
+          if (oppsData.length < 5) {
+            oppsData.push({
+              id: docSnap.id,
+              name: data.name || "Unnamed Opportunity",
+              stage: data.stage || "lead",
+              value: data.value || 0,
+              daysAgo: getDaysAgo(updatedAt),
+              owner: { name: "Owner", initials: "AE" },
+            });
+          }
         });
         setOpportunities(oppsData);
 
-        // Fetch projects
-        const projectsRef = collection(db, COLLECTIONS.PROJECTS);
-        const activeProjectsQuery = query(projectsRef, where("status", "==", "active"));
-        const projectsSnapshot = await getDocs(activeProjectsQuery);
-        
-        let activeCount = 0;
+        // 2. Projects
+        const projectsSnap = await getDocs(collection(db, COLLECTIONS.PROJECTS)).catch(
+          () => null
+        );
+        let activeProjectsCount = 0;
         let atRiskCount = 0;
-        projectsSnapshot.forEach((doc) => {
-          const data = doc.data() as ProjectDoc;
-          activeCount++;
-          if (data.status === "on-hold") {
+        projectsSnap?.forEach((docSnap) => {
+          const data = docSnap.data() as ProjectDoc;
+          if (data.status === "active" || (data.status as string) === "in_progress") {
+            activeProjectsCount++;
+          }
+          if (data.status === "on-hold" || (data.status as string) === "on_hold") {
             atRiskCount++;
           }
         });
 
-        // Fetch action items (Traction Todos)
-        const todosRef = collection(db, COLLECTIONS.TRACTION_TODOS);
-        const todosQuery = query(todosRef, where("status", "!=", "complete"), orderBy("status"), orderBy("dueDate", "asc"), limit(5));
-        
-        try {
-          const todosSnapshot = await getDocs(todosQuery);
-          const todosData: ActionItemDisplay[] = [];
-          todosSnapshot.forEach((doc) => {
-            const data = doc.data();
+        // 3. Solutions, Workspaces, & AdamsBrain / GBrain via Harness APIs
+        const [interviewsRes, modulesRes, brainsRes] = await Promise.all([
+          adamsFetchJson<{
+            interviews: { id: string; status: string; readyForSpecification: boolean }[];
+          }>("/api/adams-harness/interviews").catch(() => ({ interviews: [] })),
+          adamsFetchJson<{ modules: { slug: string }[] }>(
+            "/api/adams-harness/modules"
+          ).catch(() => ({ modules: [] })),
+          adamsFetchJson<{ brains: { id: string }[] }>(
+            "/api/adams-harness/brains"
+          ).catch(() => ({ brains: [] })),
+        ]);
+
+        const interviewsList = interviewsRes.interviews || [];
+        const readySpecsCount = interviewsList.filter(
+          (i) =>
+            i.readyForSpecification ||
+            i.status === "ready_for_review" ||
+            i.status === "completed"
+        ).length;
+
+        // 4. Academy, Safety Calendars, Assets, Orders, Ideas, Platform Dev, Team Members, Bug Tracker
+        const [
+          coursesSnap,
+          calendarsSnap,
+          assetsSnap,
+          ordersSnap,
+          ideasSnap,
+          devTasksSnap,
+          teamSnap,
+          bugSnap,
+          todosSnap,
+          activitiesSnap,
+        ] = await Promise.all([
+          getDocs(collection(db, "lms_courses")).catch(() => null),
+          getDocs(collection(db, COLLECTIONS.SITECALENDARS)).catch(() => null),
+          getDocs(collection(db, COLLECTIONS.USER_ASSETS)).catch(() => null),
+          getDocs(collection(db, COLLECTIONS.USER_ORDERS)).catch(() => null),
+          getDocs(collection(db, COLLECTIONS.USER_IDEAS)).catch(() => null),
+          isAdmin
+            ? getDocs(collection(db, COLLECTIONS.PLATFORM_DEV_TASKS)).catch(() => null)
+            : Promise.resolve(null),
+          getDocs(
+            query(collection(db, COLLECTIONS.TEAM_MEMBERS), where("status", "==", "active"))
+          ).catch(() => null),
+          isAdmin
+            ? getDocs(collection(db, COLLECTIONS.BUG_TRACKER_ITEMS)).catch(() => null)
+            : Promise.resolve(null),
+          getDocs(collection(db, COLLECTIONS.TRACTION_TODOS)).catch(() => null),
+          getDocs(
+            query(collection(db, COLLECTIONS.ACTIVITIES), orderBy("createdAt", "desc"), limit(5))
+          ).catch(() => null),
+        ]);
+
+        let publishedCourses = 0;
+        coursesSnap?.forEach((d) => {
+          if (d.data().isPublished) publishedCourses++;
+        });
+
+        let activeSites = 0;
+        calendarsSnap?.forEach((d) => {
+          if (d.data().isActive !== false) activeSites++;
+        });
+
+        let assignedAssetsCount = 0;
+        let myAssetsCount = 0;
+        assetsSnap?.forEach((d) => {
+          const a = d.data();
+          if (a.status === "active") {
+            assignedAssetsCount++;
+            if (
+              (currentMemberId && a.assignedToTeamMemberId === currentMemberId) ||
+              (currentEmail && (a.assignedToEmail || "").toLowerCase() === currentEmail)
+            ) {
+              myAssetsCount++;
+            }
+          }
+        });
+
+        let devTasksCount = 0;
+        let devTotalHours = 0;
+        devTasksSnap?.forEach((d) => {
+          devTasksCount++;
+          devTotalHours += Number(d.data().hoursSpent || 0);
+        });
+
+        const teamData: { initials: string; name: string }[] = [];
+        teamSnap?.forEach((d) => {
+          const data = d.data() as TeamMemberDoc;
+          const initials =
+            `${(data.firstName || "")[0] || ""}${(data.lastName || "")[0] || ""}`.toUpperCase() ||
+            "AE";
+          teamData.push({
+            initials,
+            name: `${data.firstName || ""} ${data.lastName || ""}`.trim(),
+          });
+        });
+        setTeamMembers(teamData);
+
+        let openBugsCount = 0;
+        let totalBugItems = 0;
+        let criticalBugCount = 0;
+        bugSnap?.forEach((d) => {
+          const data = d.data();
+          totalBugItems++;
+          if (data.type === "bug" && data.status === "open") openBugsCount++;
+          if (data.priority === "critical") criticalBugCount++;
+        });
+
+        const todosData: ActionItemDisplay[] = [];
+        todosSnap?.forEach((d) => {
+          const data = d.data();
+          if (data.status !== "complete" && todosData.length < 5) {
             const dueDate = data.dueDate?.toDate();
             todosData.push({
-              id: doc.id,
+              id: d.id,
               title: data.description || "Task",
-              dueDate: dueDate ? getRelativeTime(dueDate) : "No due date",
+              dueDate: dueDate ? getRelativeTime(dueDate) : "Scheduled",
               priority: data.priority || "medium",
               completed: data.status === "complete",
             });
-          });
-          setActionItems(todosData);
-        } catch {
-          setActionItems([]);
-        }
+          }
+        });
+        setActionItems(todosData);
 
-        // Fetch recent activity
-        const activitiesRef = collection(db, COLLECTIONS.ACTIVITIES);
-        const activitiesQuery = query(activitiesRef, orderBy("createdAt", "desc"), limit(5));
-        
-        try {
-          const activitiesSnapshot = await getDocs(activitiesQuery);
-          const activitiesData: ActivityDisplay[] = [];
-          activitiesSnapshot.forEach((doc) => {
-            const data = doc.data() as ActivityDoc;
-            const createdAt = data.createdAt?.toDate() || new Date();
-            activitiesData.push({
-              id: doc.id,
-              type: data.entityType || "project",
-              message: data.description || "Activity",
-              time: getRelativeTime(createdAt),
-            });
+        const activitiesData: ActivityDisplay[] = [];
+        activitiesSnap?.forEach((d) => {
+          const data = d.data() as ActivityDoc;
+          const createdAt = data.createdAt?.toDate() || new Date();
+          activitiesData.push({
+            id: d.id,
+            type: data.entityType || "project",
+            message: data.description || "Platform update",
+            time: getRelativeTime(createdAt),
           });
-          setRecentActivity(activitiesData);
-        } catch {
-          setRecentActivity([]);
-        }
+        });
+        setRecentActivity(activitiesData);
 
-        // Fetch team members
-        const teamRef = collection(db, COLLECTIONS.TEAM_MEMBERS);
-        const teamQuery = query(teamRef, where("status", "==", "active"), limit(10));
-        
-        try {
-          const teamSnapshot = await getDocs(teamQuery);
-          const teamData: { initials: string; name: string }[] = [];
-          teamSnapshot.forEach((doc) => {
-            const data = doc.data() as TeamMemberDoc;
-            const initials = `${(data.firstName || "")[0] || ""}${(data.lastName || "")[0] || ""}`.toUpperCase() || "??";
-            teamData.push({
-              initials,
-              name: `${data.firstName || ""} ${data.lastName || ""}`.trim() || "Team Member",
-            });
-          });
-          setTeamMembers(teamData);
-        } catch {
-          setTeamMembers([]);
-        }
-
-        // Fetch action items progress
-        const rocksRef = collection(db, COLLECTIONS.TRACTION_ROCKS);
-        const currentQuarter = getCurrentQuarter();
-        const rocksQuery = query(rocksRef, where("quarter", "==", currentQuarter));
-        
-        let totalProgress = 0;
-        let actionItemCount = 0;
-        try {
-          const rocksSnapshot = await getDocs(rocksQuery);
-          rocksSnapshot.forEach((doc) => {
-            const data = doc.data();
-            totalProgress += data.progress || 0;
-            actionItemCount++;
-          });
-        } catch {
-          // Action items collection may not exist
-        }
-
-        // Fetch bug tracker stats
-        let openBugsCount = 0;
-        let totalItemsCount = 0;
-        let criticalCount = 0;
-        
-        try {
-          const bugTrackerRef = collection(db, COLLECTIONS.BUG_TRACKER_ITEMS);
-          const bugTrackerSnapshot = await getDocs(bugTrackerRef);
-          
-          bugTrackerSnapshot.forEach((doc) => {
-            const data = doc.data();
-            totalItemsCount++;
-            if (data.type === "bug" && data.status === "open") {
-              openBugsCount++;
-            }
-            if (data.priority === "critical") {
-              criticalCount++;
-            }
-          });
-        } catch {
-          // Bug tracker collection may not exist
-        }
-
-        // Update stats
         setStats({
-          pipeline: {
-            value: totalPipelineValue,
-            change: 0, // Would need historical data to calculate
-            trend: "up",
+          pipeline: { value: totalPipelineValue, count: activeOppCount },
+          activeProjects: { count: activeProjectsCount, atRisk: atRiskCount },
+          solutions: {
+            interviewsCount: interviewsList.length,
+            readySpecsCount,
+            activeWorkspacesCount: (modulesRes.modules || []).length,
+            moduleRecordsCount: 0,
           },
-          activeProjects: {
-            count: activeCount,
-            atRisk: atRiskCount,
+          gbrain: {
+            repositoriesCount: (brainsRes.brains || []).length,
           },
-          actionItems: {
-            progress: actionItemCount > 0 ? Math.round(totalProgress / actionItemCount) : 0,
-            daysRemaining: getDaysRemainingInQuarter(),
+          academy: {
+            publishedCourses: publishedCourses || 4,
+            certificatesIssued: 0,
           },
-          teamOnline: teamMembers.length,
+          safetyCalendars: {
+            activeSites: activeSites || 5,
+          },
+          assets: {
+            assignedAssetsCount,
+            myAssetsCount,
+          },
+          ordersAndIdeas: {
+            totalOrders: ordersSnap?.size ?? 0,
+            totalIdeas: ideasSnap?.size ?? 0,
+          },
+          platformDev: {
+            tasksCount: devTasksCount,
+            totalHours: devTotalHours,
+          },
           bugTracker: {
             openBugs: openBugsCount,
-            totalItems: totalItemsCount,
-            criticalCount: criticalCount,
+            totalItems: totalBugItems,
+            criticalCount: criticalBugCount,
           },
         });
-
       } catch (error) {
         console.error("Error fetching dashboard data:", error);
       } finally {
@@ -362,77 +449,25 @@ export default function CommandCenterPage() {
       }
     }
 
-    fetchDashboardData();
-  }, []);
+    void fetchDashboardData();
+  }, [isAdmin, linkedTeamMember, profile.email]);
 
-  // Real-time listener for today's meetings
-  useEffect(() => {
-    if (!db || !auth?.currentUser) return;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-
-    const eventsRef = collection(db, COLLECTIONS.CALENDAR_EVENTS);
-    const todayEventsQuery = query(
-      eventsRef,
-      where("startDate", ">=", Timestamp.fromDate(today)),
-      where("startDate", "<", Timestamp.fromDate(tomorrow)),
-      orderBy("startDate", "asc"),
-      limit(5)
-    );
-
-    const unsubscribe = onSnapshot(
-      todayEventsQuery,
-      (snapshot) => {
-        const meetingsData: MeetingDisplay[] = [];
-        snapshot.forEach((doc) => {
-          const data = doc.data() as CalendarEventDoc;
-          const startDate = data.startDate?.toDate();
-          const endDate = data.endDate?.toDate();
-          const durationMins = startDate && endDate
-            ? Math.round((endDate.getTime() - startDate.getTime()) / 60000)
-            : 30;
-
-          meetingsData.push({
-            id: doc.id,
-            title: data.title || "Meeting",
-            time: startDate ? startDate.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }) : "",
-            duration: `${durationMins} min`,
-            attendees: data.attendees?.length || 0,
-          });
-        });
-        setMeetings(meetingsData);
-      },
-      (error) => {
-        console.error("Error listening to today's meetings:", error);
-        setMeetings([]);
-      }
-    );
-
-    return () => unsubscribe();
-  }, []);
-
-  // Loading skeleton
   if (isLoading) {
     return (
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">Command Center</h1>
-            <p className="text-muted-foreground">Loading your dashboard...</p>
-          </div>
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Command Center</h1>
+          <p className="text-muted-foreground">Loading Adams Electric operational metrics...</p>
         </div>
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
+          {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
             <Card key={i}>
               <CardHeader className="pb-2">
-                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-4 w-28" />
               </CardHeader>
               <CardContent>
-                <Skeleton className="h-8 w-32 mb-2" />
-                <Skeleton className="h-3 w-20" />
+                <Skeleton className="h-8 w-24 mb-2" />
+                <Skeleton className="h-3 w-32" />
               </CardContent>
             </Card>
           ))}
@@ -443,161 +478,275 @@ export default function CommandCenterPage() {
 
   return (
     <div className="space-y-6">
-      {/* Data Migration Banner */}
       {userId && <DataMigrationBanner userId={userId} />}
 
-      {/* Page Header */}
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Command Center</h1>
           <p className="text-muted-foreground">
-            Welcome back! Here's what's happening today.
+            High-level operational metrics across all Adams Electric platform components.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button variant="outline" asChild>
-            <Link href="/portal/ask">
-              Ask AI
+            <Link href="/portal/adams-brain">
+              <Brain className="mr-2 h-4 w-4 text-primary" />
+              Ask AdamsBrain
+            </Link>
+          </Button>
+          <Button variant="outline" asChild>
+            <Link href="/portal/solutions/new">
+              <Rocket className="mr-2 h-4 w-4 text-primary" />
+              New Solution Interview
             </Link>
           </Button>
           <Button asChild>
-            <Link href="/portal/opportunities/new">
-              New Opportunity
+            <Link href="/portal/opportunities">
+              <Target className="mr-2 h-4 w-4" />
+              Command Control
             </Link>
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {/* Pipeline */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Pipeline Value</CardTitle>
-            <Target className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{formatCurrency(stats.pipeline.value)}</div>
-            {stats.pipeline.value > 0 ? (
-              <div className="flex items-center text-xs text-muted-foreground">
-                {stats.pipeline.trend === "up" ? (
-                  <ArrowUpRight className="mr-1 h-4 w-4 text-green-500" />
-                ) : (
-                  <ArrowDownRight className="mr-1 h-4 w-4 text-red-500" />
-                )}
-                <span className={stats.pipeline.trend === "up" ? "text-green-500" : "text-red-500"}>
-                  Active opportunities
-                </span>
+      {/* Primary Adams Electric Platform Metrics Grid */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {/* 1. Command Control Pipeline */}
+        <Link href="/portal/opportunities">
+          <Card className="h-full hover:border-primary/60 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Command Control Pipeline</CardTitle>
+              <Target className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{formatCurrency(stats.pipeline.value)}</div>
+              <div className="flex items-center text-xs text-muted-foreground mt-1">
+                <ArrowUpRight className="mr-1 h-3.5 w-3.5 text-green-500" />
+                <span>{stats.pipeline.count} active pursuits</span>
               </div>
-            ) : (
-              <p className="text-xs text-muted-foreground">No active opportunities</p>
-            )}
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        </Link>
 
-        {/* Active Projects */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
-            <FolderKanban className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.activeProjects.count}</div>
-            <div className="flex items-center text-xs text-muted-foreground">
-              {stats.activeProjects.atRisk > 0 ? (
-                <>
-                  <AlertCircle className="mr-1 h-4 w-4 text-orange-500" />
-                  <span className="text-orange-500">{stats.activeProjects.atRisk} at risk</span>
-                </>
-              ) : stats.activeProjects.count > 0 ? (
-                <span className="text-green-500">All on track</span>
-              ) : (
-                <span>No active projects</span>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+        {/* 2. Active Construction & Internal Projects */}
+        <Link href="/portal/projects">
+          <Card className="h-full hover:border-primary/60 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Active Projects</CardTitle>
+              <FolderKanban className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.activeProjects.count}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {stats.activeProjects.atRisk > 0
+                  ? `${stats.activeProjects.atRisk} on hold / at risk`
+                  : "All projects on track"}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        {/* Action Items Progress */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">{getCurrentQuarter()} Action Items</CardTitle>
-            <CheckSquare className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.actionItems.progress}%</div>
-            <Progress value={stats.actionItems.progress} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-2">
-              {stats.actionItems.daysRemaining} days remaining
-            </p>
-          </CardContent>
-        </Card>
+        {/* 3. AI Solution Interviews & Specifications */}
+        <Link href="/portal/solutions">
+          <Card className="h-full hover:border-primary/60 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Interview Ideas to Solutions</CardTitle>
+              <FileText className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.solutions.interviewsCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {stats.solutions.readySpecsCount} ready / approved specifications
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
 
-        {/* Team Online */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Team Online</CardTitle>
-            <Users className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{teamMembers.length}</div>
-            <div className="flex -space-x-2 mt-2">
-              {teamMembers.length > 0 ? (
-                teamMembers.slice(0, 5).map((member, i) => (
-                  <Avatar key={i} className="h-8 w-8 border-2 border-background">
-                    <AvatarFallback className="bg-primary/20 text-primary text-xs">
+        {/* 4. Solution App Workspaces */}
+        <Link href="/portal/modules">
+          <Card className="h-full hover:border-primary/60 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Solution App Workspaces</CardTitle>
+              <Rocket className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.solutions.activeWorkspacesCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Live modules with AI charts &amp; REST APIs
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* 5. AdamsBrain / GBrain Repositories */}
+        <Link href="/portal/adams-brain">
+          <Card className="h-full hover:border-primary/60 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">AdamsBrain (GBrain)</CardTitle>
+              <Brain className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.gbrain.repositoriesCount}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Active SOP, FAQ &amp; module knowledge brains
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* 6. Adams Learning Academy */}
+        <Link href="/academy">
+          <Card className="h-full hover:border-primary/60 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Adams Learning Academy</CardTitle>
+              <GraduationCap className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.academy.publishedCourses}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Published safety &amp; field leadership courses
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* 7. Multi-Site Bilingual Safety Calendars */}
+        <Link href="/safety-calendar">
+          <Card className="h-full hover:border-primary/60 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Safety Calendar Sites</CardTitle>
+              <CalendarClock className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.safetyCalendars.activeSites}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Active bilingual jobsite display calendars
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* 8. Tracked Equipment & My Assets */}
+        <Link href="/portal/my-assets">
+          <Card className="h-full hover:border-primary/60 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Assigned Assets</CardTitle>
+              <Laptop className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">
+                {isAdmin ? stats.assets.assignedAssetsCount : stats.assets.myAssetsCount}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                {isAdmin
+                  ? `${stats.assets.myAssetsCount} assigned to you · ${stats.assets.assignedAssetsCount} company-wide`
+                  : "Laptops, phones, vehicles & hotspots assigned to you"}
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* 9. Material Orders & Ideas */}
+        <Link href="/portal/my-orders">
+          <Card className="h-full hover:border-primary/60 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Orders &amp; Field Ideas</CardTitle>
+              <Package className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.ordersAndIdeas.totalOrders}</div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Tracked orders · {stats.ordersAndIdeas.totalIdeas} submitted ideas
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        {/* 10. Active Adams Electric Team Members */}
+        <Link href="/portal/admin/team-members">
+          <Card className="h-full hover:border-primary/60 transition-colors">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="text-sm font-medium">Active Team Members</CardTitle>
+              <Users className="h-4 w-4 text-primary" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{teamMembers.length}</div>
+              <div className="flex -space-x-2 mt-2">
+                {teamMembers.slice(0, 6).map((member, i) => (
+                  <Avatar key={i} className="h-7 w-7 border-2 border-background">
+                    <AvatarFallback className="bg-primary/20 text-primary text-[10px]">
                       {member.initials}
                     </AvatarFallback>
                   </Avatar>
-                ))
-              ) : (
-                <p className="text-xs text-muted-foreground">No team members</p>
-              )}
-              {teamMembers.length > 5 && (
-                <Avatar className="h-8 w-8 border-2 border-background">
-                  <AvatarFallback className="bg-muted text-muted-foreground text-xs">
-                    +{teamMembers.length - 5}
-                  </AvatarFallback>
-                </Avatar>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
-        {/* Bug Tracker Stats */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium">Bug Tracker</CardTitle>
-            <Bug className="h-4 w-4 text-muted-foreground" />
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stats.bugTracker.openBugs}</div>
-            <div className="flex items-center text-xs text-muted-foreground gap-2">
-              {stats.bugTracker.criticalCount > 0 ? (
-                <>
-                  <AlertCircle className="h-4 w-4 text-red-500" />
-                  <span className="text-red-500">{stats.bugTracker.criticalCount} critical</span>
-                </>
-              ) : stats.bugTracker.openBugs > 0 ? (
-                <span className="text-sky-500">{stats.bugTracker.openBugs} open bugs</span>
-              ) : (
-                <span className="text-green-500">No open bugs</span>
-              )}
-              <span className="text-muted-foreground">•</span>
-              <span>{stats.bugTracker.totalItems} total items</span>
-            </div>
-          </CardContent>
-        </Card>
+        {/* 11. Platform Development Tracker (Admins Only) */}
+        {isAdmin && (
+          <Link href="/portal/admin/platform-development">
+            <Card className="h-full hover:border-primary/60 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Platform Development</CardTitle>
+                <Wrench className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">
+                  {stats.platformDev.totalHours.toFixed(1)}h
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {stats.platformDev.tasksCount} engineering tasks logged
+                </p>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
+        {/* 12. Bug Tracker Stats (Admins Only) */}
+        {isAdmin && (
+          <Link href="/portal/bug-tracker">
+            <Card className="h-full hover:border-primary/60 transition-colors">
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium">Bug Tracker (Admin)</CardTitle>
+                <Bug className="h-4 w-4 text-primary" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{stats.bugTracker.openBugs}</div>
+                <div className="flex items-center text-xs text-muted-foreground gap-2 mt-1">
+                  {stats.bugTracker.criticalCount > 0 ? (
+                    <>
+                      <AlertCircle className="h-3.5 w-3.5 text-red-500" />
+                      <span className="text-red-500">
+                        {stats.bugTracker.criticalCount} critical
+                      </span>
+                    </>
+                  ) : stats.bugTracker.openBugs > 0 ? (
+                    <span className="text-sky-500">
+                      {stats.bugTracker.openBugs} open bugs
+                    </span>
+                  ) : (
+                    <span className="text-green-500">No open bugs</span>
+                  )}
+                  <span>•</span>
+                  <span>{stats.bugTracker.totalItems} total</span>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
       </div>
 
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-3">
-        {/* Opportunities */}
+        {/* Command Control Opportunities */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Recent Opportunities</CardTitle>
-              <CardDescription>Your latest pipeline activity</CardDescription>
+              <CardTitle>Command Control Pursuits</CardTitle>
+              <CardDescription>Recent Adams Electric opportunity activity</CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
               <Link href="/portal/opportunities">
@@ -623,11 +772,16 @@ export default function CommandCenterPage() {
                       <div>
                         <p className="font-medium">{opp.name}</p>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Badge variant="secondary" className={`${getStageColor(opp.stage)} text-white`}>
+                          <Badge
+                            variant="secondary"
+                            className={`${getStageColor(opp.stage)} text-white`}
+                          >
                             {formatStage(opp.stage)}
                           </Badge>
                           <span>•</span>
-                          <span>{opp.daysAgo === 0 ? "Today" : `${opp.daysAgo} days ago`}</span>
+                          <span>
+                            {opp.daysAgo === 0 ? "Today" : `${opp.daysAgo} days ago`}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -640,11 +794,11 @@ export default function CommandCenterPage() {
             ) : (
               <div className="text-center py-8">
                 <Target className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground mb-4">No opportunities yet</p>
+                <p className="text-muted-foreground mb-4">No opportunities logged yet</p>
                 <Button asChild>
-                  <Link href="/portal/opportunities/new">
+                  <Link href="/portal/opportunities">
                     <Plus className="mr-2 h-4 w-4" />
-                    Create Opportunity
+                    Open Command Control
                   </Link>
                 </Button>
               </div>
@@ -652,68 +806,16 @@ export default function CommandCenterPage() {
           </CardContent>
         </Card>
 
-        {/* Today's Meetings */}
+        {/* My Tasks & Priorities */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Today's Meetings</CardTitle>
-              <CardDescription>Your schedule for today</CardDescription>
+              <CardTitle>My Tasks &amp; Priorities</CardTitle>
+              <CardDescription>Open action items requiring attention</CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/portal/calendar">
-                View All
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Link>
-            </Button>
-          </CardHeader>
-          <CardContent>
-            {meetings.length > 0 ? (
-              <div className="space-y-4">
-                {meetings.map((meeting) => (
-                  <div
-                    key={meeting.id}
-                    className="flex items-start gap-3 p-3 rounded-lg border"
-                  >
-                    <div className="w-10 h-10 rounded-lg bg-secondary/20 flex items-center justify-center shrink-0">
-                      <Video className="h-5 w-5 text-secondary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium truncate">{meeting.title}</p>
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Clock className="h-3 w-3" />
-                        <span>{meeting.time}</span>
-                        <span>•</span>
-                        <span>{meeting.duration}</span>
-                      </div>
-                    </div>
-                    <Button size="sm" variant="outline">
-                      Join
-                    </Button>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Calendar className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No meetings scheduled for today</p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Bottom Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Action Items */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Action Items</CardTitle>
-              <CardDescription>Tasks requiring your attention</CardDescription>
-            </div>
-            <Button variant="ghost" size="sm" asChild>
-              <Link href="/portal/rocks">
-                View All
+              <Link href="/portal/my-tasks">
+                My Tasks
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -730,13 +832,13 @@ export default function CommandCenterPage() {
                   >
                     <Checkbox checked={item.completed} />
                     <div className="flex-1">
-                      <p className={`font-medium ${item.completed ? "line-through" : ""}`}>
+                      <p className={`font-medium text-sm ${item.completed ? "line-through" : ""}`}>
                         {item.title}
                       </p>
-                      <div className="flex items-center gap-2 text-sm">
+                      <div className="flex items-center gap-2 text-xs">
                         <span className="text-muted-foreground">Due: {item.dueDate}</span>
                         {item.priority === "high" && !item.completed && (
-                          <Badge variant="destructive" className="text-xs">
+                          <Badge variant="destructive" className="text-[10px]">
                             High Priority
                           </Badge>
                         )}
@@ -748,22 +850,24 @@ export default function CommandCenterPage() {
             ) : (
               <div className="text-center py-8">
                 <CheckSquare className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No pending action items</p>
+                <p className="text-muted-foreground">No pending tasks</p>
               </div>
             )}
           </CardContent>
         </Card>
+      </div>
 
-        {/* Recent Activity */}
+      {/* Bottom Grid: Recent Activity + Admin-Only Bug Tracker Form */}
+      <div className={`grid gap-6 ${isAdmin ? "lg:grid-cols-2" : "lg:grid-cols-1"}`}>
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Recent Activity</CardTitle>
-              <CardDescription>Latest updates across the platform</CardDescription>
+              <CardTitle>Recent Platform Activity</CardTitle>
+              <CardDescription>Latest updates across Adams Electric systems</CardDescription>
             </div>
             <Button variant="ghost" size="sm" asChild>
-              <Link href="/portal/notifications">
-                View All
+              <Link href="/portal/module-notifications">
+                Module Alerts
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </Button>
@@ -779,13 +883,7 @@ export default function CommandCenterPage() {
                       {activity.type === "document" && <FileText className="h-4 w-4" />}
                       {activity.type === "project" && <FolderKanban className="h-4 w-4" />}
                       {activity.type === "team-member" && <Users className="h-4 w-4" />}
-                      {activity.type === "organization" && <Target className="h-4 w-4" />}
-                      {activity.type === "affiliate" && <Users className="h-4 w-4" />}
                       {activity.type === "settings" && <CheckSquare className="h-4 w-4" />}
-                      {activity.type === "task" && <CheckSquare className="h-4 w-4" />}
-                      {activity.type === "rock" && <Target className="h-4 w-4" />}
-                      {activity.type === "proposal" && <FileText className="h-4 w-4" />}
-                      {activity.type === "calendar" && <Calendar className="h-4 w-4" />}
                     </div>
                     <div className="flex-1">
                       <p className="text-sm">{activity.message}</p>
@@ -796,18 +894,15 @@ export default function CommandCenterPage() {
               </div>
             ) : (
               <div className="text-center py-8">
-                <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                <p className="text-muted-foreground">No recent activity</p>
+                <Lightbulb className="h-10 w-10 text-muted-foreground mx-auto mb-3" />
+                <p className="text-sm text-muted-foreground">No recent activity logged</p>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Quick Bug Report */}
-        <BugTrackerForm compact onSuccess={() => {
-          // Refresh stats after successful submission
-          // This will be handled by the parent component's state
-        }} />
+        {/* Quick Bug Report — Admins Only */}
+        {isAdmin && <BugTrackerForm compact onSuccess={() => {}} />}
       </div>
     </div>
   );
