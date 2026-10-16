@@ -293,6 +293,14 @@ export interface ModuleBuildDoc extends ModuleBuildInput {
   deployedAt?: Timestamp;
 }
 
+export interface ModuleRecordComment {
+  id: string;
+  authorUid: string;
+  authorName: string;
+  content: string;
+  createdAt: string;
+}
+
 export interface ModuleRecordDoc {
   id: string;
   moduleSlug: string;
@@ -300,6 +308,10 @@ export interface ModuleRecordDoc {
   formId?: string;
   departmentId: string;
   data: Record<string, string | number | boolean | null>;
+  extendedData?: Record<string, string | number | boolean | null>;
+  notes?: string;
+  tags?: string[];
+  comments?: ModuleRecordComment[];
   status: "active" | "completed" | "archived";
   assignedToUid?: string;
   assignedToTeamMemberId?: string;
@@ -314,6 +326,66 @@ export interface ModuleRecordDoc {
   createdByTeamMemberId?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
+}
+
+export interface ModuleChartConfig {
+  id: string;
+  title: string;
+  description?: string;
+  chartType: "bar" | "line" | "pie" | "area";
+  groupByField: string;
+  metric: "count" | "sum" | "avg";
+  valueField?: string;
+  aiRecommended?: boolean;
+  promptUsed?: string;
+}
+
+export interface ModuleCustomMetric {
+  id: string;
+  label: string;
+  description?: string;
+  aggregation: "count" | "completed_rate" | "overdue_count" | "active_count" | "field_sum";
+  fieldId?: string;
+  filterStatus?: "active" | "completed" | "archived";
+  promptUsed?: string;
+}
+
+export interface ModuleTriggerRule {
+  id: string;
+  name: string;
+  enabled: boolean;
+  event: "record_created" | "record_updated" | "status_completed" | "overdue";
+  conditionField?: string;
+  conditionOperator?: "equals" | "contains" | "not_empty";
+  conditionValue?: string;
+  actionType: "in_app_notification" | "telegram_notification" | "teams_notification" | "webhook" | "auto_assign" | "mark_completed";
+  targetRecipient?: string;
+  messageTemplate: string;
+  webhookUrl?: string;
+  createdByAiPrompt?: string;
+}
+
+export interface ModuleApiEndpointConfig {
+  id: string;
+  name: string;
+  slug: string;
+  enabled: boolean;
+  methods: ("GET" | "POST" | "PATCH")[];
+  apiKey: string;
+  exposedFields: string[];
+  createdAt: string;
+}
+
+export interface ModuleAppSettingsDoc {
+  slug: string;
+  visibleColumns: string[];
+  customMetrics: ModuleCustomMetric[];
+  charts: ModuleChartConfig[];
+  triggers: ModuleTriggerRule[];
+  apiEndpoints: ModuleApiEndpointConfig[];
+  detailFields: { id: string; label: string; type: "text" | "textarea" | "number" | "date" }[];
+  updatedAt?: Timestamp;
+  updatedByUid?: string;
 }
 
 export interface ModuleNotificationDoc {

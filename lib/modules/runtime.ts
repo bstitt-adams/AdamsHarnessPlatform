@@ -1,6 +1,7 @@
 import { createHash } from "crypto";
 import type { Timestamp } from "firebase/firestore";
 import { getGeneratedModule } from "@/modules/generated/registry";
+import { listAllAvailableModules, getModuleAppSettings } from "@/lib/modules/dynamic-catalog";
 import { COLLECTIONS, type TeamMemberDoc } from "@/lib/schema";
 import type { AuthenticatedActor } from "@/lib/auth/server-auth";
 import {
@@ -34,7 +35,11 @@ export async function getAuthorizedModule(
   actor: AuthenticatedActor,
   slug: string,
 ): Promise<ModuleDefinition> {
-  const definition = getGeneratedModule(slug);
+  let definition = getGeneratedModule(slug);
+  if (!definition) {
+    const dynamicList = await listAllAvailableModules();
+    definition = dynamicList.find((m) => m.slug === slug);
+  }
   if (!definition) {
     throw new HttpError(404, "Module not found");
   }
@@ -406,6 +411,82 @@ export async function executeRecordTrigger(
         error instanceof Error ? error.message : "unknown",
       );
     }
+  }
+
+  // Also execute custom user/AI-defined triggers from ModuleAppSettingsDoc
+  try {
+    const appSettings = await getModuleAppSettings(def);
+    const db = getDb();
+    const ctx = {
+      record,
+      actorUid: actor.uid,
+      actorTeamMemberId: actor.teamMemberId,
+    };
+
+    for (const rule of appSettings.triggers) {
+      if (!rule.enabled) continue;
+      const matchesEvent =
+        rule.event === trigger ||
+        (rule.event === "status_completed" &&
+          trigger === "record_updated" &&
+          record.status === "completed");
+      if (!matchesEvent) continue;
+
+      if (rule.conditionField) {
+        const rawVal = String(record.data[rule.conditionField] ?? "").toLowerCase();
+        const targetVal = (rule.conditionValue ?? "").toLowerCase();
+        if (rule.conditionOperator === "equals" && rawVal !== targetVal) continue;
+        if (rule.conditionOperator === "contains" && !rawVal.includes(targetVal)) continue;
+        if (rule.conditionOperator === "not_empty" && !rawVal.trim()) continue;
+      }
+
+      const renderedMessage = renderTemplate(rule.messageTemplate, ctx);
+      const ruleEventKey = `${eventId}:rule:${rule.id}`;
+
+      if (rule.actionType === "in_app_notification") {
+        const ref = db
+          .collection(COLLECTIONS.MODULE_NOTIFICATIONS)
+          .doc(deterministicId("ntf", ruleEventKey));
+        await ref.set({
+          id: ref.id,
+          departmentId: record.departmentId,
+          moduleSlug: def.slug,
+          recordId: record.id,
+          recipientUid: record.assignedToUid ?? actor.uid,
+          recipientTeamMemberId: record.assignedToTeamMemberId ?? actor.teamMemberId,
+          type: "reminder",
+          title: `${def.name}: ${rule.name}`,
+          message: renderedMessage,
+          read: false,
+          createdAt: ts(),
+        } satisfies ModuleNotificationDoc);
+      } else if (rule.actionType === "webhook" && rule.webhookUrl) {
+        await fetch(rule.webhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            moduleSlug: def.slug,
+            moduleName: def.name,
+            trigger: rule.name,
+            event: rule.event,
+            message: renderedMessage,
+            record: {
+              id: record.id,
+              status: record.status,
+              data: record.data,
+            },
+          }),
+        }).catch(() => {});
+      } else if (rule.actionType === "mark_completed" && record.status !== "completed") {
+        await db.collection(COLLECTIONS.MODULE_RECORDS).doc(record.id).update({
+          status: "completed",
+          completedAt: ts(),
+          updatedAt: ts(),
+        });
+      }
+    }
+  } catch (err) {
+    console.error("Custom trigger execution error:", err);
   }
 }
 

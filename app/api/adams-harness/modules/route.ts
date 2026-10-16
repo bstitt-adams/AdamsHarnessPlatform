@@ -12,11 +12,17 @@ import {
 import { COLLECTIONS } from "@/lib/schema";
 import type { DepartmentDoc } from "@/lib/adams-harness/types";
 import { GENERATED_MODULES } from "@/modules/generated/registry";
+import { listAllAvailableModules } from "@/lib/modules/dynamic-catalog";
 
 export async function GET(request: NextRequest) {
   try {
     const actor = await requireUser(request);
-    let modules = GENERATED_MODULES;
+    const dynamicModules = await listAllAvailableModules();
+    const bySlug = new Map(dynamicModules.map((m) => [m.slug, m]));
+    for (const gen of GENERATED_MODULES) {
+      bySlug.set(gen.slug, gen);
+    }
+    let modules = Array.from(bySlug.values());
     if (!isAdminActor(actor)) {
       const visible = new Set(actor.departmentIds);
       const missing = modules

@@ -6,6 +6,7 @@ import {
 } from "@/lib/auth/server-auth";
 import { httpErrorResponse } from "@/lib/adams-harness/server-store";
 import { getAuthorizedModule } from "@/lib/modules/runtime";
+import { getModuleAppSettings } from "@/lib/modules/dynamic-catalog";
 
 type Ctx = { params: Promise<{ slug: string }> };
 
@@ -14,8 +15,10 @@ export async function GET(request: NextRequest, { params }: Ctx) {
     const actor = await requireUser(request);
     const { slug } = await params;
     const definition = await getAuthorizedModule(actor, slug);
+    const settings = await getModuleAppSettings(definition);
     return Response.json({
       module: definition,
+      settings,
       capabilities: { canViewRecords: true, canSubmitRecords: true },
     });
   } catch (error) {

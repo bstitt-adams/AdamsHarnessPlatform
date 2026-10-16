@@ -2248,6 +2248,7 @@ export const COLLECTIONS = {
   MODULE_SCHEDULE_RUNS: "moduleScheduleRuns",
   MODULE_NOTIFICATIONS: "moduleNotifications",
   MODULE_UPLOADS: "moduleUploads",
+  MODULE_SETTINGS: "moduleSettings",
   ADAMS_BRAINS: "adamsBrains",
   BRAIN_SOURCES: "brainSources",
   BRAIN_CHUNKS: "brainChunks",

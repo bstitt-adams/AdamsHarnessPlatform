@@ -17,9 +17,21 @@ import {
   Loader2,
   Send,
   Sparkles,
+  Rocket,
+  Settings,
 } from "lucide-react";
 import { toast } from "sonner";
 import { adamsFetchJson } from "@/lib/adams-harness/client-api";
+
+function slugifySolutionTitle(title: string, idSuffix?: string): string {
+  const base = title
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 45);
+  const suffix = idSuffix ? `-${idSuffix.slice(0, 6).toLowerCase()}` : "";
+  return `${base || "solution-app"}${suffix}`;
+}
 
 interface Message {
   id: string;
@@ -396,18 +408,35 @@ export default function SolutionInterviewPage() {
   const coveragePct = Math.round((covered / coverageKeys.length) * 100);
   const { isOwner, canApprove } = caps;
   const interviewOpen = interview.status !== "completed";
+  const solutionAppSlug = slugifySolutionTitle(spec?.title || interview.title, interview.id);
 
   return (
     <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
       <div className="lg:col-span-2 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold">{interview.title}</h1>
-          <p className="text-muted-foreground">
-            {departmentName && `${departmentName} | `}
-            <Badge variant="secondary" className="ml-1">
-              {interview.status.replace("_", " ")}
-            </Badge>
-          </p>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-bold">{interview.title}</h1>
+            <p className="text-muted-foreground">
+              {departmentName && `${departmentName} | `}
+              <Badge variant="secondary" className="ml-1">
+                {interview.status.replace("_", " ")}
+              </Badge>
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Button asChild variant="default" size="sm">
+              <Link href={`/portal/modules/${encodeURIComponent(solutionAppSlug)}`}>
+                <Rocket className="mr-1.5 h-4 w-4" />
+                Open Solution Workspace
+              </Link>
+            </Button>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/portal/modules/${encodeURIComponent(solutionAppSlug)}/settings`}>
+                <Settings className="mr-1.5 h-4 w-4" />
+                App Settings &amp; API
+              </Link>
+            </Button>
+          </div>
         </div>
 
         <Card>

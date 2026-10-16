@@ -27,10 +27,44 @@ import type { ModuleRecordDoc } from "@/lib/adams-harness/types";
 const patchSchema = z.strictObject({
   formId: z.string().regex(/^[a-z][a-z0-9_]*$/).max(60).optional(),
   data: z.record(z.string(), z.unknown()).optional(),
+  extendedData: z.record(z.string(), z.union([z.string(), z.number(), z.boolean(), z.null()])).optional(),
+  notes: z.string().max(20000).optional(),
+  tags: z.array(z.string().max(100)).max(50).optional(),
+  comment: z.string().trim().min(1).max(4000).optional(),
   status: z.enum(["active", "completed", "archived"]).optional(),
 });
 
 type Ctx = { params: Promise<{ slug: string; id: string }> };
+
+export async function GET(request: NextRequest, { params }: Ctx) {
+  try {
+    const actor = await requireUser(request);
+    const { slug, id } = await params;
+    const definition = await getAuthorizedModule(actor, slug);
+    const db = getDb();
+    const snap = await db.collection(COLLECTIONS.MODULE_RECORDS).doc(id).get();
+    if (!snap.exists) {
+      throw new HttpError(404, "Record not found");
+    }
+    const record = { id: snap.id, ...snap.data() } as ModuleRecordDoc;
+    if (
+      record.moduleSlug !== definition.slug ||
+      record.departmentId !== definition.departmentId
+    ) {
+      throw new HttpError(404, "Record not found");
+    }
+    return Response.json({
+      record: serializeDoc(record),
+      module: definition,
+    });
+  } catch (error) {
+    if (error instanceof ApiAuthError) return authErrorResponse(error);
+    const http = httpErrorResponse(error);
+    if (http) return http;
+    console.error("Module record get error:", error);
+    return Response.json({ error: "Failed to load record." }, { status: 500 });
+  }
+}
 
 export async function PATCH(request: NextRequest, { params }: Ctx) {
   try {
@@ -118,9 +152,31 @@ export async function PATCH(request: NextRequest, { params }: Ctx) {
       }
       const dueAt = deriveDueAt(recordType, mergedData);
       const nextVersion = (record.version ?? 1) + 1;
+      const mergedExtended = {
+        ...(record.extendedData ?? {}),
+        ...(parsed.data.extendedData ?? {}),
+      };
+      const existingComments = Array.isArray(record.comments) ? record.comments : [];
+      const nextComments = parsed.data.comment
+        ? [
+            ...existingComments,
+            {
+              id: `cmt_${Date.now()}`,
+              authorUid: actor.uid,
+              authorName: actor.email || "Team Member",
+              content: parsed.data.comment,
+              createdAt: new Date().toISOString(),
+            },
+          ]
+        : existingComments;
+
       const update: Record<string, unknown> = {
         updatedAt: now,
         data: mergedData,
+        extendedData: mergedExtended,
+        ...(parsed.data.notes !== undefined ? { notes: parsed.data.notes } : {}),
+        ...(parsed.data.tags !== undefined ? { tags: parsed.data.tags } : {}),
+        comments: nextComments,
         evidencePaths,
         version: nextVersion,
         lastMutationKey: idempotencyKey,
