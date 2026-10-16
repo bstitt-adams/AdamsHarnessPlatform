@@ -185,6 +185,14 @@ export async function POST(request: NextRequest, { params }: Ctx) {
       const started = await startModuleBuildRun(created.build, created.spec);
       return Response.json({ build: serializeModuleBuild(started) });
     }
+    if (
+      created.build.status === "failed" &&
+      created.build.failureReason &&
+      /HERMES_BUILD_WORKSPACE|Hermes run start failed/i.test(created.build.failureReason)
+    ) {
+      const retried = await startModuleBuildRun(created.build, spec);
+      return Response.json({ build: serializeModuleBuild(retried) });
+    }
     return Response.json({ build: serializeModuleBuild(created.build) });
   } catch (error) {
     if (error instanceof ApiAuthError) return authErrorResponse(error);

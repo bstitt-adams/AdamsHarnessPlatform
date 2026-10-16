@@ -270,6 +270,16 @@ export async function listAllAvailableModules(): Promise<
         interviewId: interview.id,
         specificationId: spec?.id,
       });
+      // Also register the clean slug without the 6-char id suffix so build slugs resolve directly
+      const cleanSlug = slugifySolutionTitle(spec?.title || interview.title);
+      if (!map.has(cleanSlug)) {
+        map.set(cleanSlug, {
+          ...derived,
+          slug: cleanSlug,
+          interviewId: interview.id,
+          specificationId: spec?.id,
+        });
+      }
     }
   } catch {
     // Return built-in modules if DB is unavailable
