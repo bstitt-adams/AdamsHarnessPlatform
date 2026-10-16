@@ -7,6 +7,7 @@ import {
   getDocs,
   addDoc,
   updateDoc,
+  deleteDoc,
   doc,
   Timestamp,
 } from "firebase/firestore";
@@ -24,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Select,
   SelectContent,
@@ -46,6 +48,8 @@ import {
   CheckCircle2,
   Clock,
   Search,
+  Trash2,
+  RotateCcw,
 } from "lucide-react";
 
 interface UserTaskItem {
@@ -219,10 +223,29 @@ export default function MyTasksPage() {
         completed: nextCompleted,
         updatedAt: Timestamp.now(),
       });
-      toast.success(nextCompleted ? "Task marked completed" : "Task reopened");
+      toast.success(nextCompleted ? "Task marked done" : "Task reopened");
       await loadTasks();
     } catch {
       toast.error("Failed to update task status");
+    }
+  };
+
+  const handleDeleteTask = async (item: UserTaskItem) => {
+    if (!db) return;
+    if (!confirm(`Delete task "${item.title}"?`)) return;
+    try {
+      const colName =
+        item.source === "todo"
+          ? COLLECTIONS.TRACTION_TODOS
+          : item.source === "rock"
+            ? COLLECTIONS.TRACTION_ROCKS
+            : COLLECTIONS.ACTION_ITEMS;
+
+      await deleteDoc(doc(db, colName, item.id));
+      toast.success("Task deleted");
+      await loadTasks();
+    } catch {
+      toast.error("Failed to delete task");
     }
   };
 
@@ -381,30 +404,37 @@ export default function MyTasksPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead className="w-[60px]">Done</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Task</TableHead>
                   <TableHead>Priority</TableHead>
                   <TableHead>Due</TableHead>
                   <TableHead>Source</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredTasks.map((task) => (
                   <TableRow key={`${task.source}-${task.id}`}>
                     <TableCell>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => void handleToggleComplete(task)}
-                        className="gap-1.5"
+                      <Checkbox
+                        checked={task.status === "completed"}
+                        onCheckedChange={() => void handleToggleComplete(task)}
+                        aria-label={`Mark ${task.title} as done`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={task.status === "completed" ? "default" : "outline"}
+                        className="gap-1.5 capitalize"
                       >
                         {task.status === "completed" ? (
-                          <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          <CheckCircle2 className="h-3.5 w-3.5" />
                         ) : (
-                          <Clock className="h-4 w-4 text-amber-500" />
+                          <Clock className="h-3.5 w-3.5 text-amber-500" />
                         )}
-                        <span className="capitalize text-xs">{task.status}</span>
-                      </Button>
+                        {task.status === "completed" ? "Done" : "Open"}
+                      </Badge>
                     </TableCell>
                     <TableCell
                       className={
@@ -427,6 +457,35 @@ export default function MyTasksPage() {
                       <Badge variant="secondary" className="uppercase text-[10px]">
                         {task.source}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end items-center gap-2">
+                        <Button
+                          variant={task.status === "completed" ? "outline" : "default"}
+                          size="sm"
+                          onClick={() => void handleToggleComplete(task)}
+                        >
+                          {task.status === "completed" ? (
+                            <>
+                              <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
+                              Reopen
+                            </>
+                          ) : (
+                            <>
+                              <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                              Mark Done
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="Delete Task"
+                          onClick={() => void handleDeleteTask(task)}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
