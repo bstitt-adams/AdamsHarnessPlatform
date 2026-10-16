@@ -893,6 +893,29 @@ export interface UserIdeaDoc {
   updatedAt: Timestamp;
 }
 
+/** User-uploaded Training / Certification record with Base64 attachment artifact */
+export interface UserTrainingCertDoc {
+  id: string;
+  userId: string;
+  teamMemberId: string;
+  userName: string;
+  userEmail: string;
+  trainingTitle: string;
+  trainingCategory: string;
+  issuingOrganization: string;
+  credentialId?: string;
+  completionDate: string;
+  expirationDate: string; // Required field (YYYY-MM-DD)
+  trainingHours?: number;
+  notes?: string;
+  artifactFileName: string;
+  artifactMimeType: string;
+  artifactSize: number;
+  artifactBase64: string; // Base64 encoded data URI or raw base64
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
 /** Event Ticket Type */
 export interface EventTicketType {
   id: string;
@@ -2305,6 +2328,7 @@ export const COLLECTIONS = {
   USER_ASSETS: "userAssets",
   USER_ORDERS: "userOrders",
   USER_IDEAS: "userIdeas",
+  USER_TRAINING_CERTS: "userTrainingCerts",
   ADAMS_BRAINS: "adamsBrains",
   BRAIN_SOURCES: "brainSources",
   BRAIN_CHUNKS: "brainChunks",
