@@ -48,7 +48,9 @@ import {
   saveFeatureVisibilitySettings,
 } from "@/lib/feature-visibility";
 import { useUserProfile } from "@/contexts/user-profile-context";
-import { isSuperAdmin } from "@/lib/permissions";
+import { isAdminRole } from "@/lib/permissions";
+import { RoleSwitcher } from "@/components/portal/role-switcher";
+import { TeamMemberSwitcher } from "@/components/portal/team-member-switcher";
 
 const ROLE_INFO: Record<UserRole, { label: string; icon: React.ElementType; description: string }> = {
   superadmin: { label: "SuperAdmin", icon: Shield, description: "Full access - cannot be restricted" },
@@ -168,9 +170,9 @@ function SectionCollapsible({
 }
 
 export function FeatureVisibilitySettings() {
-  const { linkedTeamMember } = useUserProfile();
-  const currentUserRole = (linkedTeamMember?.role as UserRole) || "affiliate";
-  const canEdit = isSuperAdmin(currentUserRole);
+  const { linkedTeamMember, actualTeamMember } = useUserProfile();
+  const currentUserRole = (actualTeamMember?.role as UserRole) || (linkedTeamMember?.role as UserRole) || "affiliate";
+  const canEdit = isAdminRole(currentUserRole);
 
   const [settings, setSettings] = useState<FeatureVisibilitySettingsType>({
     roleVisibility: DEFAULT_ROLE_VISIBILITY,
@@ -432,6 +434,20 @@ export function FeatureVisibilitySettings() {
         </div>
       </CardHeader>
       <CardContent>
+        {/* User & Role Masquerading Controls */}
+        <div className="mb-6 rounded-lg border bg-muted/30 p-4 space-y-3">
+          <div>
+            <h3 className="text-sm font-semibold">User &amp; Role Masquerade Preview</h3>
+            <p className="text-xs text-muted-foreground">
+              Preview the portal as another Adams Electric team member or role without signing out of your account.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-4">
+            <TeamMemberSwitcher compact={false} />
+            <RoleSwitcher />
+          </div>
+        </div>
+
         {/* Role Selector */}
         <div className="mb-6">
           <Label className="text-sm font-medium mb-3 block">Select Role to Configure</Label>

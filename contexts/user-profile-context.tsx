@@ -175,6 +175,8 @@ interface UserProfileContextType {
   updateProfile: (updates: Partial<UserProfile>) => void;
   saveProfileToFirestore: (updates: Partial<UserProfile>) => Promise<boolean>;
   refreshLinkedTeamMember: () => Promise<void>;
+  setViewAsTeamMemberId: (teamMemberId: string | null) => Promise<void>;
+  isMasqueradingUser: boolean;
   profileCompletion: number;
   networkingCompletion: number;
   isComplete: boolean;
@@ -403,6 +405,41 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  // Masquerade as another Team Member without logging out
+  const setViewAsTeamMemberId = async (teamMemberId: string | null): Promise<void> => {
+    if (!actualTeamMember || (actualTeamMember.role !== "admin" && actualTeamMember.role !== "superadmin")) {
+      return;
+    }
+
+    if (!teamMemberId || teamMemberId === "actual" || teamMemberId === actualTeamMember.id) {
+      sessionStorage.removeItem("adams_view_as_team_member");
+      setLinkedTeamMember(actualTeamMember);
+      const mappedProfile = mapTeamMemberToProfile(actualTeamMember);
+      setProfile((prev) => ({
+        ...prev,
+        ...mappedProfile,
+        updatedAt: new Date().toISOString(),
+      }));
+      return;
+    }
+
+    sessionStorage.setItem("adams_view_as_team_member", teamMemberId);
+    const previewMember = await getTeamMemberById(teamMemberId);
+    if (previewMember) {
+      setLinkedTeamMember(previewMember);
+      const mappedProfile = mapTeamMemberToProfile(previewMember);
+      setProfile((prev) => ({
+        ...prev,
+        ...mappedProfile,
+        updatedAt: new Date().toISOString(),
+      }));
+    }
+  };
+
+  const isMasqueradingUser = Boolean(
+    actualTeamMember && linkedTeamMember && actualTeamMember.id !== linkedTeamMember.id
+  );
+
   return (
     <UserProfileContext.Provider
       value={{
@@ -411,6 +448,8 @@ export function UserProfileProvider({ children }: { children: ReactNode }) {
         updateProfile,
         saveProfileToFirestore,
         refreshLinkedTeamMember,
+        setViewAsTeamMemberId,
+        isMasqueradingUser,
         profileCompletion,
         networkingCompletion,
         isComplete,

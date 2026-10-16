@@ -431,12 +431,13 @@ const adamsBusinessItems: { title: string; href: string; icon: React.ElementType
 export function PortalSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { getDisplayName, getInitials, profile, linkedTeamMember, isAuthenticated } = useUserProfile();
+  const { getDisplayName, getInitials, profile, linkedTeamMember, actualTeamMember, isAuthenticated } = useUserProfile();
   const { canSeeFeature, canSeeSection, isPreviewMode } = useFeatureVisibility();
   const [opportunitiesCount, setOpportunitiesCount] = useState(0);
   const [projectsCount, setProjectsCount] = useState(0);
   const currentUserRole = linkedTeamMember?.role || "affiliate";
-  const showSuperAdminLink = isSuperAdmin(currentUserRole);
+  const actualUserRole = actualTeamMember?.role || currentUserRole;
+  const showSuperAdminLink = isSuperAdmin(actualUserRole) && canSeeFeature("superadminControls");
 
   // Handle sign out
   const handleSignOut = async () => {

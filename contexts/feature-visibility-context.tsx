@@ -14,7 +14,7 @@ import {
   isL83ToolVisible,
 } from "@/lib/feature-visibility";
 import { useUserProfile } from "@/contexts/user-profile-context";
-import { isSuperAdmin } from "@/lib/permissions";
+import { isAdminRole } from "@/lib/permissions";
 
 interface FeatureVisibilityContextType {
   settings: FeatureVisibilitySettings;
@@ -36,9 +36,10 @@ interface FeatureVisibilityContextType {
 const FeatureVisibilityContext = createContext<FeatureVisibilityContextType | undefined>(undefined);
 
 export function FeatureVisibilityProvider({ children }: { children: React.ReactNode }) {
-  const { linkedTeamMember, isAuthenticated } = useUserProfile();
-  const actualRole = (linkedTeamMember?.role as UserRole) || "affiliate";
-  const isSuperAdminUser = isSuperAdmin(actualRole);
+  const { linkedTeamMember, actualTeamMember, isAuthenticated, isMasqueradingUser } = useUserProfile();
+  const actualRole = (actualTeamMember?.role as UserRole) || (linkedTeamMember?.role as UserRole) || "affiliate";
+  const viewedRole = (linkedTeamMember?.role as UserRole) || "affiliate";
+  const canMasquerade = isAdminRole(actualRole);
 
   const [settings, setSettings] = useState<FeatureVisibilitySettings>({
     roleVisibility: DEFAULT_ROLE_VISIBILITY,
@@ -46,9 +47,9 @@ export function FeatureVisibilityProvider({ children }: { children: React.ReactN
   const [isLoading, setIsLoading] = useState(true);
   const [previewRole, setPreviewRole] = useState<UserRole | null>(null);
 
-  // Effective role is preview role if in preview mode, otherwise actual role
-  const effectiveRole = previewRole || actualRole;
-  const isPreviewMode = previewRole !== null && isSuperAdminUser;
+  // Effective role is explicit previewRole first, otherwise the viewed user's role
+  const effectiveRole = previewRole || viewedRole;
+  const isPreviewMode = (previewRole !== null || isMasqueradingUser) && canMasquerade;
 
   // Subscribe to settings changes only when authenticated with Firebase
   useEffect(() => {
@@ -60,44 +61,42 @@ export function FeatureVisibilityProvider({ children }: { children: React.ReactN
     return () => unsubscribe();
   }, [isAuthenticated]);
 
-  // Clear preview role if user is no longer superadmin
+  // Clear preview role if user is no longer admin/superadmin
   useEffect(() => {
-    if (!isSuperAdminUser && previewRole) {
+    if (!canMasquerade && previewRole) {
       setPreviewRole(null);
     }
-  }, [isSuperAdminUser, previewRole]);
+  }, [canMasquerade, previewRole]);
 
   const canSeeFeature = useCallback(
     (featureKey: FeatureKey): boolean => {
-      // SuperAdmin always sees everything when not in preview mode
-      if (isSuperAdminUser && !isPreviewMode) {
+      // SuperAdmin always sees everything when effectiveRole is superadmin
+      if (effectiveRole === "superadmin") {
         return true;
       }
       return isFeatureVisible(featureKey, effectiveRole, settings);
     },
-    [effectiveRole, settings, isSuperAdminUser, isPreviewMode]
+    [effectiveRole, settings]
   );
 
   const canSeeSection = useCallback(
     (sectionKey: SectionKey): boolean => {
-      // SuperAdmin always sees everything when not in preview mode
-      if (isSuperAdminUser && !isPreviewMode) {
+      if (effectiveRole === "superadmin") {
         return true;
       }
       return isSectionVisible(sectionKey, effectiveRole, settings);
     },
-    [effectiveRole, settings, isSuperAdminUser, isPreviewMode]
+    [effectiveRole, settings]
   );
 
   const canSeeL83Tool = useCallback(
     (toolKey: L83ToolKey): boolean => {
-      // SuperAdmin always sees everything when not in preview mode
-      if (isSuperAdminUser && !isPreviewMode) {
+      if (effectiveRole === "superadmin") {
         return true;
       }
       return isL83ToolVisible(toolKey, effectiveRole, settings);
     },
-    [effectiveRole, settings, isSuperAdminUser, isPreviewMode]
+    [effectiveRole, settings]
   );
 
   const refreshSettings = useCallback(() => {
@@ -107,10 +106,10 @@ export function FeatureVisibilityProvider({ children }: { children: React.ReactN
 
   const handleSetPreviewRole = useCallback(
     (role: UserRole | null) => {
-      if (!isSuperAdminUser) return;
+      if (!canMasquerade) return;
       setPreviewRole(role);
     },
-    [isSuperAdminUser]
+    [canMasquerade]
   );
 
   return (

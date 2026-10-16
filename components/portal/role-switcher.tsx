@@ -2,7 +2,7 @@
 
 import { useFeatureVisibility } from "@/contexts/feature-visibility-context";
 import { useUserProfile } from "@/contexts/user-profile-context";
-import { isSuperAdmin } from "@/lib/permissions";
+import { isAdminRole } from "@/lib/permissions";
 import { UserRole } from "@/lib/feature-visibility";
 import {
   Select,
@@ -30,14 +30,14 @@ interface RoleSwitcherProps {
 }
 
 export function RoleSwitcher({ className, showLabel = true }: RoleSwitcherProps) {
-  const { linkedTeamMember } = useUserProfile();
-  const actualRole = (linkedTeamMember?.role as UserRole) || "affiliate";
-  const isSuperAdminUser = isSuperAdmin(actualRole);
+  const { actualTeamMember, linkedTeamMember } = useUserProfile();
+  const actualRole = (actualTeamMember?.role as UserRole) || (linkedTeamMember?.role as UserRole) || "affiliate";
+  const canSwitch = isAdminRole(actualRole);
 
-  const { previewRole, setPreviewRole, isPreviewMode, effectiveRole } = useFeatureVisibility();
+  const { previewRole, setPreviewRole, isPreviewMode } = useFeatureVisibility();
 
-  // Only show for SuperAdmin users
-  if (!isSuperAdminUser) {
+  // Only show for Admin / SuperAdmin users
+  if (!canSwitch) {
     return null;
   }
 
@@ -103,16 +103,16 @@ export function RoleSwitcher({ className, showLabel = true }: RoleSwitcherProps)
 
 // Compact version for the sidebar footer
 export function RoleSwitcherCompact() {
-  const { linkedTeamMember } = useUserProfile();
-  const actualRole = (linkedTeamMember?.role as UserRole) || "affiliate";
-  // Check both role and isSuperAdmin flag
-  const isSuperAdminFlag = linkedTeamMember ? (linkedTeamMember as unknown as { isSuperAdmin?: boolean }).isSuperAdmin === true : false;
-  const isSuperAdminUser = isSuperAdmin(actualRole) || isSuperAdminFlag;
+  const { actualTeamMember, linkedTeamMember } = useUserProfile();
+  const actualRole = (actualTeamMember?.role as UserRole) || (linkedTeamMember?.role as UserRole) || "affiliate";
+  const isSuperAdminFlag = actualTeamMember
+    ? (actualTeamMember as unknown as { isSuperAdmin?: boolean }).isSuperAdmin === true
+    : false;
+  const canSwitch = isAdminRole(actualRole) || isSuperAdminFlag;
 
   const { previewRole, setPreviewRole, isPreviewMode } = useFeatureVisibility();
 
-  // Don't show if not superadmin
-  if (!isSuperAdminUser) {
+  if (!canSwitch) {
     return null;
   }
 

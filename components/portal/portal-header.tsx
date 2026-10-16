@@ -6,8 +6,7 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useUserProfile } from "@/contexts/user-profile-context";
-import { auth, db } from "@/lib/firebase";
-import { terminate } from "firebase/firestore";
+import { auth } from "@/lib/firebase";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,6 +18,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { SidebarTrigger } from "@/components/ui/sidebar";
+import { RoleSwitcher } from "@/components/portal/role-switcher";
+import { TeamMemberSwitcher } from "@/components/portal/team-member-switcher";
 import {
   Search,
   Bell,
@@ -75,16 +76,6 @@ export function PortalHeader() {
   // Handle sign out
   const handleSignOut = async () => {
     try {
-      // Terminate Firestore to prevent internal assertion errors when switching users
-      if (db) {
-        try {
-          await terminate(db);
-          console.log("Firestore terminated before sign out");
-        } catch (terminateError) {
-          console.warn("Could not terminate Firestore:", terminateError);
-        }
-      }
-      
       if (auth) {
         await auth.signOut();
       }
@@ -122,6 +113,11 @@ export function PortalHeader() {
 
       {/* Right Side Actions */}
       <div className="flex items-center gap-2">
+        <div className="hidden xl:flex items-center gap-3 mr-2">
+          <TeamMemberSwitcher compact={false} />
+          <RoleSwitcher />
+        </div>
+
         {/* Ask AI Button */}
         <Button variant="outline" size="sm" className="hidden md:flex" asChild>
           <Link href="/portal/ask">

@@ -15,7 +15,7 @@ export type UserRole = "superadmin" | "admin" | "team" | "affiliate" | "consulta
 export const SIDEBAR_FEATURES = {
   // Navigation
   commandCenter: { label: "Command Center", section: "navigation", href: "/portal/command-center" },
-  opportunities: { label: "Opportunities", section: "navigation", href: "/portal/opportunities" },
+  opportunities: { label: "Command Control", section: "navigation", href: "/portal/opportunities" },
   projects: { label: "Projects", section: "navigation", href: "/portal/projects" },
   affiliates: { label: "Affiliates", section: "navigation", href: "/portal/affiliates" },
   customers: { label: "Customers", section: "navigation", href: "/portal/customers" },
@@ -24,10 +24,10 @@ export const SIDEBAR_FEATURES = {
   apolloSearch: { label: "Apollo Search", section: "work", href: "/portal/apollo-search" },
   supplierSearch: { label: "Supplier Search", section: "work", href: "/portal/supplier-search" },
   documents: { label: "Documents", section: "work", href: "/portal/documents" },
-  calendar: { label: "Calendar", section: "work", href: "/portal/calendar" },
+  calendar: { label: "Adams Master Calendar", section: "work", href: "/portal/calendar" },
   availability: { label: "Availability", section: "work", href: "/portal/availability" },
   meetings: { label: "Meetings", section: "work", href: "/portal/meetings" },
-  rocks: { label: "Rocks", section: "work", href: "/portal/rocks" },
+  rocks: { label: "Action Items", section: "work", href: "/portal/rocks" },
   networking: { label: "Networking", section: "work", href: "/portal/networking" },
   deals: { label: "Deals", section: "work", href: "/portal/deals" },
   linkedinContent: { label: "LinkedIn Content", section: "work", href: "/portal/linkedin-content" },
@@ -36,7 +36,7 @@ export const SIDEBAR_FEATURES = {
   aiWorkforce: { label: "AI Workforce", section: "work", href: "/portal/ai-workforce" },
   proposals: { label: "Proposal Creator", section: "work", href: "/portal/proposals" },
   gohighlevel: { label: "GoHighLevel", section: "admin", href: "/portal/gohighlevel" },
-  ghlMigration: { label: "GHL Migration", section: "admin", href: "/portal/admin/ghl-migration" },
+  ghlMigration: { label: "GHL Integration", section: "admin", href: "/portal/admin/ghl-migration" },
   bugTracker: { label: "Bug Tracker", section: "work", href: "/portal/bug-tracker" },
   adamsTools: { label: "Adams Tools", section: "work", href: "/portal/adams-tools" },
   systemDocs: { label: "System Documentation", section: "work", href: "/portal/system-docs" },
@@ -46,13 +46,13 @@ export const SIDEBAR_FEATURES = {
 
   // Intelligence
   askAdamsBrain: { label: "AdamsBrain", section: "work", href: "/portal/adams-brain" },
-  academy: { label: "Adams Academy", section: "work", href: "/academy" },
+  academy: { label: "Academy", section: "work", href: "/academy" },
   safetyCalendarAdmin: { label: "Safety Calendar Admin", section: "admin", href: "/calendar-admin" },
 
   // Admin
   teamMembers: { label: "Team Members", section: "admin", href: "/portal/admin/team-members" },
   strategicPartners: { label: "Strategic Partners", section: "admin", href: "/portal/admin/strategic-partners" },
-  heroManagement: { label: "Hero Management", section: "admin", href: "/portal/admin/hero" },
+  heroManagement: { label: "Hero Carousel", section: "admin", href: "/portal/admin/hero" },
   contactPopup: { label: "Contact Popup", section: "admin", href: "/portal/admin/popup" },
   events: { label: "Events", section: "admin", href: "/portal/admin/events" },
   growthIqQuiz: { label: "Growth IQ Quiz", section: "admin", href: "/portal/admin/quiz" },
@@ -70,6 +70,8 @@ export const SIDEBAR_FEATURES = {
   moduleBuilds: { label: "Module Builds", section: "admin", href: "/portal/admin/modules" },
   adamsBrainAdmin: { label: "AdamsBrain Admin", section: "admin", href: "/portal/admin/adams-brain" },
   platformDevelopment: { label: "Platform Development", section: "admin", href: "/portal/admin/platform-development" },
+  superadminControls: { label: "SuperAdmin Controls", section: "admin", href: "/portal/admin/superadmin" },
+  settings: { label: "Settings", section: "admin", href: "/portal/settings" },
 
   // Initiatives
   initiatives: { label: "Initiatives", section: "initiatives", href: "/portal/admin/initiatives" },
@@ -141,6 +143,8 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       moduleBuilds: false,
       adamsBrainAdmin: false,
       platformDevelopment: false,
+      superadminControls: false,
+      settings: false,
     },
     sections: Object.keys(SECTIONS).reduce((acc, key) => ({ ...acc, [key]: true }), {} as Record<SectionKey, boolean>),
     l83Tools: Object.keys(L83_TOOLS).reduce((acc, key) => ({ ...acc, [key]: true }), {} as Record<L83ToolKey, boolean>),
@@ -197,6 +201,8 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       moduleBuilds: false,
       adamsBrainAdmin: false,
       platformDevelopment: false,
+      superadminControls: false,
+      settings: false,
       initiatives: false,
       tbmncSuppliers: false,
       safetyCalendar: true,
@@ -277,6 +283,8 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       moduleBuilds: false,
       adamsBrainAdmin: false,
       platformDevelopment: false,
+      superadminControls: false,
+      settings: false,
       initiatives: false,
       tbmncSuppliers: false,
       safetyCalendar: true,
@@ -311,6 +319,25 @@ export interface FeatureVisibilitySettings {
 
 const SETTINGS_DOC_ID = "feature-visibility";
 
+function mergeWithDefaults(
+  saved?: Partial<FeatureVisibilitySettings["roleVisibility"]>
+): FeatureVisibilitySettings["roleVisibility"] {
+  const result = { ...DEFAULT_ROLE_VISIBILITY };
+  if (!saved) return result;
+
+  (Object.keys(DEFAULT_ROLE_VISIBILITY) as UserRole[]).forEach((role) => {
+    const savedRole = saved[role];
+    if (savedRole) {
+      result[role] = {
+        features: { ...DEFAULT_ROLE_VISIBILITY[role].features, ...(savedRole.features || {}) },
+        sections: { ...DEFAULT_ROLE_VISIBILITY[role].sections, ...(savedRole.sections || {}) },
+        l83Tools: { ...DEFAULT_ROLE_VISIBILITY[role].l83Tools, ...(savedRole.l83Tools || {}) },
+      };
+    }
+  });
+  return result;
+}
+
 // Get feature visibility settings from Firestore
 export async function getFeatureVisibilitySettings(): Promise<FeatureVisibilitySettings> {
   if (!db) {
@@ -324,7 +351,7 @@ export async function getFeatureVisibilitySettings(): Promise<FeatureVisibilityS
     if (docSnap.exists()) {
       const data = docSnap.data();
       return {
-        roleVisibility: data.roleVisibility || DEFAULT_ROLE_VISIBILITY,
+        roleVisibility: mergeWithDefaults(data.roleVisibility),
         updatedAt: data.updatedAt?.toDate(),
         updatedBy: data.updatedBy,
       };
@@ -376,7 +403,7 @@ export function subscribeToFeatureVisibility(
     if (docSnap.exists()) {
       const data = docSnap.data();
       callback({
-        roleVisibility: data.roleVisibility || DEFAULT_ROLE_VISIBILITY,
+        roleVisibility: mergeWithDefaults(data.roleVisibility),
         updatedAt: data.updatedAt?.toDate(),
         updatedBy: data.updatedBy,
       });
