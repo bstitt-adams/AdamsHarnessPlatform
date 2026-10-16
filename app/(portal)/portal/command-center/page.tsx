@@ -180,7 +180,7 @@ export default function CommandCenterPage() {
 
   useEffect(() => {
     async function fetchDashboardData() {
-      if (!db) {
+      if (!db || !auth?.currentUser) {
         setIsLoading(false);
         return;
       }
@@ -367,7 +367,7 @@ export default function CommandCenterPage() {
 
   // Real-time listener for today's meetings
   useEffect(() => {
-    if (!db) return;
+    if (!db || !auth?.currentUser) return;
 
     const today = new Date();
     today.setHours(0, 0, 0, 0);

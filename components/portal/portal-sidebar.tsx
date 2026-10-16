@@ -431,7 +431,7 @@ const adamsBusinessItems: { title: string; href: string; icon: React.ElementType
 export function PortalSidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { getDisplayName, getInitials, profile, linkedTeamMember } = useUserProfile();
+  const { getDisplayName, getInitials, profile, linkedTeamMember, isAuthenticated } = useUserProfile();
   const { canSeeFeature, canSeeSection, isPreviewMode } = useFeatureVisibility();
   const [opportunitiesCount, setOpportunitiesCount] = useState(0);
   const [projectsCount, setProjectsCount] = useState(0);
@@ -441,16 +441,6 @@ export function PortalSidebar() {
   // Handle sign out
   const handleSignOut = async () => {
     try {
-      // Terminate Firestore to prevent internal assertion errors when switching users
-      if (db) {
-        try {
-          await terminate(db);
-          console.log("Firestore terminated before sign out");
-        } catch (terminateError) {
-          console.warn("Could not terminate Firestore:", terminateError);
-        }
-      }
-
       // Sign out from Firebase Auth
       if (auth) {
         await auth.signOut();
@@ -475,35 +465,47 @@ export function PortalSidebar() {
 
   // Subscribe to Opportunities count (active opportunities)
   useEffect(() => {
-    if (!db) return;
+    if (!db || !isAuthenticated || !auth?.currentUser) return;
 
     const q = query(
       collection(db, COLLECTIONS.OPPORTUNITIES),
       where("status", "in", ["new", "contacted", "qualified", "proposal", "negotiation"])
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setOpportunitiesCount(snapshot.size);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        setOpportunitiesCount(snapshot.size);
+      },
+      (error) => {
+        console.warn("Opportunities count subscription error:", error?.message || error);
+      }
+    );
 
     return () => unsubscribe();
-  }, []);
+  }, [isAuthenticated]);
 
   // Subscribe to Projects count (active projects)
   useEffect(() => {
-    if (!db) return;
+    if (!db || !isAuthenticated || !auth?.currentUser) return;
 
     const q = query(
       collection(db, COLLECTIONS.PROJECTS),
       where("status", "in", ["planning", "in_progress", "on_hold"])
     );
 
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      setProjectsCount(snapshot.size);
-    });
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        setProjectsCount(snapshot.size);
+      },
+      (error) => {
+        console.warn("Projects count subscription error:", error?.message || error);
+      }
+    );
 
     return () => unsubscribe();
-  }, []);
+  }, [isAuthenticated]);
 
   // Collapsible state for each section
   const [openSections, setOpenSections] = useState({

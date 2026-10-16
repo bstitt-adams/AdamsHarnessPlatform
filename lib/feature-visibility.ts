@@ -362,9 +362,10 @@ export async function saveFeatureVisibilitySettings(
 
 // Subscribe to feature visibility settings changes
 export function subscribeToFeatureVisibility(
-  callback: (settings: FeatureVisibilitySettings) => void
+  callback: (settings: FeatureVisibilitySettings) => void,
+  enabled = true
 ): () => void {
-  if (!db) {
+  if (!db || !enabled) {
     callback({ roleVisibility: DEFAULT_ROLE_VISIBILITY });
     return () => {};
   }
@@ -383,7 +384,7 @@ export function subscribeToFeatureVisibility(
       callback({ roleVisibility: DEFAULT_ROLE_VISIBILITY });
     }
   }, (error) => {
-    console.error("Error subscribing to feature visibility:", error);
+    console.warn("Feature visibility subscription unavailable, using defaults:", error?.message || error);
     callback({ roleVisibility: DEFAULT_ROLE_VISIBILITY });
   });
 }

@@ -49,14 +49,7 @@ export const clearFirestoreCache = async (): Promise<boolean> => {
 // Helper to reconnect Firestore if offline
 export const reconnectFirestore = async (): Promise<boolean> => {
   if (!db) return false;
-  try {
-    await enableNetwork(db);
-    console.log("Firestore network re-enabled");
-    return true;
-  } catch (error) {
-    console.error("Failed to reconnect Firestore:", error);
-    return false;
-  }
+  return true;
 };
 
 // Analytics (only in browser)

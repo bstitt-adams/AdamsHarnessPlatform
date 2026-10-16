@@ -36,7 +36,7 @@ interface FeatureVisibilityContextType {
 const FeatureVisibilityContext = createContext<FeatureVisibilityContextType | undefined>(undefined);
 
 export function FeatureVisibilityProvider({ children }: { children: React.ReactNode }) {
-  const { linkedTeamMember } = useUserProfile();
+  const { linkedTeamMember, isAuthenticated } = useUserProfile();
   const actualRole = (linkedTeamMember?.role as UserRole) || "affiliate";
   const isSuperAdminUser = isSuperAdmin(actualRole);
 
@@ -50,15 +50,15 @@ export function FeatureVisibilityProvider({ children }: { children: React.ReactN
   const effectiveRole = previewRole || actualRole;
   const isPreviewMode = previewRole !== null && isSuperAdminUser;
 
-  // Subscribe to settings changes
+  // Subscribe to settings changes only when authenticated with Firebase
   useEffect(() => {
     const unsubscribe = subscribeToFeatureVisibility((newSettings) => {
       setSettings(newSettings);
       setIsLoading(false);
-    });
+    }, isAuthenticated);
 
     return () => unsubscribe();
-  }, []);
+  }, [isAuthenticated]);
 
   // Clear preview role if user is no longer superadmin
   useEffect(() => {

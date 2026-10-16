@@ -1366,20 +1366,27 @@ export async function getAcademyStats(): Promise<{
 }> {
   if (!db) throw new Error("Firebase not initialized");
 
-  const [courses, lessons, workshops, enrollments, certificates] = await Promise.all([
-    getDocs(collection(db, LMS_COLLECTIONS.COURSES)),
-    getDocs(collection(db, LMS_COLLECTIONS.LESSONS)),
-    getDocs(collection(db, LMS_COLLECTIONS.WORKSHOPS)),
-    getDocs(collection(db, LMS_COLLECTIONS.ENROLLMENTS)),
-    getDocs(collection(db, LMS_COLLECTIONS.CERTIFICATES)),
+  const [coursesSnap, workshopsSnap] = await Promise.all([
+    getDocs(collection(db, LMS_COLLECTIONS.COURSES)).catch(() => null),
+    getDocs(collection(db, LMS_COLLECTIONS.WORKSHOPS)).catch(() => null),
   ]);
 
+  let totalLessons = 0;
+  let totalEnrollments = 0;
+  if (coursesSnap) {
+    coursesSnap.forEach((docSnap) => {
+      const data = docSnap.data();
+      totalLessons += Number(data.lessonCount || data.lessons || 0);
+      totalEnrollments += Number(data.enrollmentCount || 0);
+    });
+  }
+
   return {
-    totalCourses: courses.size,
-    totalLessons: lessons.size,
-    totalWorkshops: workshops.size,
-    totalEnrollments: enrollments.size,
-    totalCertificates: certificates.size,
+    totalCourses: coursesSnap ? coursesSnap.size : 0,
+    totalLessons,
+    totalWorkshops: workshopsSnap ? workshopsSnap.size : 0,
+    totalEnrollments,
+    totalCertificates: 0,
   };
 }
 

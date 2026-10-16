@@ -43,7 +43,7 @@ import {
   DollarSign,
   Target,
 } from "lucide-react";
-import { db } from "@/lib/firebase";
+import { db, auth } from "@/lib/firebase";
 import { collection, query, orderBy, getDocs, deleteDoc, doc, Timestamp } from "firebase/firestore";
 import { COLLECTIONS, type OpportunityDoc } from "@/lib/schema";
 import { logActivity } from "@/lib/activity-logger";
@@ -104,7 +104,7 @@ export default function OpportunitiesPage() {
   }, []);
 
   async function fetchOpportunities() {
-    if (!db) {
+    if (!db || !auth?.currentUser) {
       setIsLoading(false);
       return;
     }
