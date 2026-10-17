@@ -116,15 +116,14 @@ export function AdamsPlatformHome() {
       {/* Hero */}
       <section className="relative flex min-h-[calc(100vh-4rem)] flex-col overflow-hidden">
         <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 py-10 text-center sm:py-16">
-          {/* Electrical cable arc hero image above "Adams Electric presents" */}
-          <div className="relative mb-6 w-full max-w-4xl overflow-hidden rounded-2xl">
+          {/* Electrical cable arc hero graphic (transparent background) above "Adams Electric presents" */}
+          <div className="relative mb-2 w-full max-w-4xl">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/images/electrical-cable-arc.png"
               alt="Adams Electric High-Voltage Cable Arc"
-              className="mx-auto h-auto w-full max-h-[300px] object-cover rounded-2xl shadow-[0_0_60px_rgba(0,180,255,0.35)]"
+              className="mx-auto h-auto w-full max-h-[260px] object-contain"
             />
-            <div className="pointer-events-none absolute inset-0 rounded-2xl bg-gradient-to-t from-[#030409] via-transparent to-transparent opacity-60" />
           </div>
 
           <div className="max-w-3xl space-y-6">
