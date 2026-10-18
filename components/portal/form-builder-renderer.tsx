@@ -825,7 +825,7 @@ export function InteractiveFormRunner({
           )}
 
           {/* Visual 2-Column Document Overlay Grid */}
-          <div className="grid gap-4 sm:grid-cols-12 pt-2">
+          <div className="grid gap-4 sm:grid-cols-2 pt-2">
             {fields.map((field) => {
               const spanFull =
                 (field.overlayPosition?.widthPercent ?? 45) > 60 ||
@@ -836,7 +836,7 @@ export function InteractiveFormRunner({
                 <div
                   key={field.id}
                   className={`${
-                    spanFull ? "sm:col-span-12" : "sm:col-span-6"
+                    spanFull ? "sm:col-span-2" : "sm:col-span-1"
                   } rounded-lg border border-primary/25 bg-primary/[0.02] p-3 space-y-1.5`}
                 >
                   <div className="flex items-center justify-between">

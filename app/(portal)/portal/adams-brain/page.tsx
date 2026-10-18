@@ -293,9 +293,9 @@ export default function AdamsBrainPage() {
       </div>
 
       {/* Main Layout: Left Repository Selector + Right Chat & Explorer */}
-      <div className="grid gap-6 lg:grid-cols-12">
+      <div className="grid gap-6 grid-cols-1 lg:grid-cols-[340px_minmax(0,1fr)] items-start">
         {/* Left Column: Data Repositories */}
-        <div className="lg:col-span-4 space-y-4">
+        <div className="w-full min-w-0 space-y-4">
           <Card>
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -400,7 +400,7 @@ export default function AdamsBrainPage() {
         </div>
 
         {/* Right Column: Interactive Chat, Stored Sources, & Telegram/Teams Info */}
-        <div className="lg:col-span-8 space-y-4">
+        <div className="w-full min-w-0 space-y-4">
           {brainId ? (
             <Tabs
               value={activeTab}

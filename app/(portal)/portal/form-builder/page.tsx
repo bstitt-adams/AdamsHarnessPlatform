@@ -783,9 +783,9 @@ export default function FormBuilderStudioPage() {
 
         {/* TAB 1: VISUAL FORM BUILDER & DOCUMENT OVERLAY STUDIO */}
         <TabsContent value="builder" className="mt-4">
-          <div className="grid gap-6 lg:grid-cols-12">
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-[300px_minmax(0,1fr)_380px] items-start">
             {/* Left Column: Control Palette */}
-            <Card className="lg:col-span-3">
+            <Card className="w-full min-w-0">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Form Controls Palette</CardTitle>
                 <CardDescription className="text-xs">
@@ -835,7 +835,7 @@ export default function FormBuilderStudioPage() {
             </Card>
 
             {/* Center Column: Form Metadata & Interactive Canvas */}
-            <Card className="lg:col-span-5">
+            <Card className="w-full min-w-0">
               <CardHeader className="pb-3 space-y-3">
                 <div className="grid gap-3 sm:grid-cols-2">
                   <div className="space-y-1">
@@ -990,7 +990,7 @@ export default function FormBuilderStudioPage() {
             </Card>
 
             {/* Right Column: Field Inspector, Lookup Source & Manual List Editor */}
-            <Card className="lg:col-span-4">
+            <Card className="w-full min-w-0">
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">
                   Field Inspector &amp; Data Lookup Config
@@ -1418,9 +1418,9 @@ export default function FormBuilderStudioPage() {
             </Card>
           </div>
 
-          <div className="grid gap-6 lg:grid-cols-12">
+          <div className="grid gap-6 grid-cols-1 lg:grid-cols-2">
             {/* Recharts Question-by-Question Drop-Off Funnel */}
-            <Card className="lg:col-span-7">
+            <Card className="w-full min-w-0">
               <CardHeader>
                 <CardTitle className="text-base">
                   Question-by-Question Drop-Off Funnel
@@ -1454,7 +1454,7 @@ export default function FormBuilderStudioPage() {
             </Card>
 
             {/* Step-by-Step Friction & Time Table */}
-            <Card className="lg:col-span-5">
+            <Card className="w-full min-w-0">
               <CardHeader>
                 <CardTitle className="text-base">
                   Field Friction &amp; Abandonment Diagnostics
