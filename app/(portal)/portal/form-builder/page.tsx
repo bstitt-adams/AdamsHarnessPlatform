@@ -848,7 +848,7 @@ export default function FormBuilderStudioPage() {
                       }}
                     />
                   </div>
-                  <div className="space-y-1">
+                  <div className="space-y-1 min-w-0">
                     <Label className="text-xs">Presentation Mode</Label>
                     <Select
                       value={presentationMode}
@@ -856,7 +856,7 @@ export default function FormBuilderStudioPage() {
                         setPresentationMode(v as FormPresentationMode)
                       }
                     >
-                      <SelectTrigger>
+                      <SelectTrigger className="w-full min-w-0 truncate">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1018,8 +1018,8 @@ export default function FormBuilderStudioPage() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="space-y-1.5">
+                    <div className="grid grid-cols-1 gap-3">
+                      <div className="space-y-1.5 min-w-0">
                         <Label className="text-xs">Control Type</Label>
                         <Select
                           value={selectedField.type}
@@ -1029,7 +1029,7 @@ export default function FormBuilderStudioPage() {
                             })
                           }
                         >
-                          <SelectTrigger className="text-xs">
+                          <SelectTrigger className="w-full min-w-0 text-xs truncate">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1042,7 +1042,7 @@ export default function FormBuilderStudioPage() {
                         </Select>
                       </div>
 
-                      <div className="space-y-1.5">
+                      <div className="space-y-1.5 min-w-0">
                         <Label className="text-xs">Reporting Role</Label>
                         <Select
                           value={selectedField.reportingCategory || "dimension"}
@@ -1053,7 +1053,7 @@ export default function FormBuilderStudioPage() {
                             })
                           }
                         >
-                          <SelectTrigger className="text-xs">
+                          <SelectTrigger className="w-full min-w-0 text-xs truncate">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
@@ -1102,7 +1102,7 @@ export default function FormBuilderStudioPage() {
                             })
                           }
                         >
-                          <SelectTrigger className="text-xs">
+                          <SelectTrigger className="w-full min-w-0 text-xs truncate">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
