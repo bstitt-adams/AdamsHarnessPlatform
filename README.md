@@ -13,6 +13,7 @@ A modern **Next.js 16** internal business and AI operations platform built for *
 
 ### 1. Public & Internal AI Process Discovery (`/interview` & `/portal/solutions`)
 - **Unauthenticated & Portal Process Interviews**: Any Adams Electric team member can select a department (`Safety`, `Preconstruction`, `Project Delivery`, `Service`, `Finance`, `People & Culture`) and complete a guided AI requirements interview covering 15 structured operational topics (`Trigger`, `Frequency`, `Current steps`, `Actors`, `Systems`, `Copied data`, `Pain points`, `Desired process`, `Notifications`, `Completion evidence`, `Timing & escalation`, `Exceptions`, `Compliance`, `Integrations`, `Human approvals`).
+- **Multi-Format Attachment Upload & AI Spreadsheet/Document Analysis**: Upload **Excel (`.xlsx`, `.xls`, `.csv`)**, **PowerPoint (`.pptx`, `.ppt`)**, **Word (`.docx`, `.doc`)**, **Adobe PDF (`.pdf`)**, **Markdown (`.md`)**, and **Text (`.txt`)** files at the start of or during any interview. Automatically extracts worksheet names, column headers, Excel formulas, and slide text, asks targeted follow-up questions on how the spreadsheet or document works, and maps spreadsheet columns into the generated specification's `dataEntities`.
 - **Versioned Solution Specifications**: Completed interviews generate SHA-256 hashed, versioned specifications (`solutionSpecifications`) with department owner review and approval workflows.
 
 ### 2. Standardized Solution App Interface (`/portal/modules/[slug]`)
@@ -29,17 +30,17 @@ Every Interview Idea to Solution automatically provisions a full **Solution App 
 
 ### 3. AdamsBrain & GBrain Knowledge Hub (`/portal/admin/adams-brain` & `/portal/adams-brain`)
 Built around the [`garrytan/gbrain`](https://github.com/garrytan/gbrain) opinionated agent knowledge architecture:
-- **Multi-Repository Management**: Create department-scoped or admin-only GBrain repositories for SOPs, FAQs, and system references.
+- **4-Step Data Import & Hermes Storage Wizard**: Guided wizard to select or create a repository, upload files (`.pdf`, `.docx`, `.md`, `.txt`, `.csv`, `.json`), paste structured SOP/FAQ entries, import across 8 live Adams Platform datasets (`Approved Solution Specifications`, `Solution Module Schemas`, `Live Solution Module Records`, `Company Safety Calendars`, `Assigned User Assets`, `Workforce Training & Certifications`, `Command Control Opportunities & Projects`, `Platform System Documentation`), and compile `RESOLVER.md` + `HERMES_MEMORY.json` directly into the Hermes Harness.
+- **Interactive Multi-Repository Chat**: Switch between individual repositories or **"All Active Repositories"** global search mode, ask broad or specific questions with cited source cards, or click **"Ask About This Source"** from the Stored Sources explorer.
 - **In-App GBrain Page Authoring**: Author structured Markdown pages (`sop`, `faq`, `module_reference`, `entity`, `document`) with YAML frontmatter, **`## Compiled Truth`**, and append-only **`## Timeline & Evidence`**.
-- **Document Upload & Live Platform Connectors**: Upload `.pdf`, `.docx`, `.md`, and `.txt` files, or one-click sync live platform data (**Approved Solution Specifications**, **Solution Module Schemas**, **Live Solution Module Records**, **Company Safety Calendars**, **Assigned User Assets**, and **System Documentation**).
 - **GitHub GBrain Sync & `RESOLVER.md` Generation**: Compile all indexed sources into `garrytan/gbrain` folder layout with an auto-generated `RESOLVER.md` index and sync to GitHub or download as a bundle.
 - **Hermes Agent REST / MCP Endpoint (`/api/public/gbrain`)**: Exposes per-repository `X-API-Key` endpoints for querying and writing GBrain pages, and automatically grounds answers in Portal Q&A, **Telegram**, and **Microsoft Teams**.
 
 ### 4. My Mission Critical (User-Scoped Workspace)
 Located at the top of the left portal navigation, automatically filtered to the signed-in user (or the currently masqueraded user):
-- **My Tasks (`/portal/my-tasks`)**: Personal To-Dos, Quarterly Rocks, and Action Items with quick creation and completion toggles.
-- **My Assets (`/portal/my-assets`)**: View assigned equipment (`laptop`, `cell phone`, `ipad`, `vehicle`, `hotspot`, or custom asset types). Includes **Admin Controls** to assign assets to any user and modify the list of tracked asset types.
-- **My Training and Certs (`/portal/my-training`)**: Personal Adams Learning Academy course enrollments, progress bars, and earned certificates.
+- **My Tasks & MindChuk Feed (`/portal/my-tasks` & `/portal/mindchuk-clone`)**: Implements **MindChuk — For Minds That Never Turn Off** (`https://mindchuk.com/`). Instant brain-dump capture for tasks, notes/thoughts, ideas, saved links (`https://...`), Base64 photo/file attachments, and scheduled reminders with auto-extracted `#hashtags`, interactive `#tag` filter cloud, Pinning, Convert-to-Task, Mark Done / Reopen / Delete, Feed vs. Table view toggle, and automatic sync to the **Adams Master Calendar**.
+- **My Assets (`/portal/my-assets`)**: View assigned equipment (`laptop`, `cell phone`, `ipad`, `vehicle`, `hotspot`, or custom asset types). **Admin / SuperAdmin-only Controls** allow assigning assets to any user and modifying the list of tracked asset types.
+- **My Training and Certs (`/portal/my-training`)**: Upload training or certification attachment artifacts in **Base64 format** (`userTrainingCerts`) with credential metadata and a **required Expiration Date**, track `Active / Expiring Soon / Expired` status badges, preview/download artifacts inline, and automatically sync completion & expiration dates to the **Adams Master Calendar**.
 - **My Orders (`/portal/my-orders`)**: Personal material and equipment order requests and delivery tracking.
 - **My Ideas (`/portal/my-ideas`)**: Submit process improvement ideas and track personal AI solution interviews.
 
