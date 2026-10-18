@@ -71,6 +71,15 @@ function buildFallbackSpecificationSections(
   interview: ProcessInterviewDoc,
 ): SpecificationSections {
   const f = interview.facts;
+  const excelEntities = (interview.attachments || [])
+    .flatMap((att) => att.sheets || [])
+    .flatMap((sheet) =>
+      sheet.columns.slice(0, 12).map((col) => ({
+        name: col,
+        description: `Imported column from Excel sheet "${sheet.name}".`,
+      })),
+    );
+
   return {
     summary:
       f.desiredProcess ||
@@ -106,6 +115,7 @@ function buildFallbackSpecificationSections(
         name: "Status & Priority",
         description: "Lifecycle state and urgency level.",
       },
+      ...excelEntities,
       ...(f.completionEvidence.map((ev) => ({
         name: ev,
         description: "Required completion evidence.",

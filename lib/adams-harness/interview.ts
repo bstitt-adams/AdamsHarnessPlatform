@@ -146,12 +146,24 @@ Respond with a single JSON object matching exactly:
 function buildStateSummary(interview: ProcessInterviewDoc): string {
   const covered = REQUIRED_COVERAGE_KEYS.filter((k) => interview.coverage[k]);
   const missing = REQUIRED_COVERAGE_KEYS.filter((k) => !interview.coverage[k]);
+  const attachmentSection =
+    interview.attachments && interview.attachments.length > 0
+      ? [
+          "Uploaded & analyzed attachments:",
+          ...interview.attachments.map(
+            (att) =>
+              `- [${att.fileType.toUpperCase()}] ${att.fileName}: ${att.summary}\n  Extracted details:\n${att.extractedText.slice(0, 2500)}`,
+          ),
+        ].join("\n")
+      : "Uploaded & analyzed attachments: (none)";
+
   return [
     `Interview title: ${interview.title}`,
     `Seeded task: ${interview.task || "(none)"}`,
     `Topics already covered: ${covered.join(", ") || "none"}`,
     `Topics still missing: ${missing.join(", ") || "none"}`,
     `Unresolved questions: ${interview.unresolvedQuestions.join(" | ") || "none"}`,
+    attachmentSection,
   ].join("\n");
 }
 
@@ -319,7 +331,12 @@ function runGuidedFallbackTurn(interview: ProcessInterviewDoc): InterviewTurnRes
 
   // If the last message was from the user, attribute their answer to the first uncovered topic
   const lastMsg = interview.messages[interview.messages.length - 1];
-  if (lastMsg && lastMsg.role === "user") {
+  const justUploadedAttachment =
+    lastMsg &&
+    lastMsg.role === "user" &&
+    lastMsg.content.startsWith("[Attachment Uploaded:");
+
+  if (lastMsg && lastMsg.role === "user" && !justUploadedAttachment) {
     const answeredStep = GUIDED_QUESTIONS.find((q) => !coverage[q.key]);
     if (answeredStep) {
       const extracted = answeredStep.applyAnswer(lastMsg.content, facts);
@@ -328,11 +345,36 @@ function runGuidedFallbackTurn(interview: ProcessInterviewDoc): InterviewTurnRes
     }
   }
 
+  // Check if any uploaded attachment has follow-up questions not yet asked by the assistant
+  const assistantHistoryText = interview.messages
+    .filter((m) => m.role === "assistant")
+    .map((m) => m.content)
+    .join("\n");
+
+  const pendingAttachmentQuestion = (interview.attachments || [])
+    .flatMap((att) =>
+      (att.suggestedQuestions || []).map((q) => ({
+        fileName: att.fileName,
+        summary: att.summary,
+        question: q,
+      })),
+    )
+    .find((item) => !assistantHistoryText.includes(item.question));
+
   const nextStep = GUIDED_QUESTIONS.find((q) => !coverage[q.key]);
-  const readyForSpecification = !nextStep;
-  const assistantText = nextStep
-    ? nextStep.question
-    : "Thank you — all 15 required discovery topics are now covered! You can click 'Generate Specification' below to compile the versioned Solution Specification and launch your Solution App Workspace.";
+  const readyForSpecification = !pendingAttachmentQuestion && !nextStep;
+
+  let assistantText: string;
+  if (justUploadedAttachment && pendingAttachmentQuestion) {
+    assistantText = `I analyzed **${pendingAttachmentQuestion.fileName}**:\n${pendingAttachmentQuestion.summary}\n\n**Follow-up question on your attachment:** ${pendingAttachmentQuestion.question}`;
+  } else if (pendingAttachmentQuestion) {
+    assistantText = `Regarding your uploaded file **${pendingAttachmentQuestion.fileName}**: ${pendingAttachmentQuestion.question}`;
+  } else if (nextStep) {
+    assistantText = nextStep.question;
+  } else {
+    assistantText =
+      "Thank you — all 15 required discovery topics and attachment follow-up questions are now covered! You can click 'Generate Specification' below to compile the versioned Solution Specification and launch your Solution App Workspace.";
+  }
 
   const turn: InterviewAssistantTurn = {
     assistantMessage: assistantText,

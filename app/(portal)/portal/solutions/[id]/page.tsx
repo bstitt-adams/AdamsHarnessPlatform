@@ -19,9 +19,13 @@ import {
   Sparkles,
   Rocket,
   Settings,
+  Paperclip,
+  FileSpreadsheet,
+  Presentation,
 } from "lucide-react";
 import { toast } from "sonner";
-import { adamsFetchJson } from "@/lib/adams-harness/client-api";
+import { adamsFetch, adamsFetchJson } from "@/lib/adams-harness/client-api";
+import type { InterviewAttachmentAnalysis } from "@/lib/adams-harness/attachment-analyzer";
 
 function slugifySolutionTitle(title: string, idSuffix?: string): string {
   const base = title
@@ -82,6 +86,7 @@ interface Interview {
   coverage: Record<string, boolean>;
   unresolvedQuestions: string[];
   readyForSpecification: boolean;
+  attachments?: InterviewAttachmentAnalysis[];
 }
 
 const COVERAGE_LABELS: Record<string, string> = {
@@ -267,11 +272,13 @@ export default function SolutionInterviewPage() {
   const [loading, setLoading] = useState(true);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [acting, setActing] = useState(false);
   const [building, setBuilding] = useState(false);
   const [buildId, setBuildId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const load = useCallback(async () => {
     try {
@@ -324,6 +331,42 @@ export default function SolutionInterviewPage() {
       toast.error(error instanceof Error ? error.message : "Failed to send");
     } finally {
       setSending(false);
+    }
+  };
+
+  const handleUploadAttachment = async (file: File | undefined) => {
+    if (!file || uploadingAttachment) return;
+    setUploadingAttachment(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      if (input.trim()) {
+        form.append("note", input.trim());
+      }
+      const res = await adamsFetch(
+        `/api/adams-harness/interviews/${id}/attachments`,
+        { method: "POST", body: form },
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof body?.error === "string"
+            ? body.error
+            : `Failed to analyze attachment (${res.status})`,
+        );
+      }
+      setInterview(body.interview);
+      setInput("");
+      toast.success(
+        `Analyzed "${file.name}" and generated follow-up questions`,
+      );
+    } catch (error) {
+      toast.error(
+        error instanceof Error ? error.message : "Attachment upload failed",
+      );
+    } finally {
+      setUploadingAttachment(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -475,28 +518,139 @@ export default function SolutionInterviewPage() {
             {interviewOpen && (
               <>
                 <Separator className="my-4" />
-                <div className="flex gap-2">
-                  <Textarea
-                    value={input}
-                    onChange={(e) => setInput(e.target.value)}
-                    placeholder="Answer the interviewer's question..."
-                    rows={2}
-                    maxLength={10000}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" && !e.shiftKey) {
-                        e.preventDefault();
-                        send();
-                      }
-                    }}
-                  />
-                  <Button onClick={send} disabled={sending || !input.trim()}>
-                    <Send className="h-4 w-4" />
-                  </Button>
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                    <span>
+                      Attach spreadsheets or docs for AI analysis (.xlsx, .xls, .csv, .pptx, .docx, .pdf, .md, .txt)
+                    </span>
+                    <div>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept=".xlsx,.xls,.csv,.pptx,.ppt,.docx,.doc,.pdf,.md,.txt"
+                        className="hidden"
+                        onChange={(e) =>
+                          void handleUploadAttachment(e.target.files?.[0])
+                        }
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled={uploadingAttachment || sending}
+                        onClick={() => fileInputRef.current?.click()}
+                      >
+                        {uploadingAttachment ? (
+                          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+                        )}
+                        Upload &amp; Analyze Attachment
+                      </Button>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Textarea
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      placeholder="Answer the interviewer's question or explain how your attached spreadsheet/document works..."
+                      rows={2}
+                      maxLength={10000}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          e.preventDefault();
+                          send();
+                        }
+                      }}
+                    />
+                    <Button onClick={send} disabled={sending || !input.trim()}>
+                      <Send className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </div>
               </>
             )}
           </CardContent>
         </Card>
+
+        {interview.attachments && interview.attachments.length > 0 && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <FileSpreadsheet className="h-5 w-5 text-primary" />
+                Analyzed Attachments &amp; Spreadsheet Context (
+                {interview.attachments.length})
+              </CardTitle>
+              <CardDescription className="text-xs">
+                Extracted worksheets, columns, formulas, slides, and document structure used to guide follow-up questions.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {interview.attachments.map((att) => (
+                <div
+                  key={att.id}
+                  className="rounded-lg border p-3.5 space-y-2.5 bg-muted/20"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="font-semibold text-sm flex items-center gap-2">
+                      {att.fileType === "excel" ? (
+                        <FileSpreadsheet className="h-4 w-4 text-green-600" />
+                      ) : att.fileType === "powerpoint" ? (
+                        <Presentation className="h-4 w-4 text-orange-500" />
+                      ) : (
+                        <FileText className="h-4 w-4 text-primary" />
+                      )}
+                      {att.fileName}
+                    </div>
+                    <Badge variant="outline" className="uppercase text-[10px]">
+                      {att.fileType} · {Math.round(att.sizeBytes / 1024)} KB
+                    </Badge>
+                  </div>
+                  <p className="text-xs text-muted-foreground whitespace-pre-wrap">
+                    {att.summary}
+                  </p>
+                  {att.sheets && att.sheets.length > 0 && (
+                    <div className="space-y-1.5 pt-1">
+                      {att.sheets.map((s) => (
+                        <div
+                          key={s.name}
+                          className="rounded border bg-background p-2 text-xs"
+                        >
+                          <div className="font-medium">
+                            Sheet: {s.name} ({s.rowCount} rows)
+                          </div>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {s.columns.slice(0, 14).map((col) => (
+                              <Badge
+                                key={col}
+                                variant="secondary"
+                                className="text-[10px]"
+                              >
+                                {col}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {att.suggestedQuestions && att.suggestedQuestions.length > 0 && (
+                    <div className="space-y-1 pt-1">
+                      <span className="text-[11px] font-semibold text-muted-foreground">
+                        AI Follow-Up Questions on {att.fileName}:
+                      </span>
+                      <ul className="list-disc pl-4 space-y-1 text-xs text-muted-foreground">
+                        {att.suggestedQuestions.map((q, qi) => (
+                          <li key={qi}>{q}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        )}
 
         {interview.readyForSpecification && (
           <Card>

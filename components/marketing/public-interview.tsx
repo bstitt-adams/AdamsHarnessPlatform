@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Bot, CheckCircle2, Loader2, Send } from "lucide-react";
+import { Bot, CheckCircle2, Loader2, Paperclip, Send } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,8 +45,10 @@ export function PublicInterview() {
   const [interview, setInterview] = useState<PublicInterview | null>(null);
   const [input, setInput] = useState("");
   const [sending, setSending] = useState(false);
+  const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [loading, setLoading] = useState(true);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/public/interview")
@@ -135,6 +137,39 @@ export function PublicInterview() {
     }
   };
 
+  const handleUploadAttachment = async (file: File | undefined) => {
+    if (!file || !interviewId || uploadingAttachment) return;
+    setUploadingAttachment(true);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      if (input.trim()) {
+        form.append("note", input.trim());
+      }
+      const res = await fetch(`/api/public/interview/${interviewId}/attachments`, {
+        method: "POST",
+        body: form,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(
+          typeof data?.error === "string"
+            ? data.error
+            : `Failed to analyze attachment (${res.status})`,
+        );
+      }
+      setInterview(data.interview);
+      setMessages(data.interview.messages);
+      setInput("");
+      toast.success(`Analyzed "${file.name}" and added follow-up question`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to upload attachment");
+    } finally {
+      setUploadingAttachment(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   const ready = interview?.readyForSpecification === true;
   const inputPlaceholder = interviewId
     ? "Type your answer..."
@@ -208,7 +243,38 @@ export function PublicInterview() {
             </div>
           )}
 
-          <div className="mt-4 flex gap-2">
+          {interviewId && (
+            <div className="mt-4 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span>
+                Attach spreadsheets or documents (.xlsx, .xls, .csv, .pptx, .docx, .pdf, .md, .txt) for AI analysis
+              </span>
+              <div>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".xlsx,.xls,.csv,.pptx,.ppt,.docx,.doc,.pdf,.md,.txt"
+                  className="hidden"
+                  onChange={(e) => void handleUploadAttachment(e.target.files?.[0])}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={uploadingAttachment || sending}
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  {uploadingAttachment ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <Paperclip className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  Attach &amp; Analyze File
+                </Button>
+              </div>
+            </div>
+          )}
+
+          <div className="mt-3 flex gap-2">
             <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}

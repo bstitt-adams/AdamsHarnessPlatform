@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { Timestamp } from "firebase/firestore";
+import type { InterviewAttachmentAnalysis } from "./attachment-analyzer";
 
 const trimmedString = (max: number) => z.string().trim().min(1).max(max);
 const nullableString = (max: number) => z.string().trim().min(1).max(max).nullable().catch(null);
@@ -147,6 +148,7 @@ export interface ProcessInterviewDoc {
   coverage: Record<string, boolean>;
   unresolvedQuestions: string[];
   readyForSpecification: boolean;
+  attachments?: InterviewAttachmentAnalysis[];
   latestSpecVersion?: number;
   model?: string;
   /** "public" = created through the unauthenticated /interview flow */

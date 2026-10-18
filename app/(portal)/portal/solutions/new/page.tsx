@@ -14,9 +14,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, Paperclip } from "lucide-react";
 import { toast } from "sonner";
-import { adamsFetchJson } from "@/lib/adams-harness/client-api";
+import { adamsFetch, adamsFetchJson } from "@/lib/adams-harness/client-api";
 
 interface Department {
   id: string;
@@ -72,6 +72,7 @@ export default function NewSolutionInterviewPage() {
   const [title, setTitle] = useState("");
   const [task, setTask] = useState("");
   const [templateKey, setTemplateKey] = useState<string>("custom");
+  const [initialAttachment, setInitialAttachment] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   const selected = departments.find((d) => d.id === departmentId);
@@ -103,6 +104,14 @@ export default function NewSolutionInterviewPage() {
           }),
         },
       );
+      if (initialAttachment) {
+        const form = new FormData();
+        form.append("file", initialAttachment);
+        await adamsFetch(
+          `/api/adams-harness/interviews/${data.interview.id}/attachments`,
+          { method: "POST", body: form },
+        ).catch(() => {});
+      }
       router.push(`/portal/solutions/${data.interview.id}`);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to start interview");
@@ -222,6 +231,21 @@ export default function NewSolutionInterviewPage() {
                 onChange={(e) => setTask(e.target.value)}
                 maxLength={4000}
                 rows={5}
+              />
+            </div>
+            <div className="space-y-2 rounded-md border p-3 bg-muted/20">
+              <Label htmlFor="initial-attachment" className="flex items-center gap-1.5">
+                <Paperclip className="h-4 w-4 text-primary" />
+                Upload &amp; Analyze Process Attachment (Optional)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Attach an existing Excel spreadsheet (.xlsx, .xls, .csv), PowerPoint (.pptx, .ppt), Word document (.docx, .doc), Adobe PDF (.pdf), Markdown (.md), or Text (.txt) file. The AI interviewer will analyze the columns/content and ask follow-up questions about how it works.
+              </p>
+              <Input
+                id="initial-attachment"
+                type="file"
+                accept=".xlsx,.xls,.csv,.pptx,.ppt,.docx,.doc,.pdf,.md,.txt"
+                onChange={(e) => setInitialAttachment(e.target.files?.[0] || null)}
               />
             </div>
             <Button onClick={submit} disabled={submitting}>
