@@ -328,6 +328,13 @@ const adamsBusinessItems: { title: string; href: string; icon: React.ElementType
     featureKey: "proposals",
   },
   {
+    title: "AI Form Builder",
+    href: "/portal/form-builder",
+    icon: ClipboardList,
+    badge: "AI",
+    featureKey: "formBuilder",
+  },
+  {
     title: "Team Members",
     href: "/portal/admin/team-members",
     icon: UserCog,

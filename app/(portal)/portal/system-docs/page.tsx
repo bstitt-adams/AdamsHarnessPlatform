@@ -509,6 +509,32 @@ const systemDocumentation: FeatureDoc[] = [
     relatedPages: ["/portal/proposals"],
   },
   {
+    id: "form-builder",
+    title: "AI Form Builder & Data Analytics Studio",
+    category: "Adams Electric",
+    icon: ClipboardList,
+    description:
+      "Enterprise form builder combining the top controls of Qualtrics, AirSlate, Jotform, Formstack, Typeform, Forms.app, Cognito Forms, Tally, and Paperform with PDF/Word form overlay import, live Adams Platform lookup dropdowns, digital signatures, AI Data Analyst question optimization, drop-off analysis, and custom PDF response generation.",
+    features: [
+      "19+ Form Controls: Short/Long Text, Email, Phone, Number, Currency, Date, Manual Dropdown, Adams Platform Data Lookup Dropdown (Team Members, Departments, Projects, Safety Sites, Assets, Courses), Radio, Multi-Select, Yes/No Toggle, Likert Scale (1–5), NPS (0–10), Star Rating, Repeating Line-Item Table, Calculated Field, File Upload Artifact, and Digital Signature Pad",
+      "Import PDF (.pdf) or Word (.docx) Forms: Automatically extracts labels and overlays positioned text inputs, lookup dropdowns, and digital signature blocks",
+      "AI Expert Form Developer & Data Analyst Optimizer: Audits questions and upgrades free-text inputs into normalized categorical dimensions and quantitative scales so responses can be charted and reported on properly",
+      "3 Presentation Modes: Standard Multi-Field (Jotform/Cognito), Conversational 1-by-1 (Typeform/Tally), and Document Overlay (AirSlate)",
+      "Drop-Off Analysis Funnel & Question Friction Diagnostics: Recharts funnel tracking Views, Starts, Question Completion vs. Abandonment %, and Avg Seconds per question",
+      "Custom PDF Generation: One-click branded Adams Electric PDF export from any submission with embedded Digital Signature PNG",
+      "16+ Internal & External Integrations + REST API Endpoint (/api/public/forms/[slug])",
+    ],
+    steps: [
+      "1. Open 'Adams Electric → AI Form Builder' (/portal/form-builder).",
+      "2. Type a prompt in the 'AI Form Architect' bar and click 'Build Form with AI', click 'Import PDF / Word Form' to overlay fields on an existing document, or select from the '4. Template Library' tab.",
+      "3. Click 'AI Data Analyst Optimizer' in the top right to automatically upgrade questions into reportable dimensions and metrics.",
+      "4. Click any field on the canvas to configure Adams Platform Lookup sources (Team Members, Projects, Safety Sites, etc.), add manual dropdown options, or adjust Document Overlay X/Y/Width coordinates.",
+      "5. Open '2. Live Interactive Preview' to test your form, sign with the Digital Signature Pad, and click 'Generate Custom PDF', or open '3. Drop-Off Analysis & Responses' to inspect question friction and export submission PDFs.",
+      "6. Click 'Save & Publish Form' and 'Copy Form Link' to share '/forms/[slug]' or integrate via '/api/public/forms/[slug]'.",
+    ],
+    relatedPages: ["/portal/form-builder"],
+  },
+  {
     id: "documents",
     title: "Documents",
     category: "Adams Electric",

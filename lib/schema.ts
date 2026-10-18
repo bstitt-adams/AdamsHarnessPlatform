@@ -2332,6 +2332,8 @@ export const COLLECTIONS = {
   USER_ORDERS: "userOrders",
   USER_IDEAS: "userIdeas",
   USER_TRAINING_CERTS: "userTrainingCerts",
+  PLATFORM_FORMS: "platformForms",
+  PLATFORM_FORM_SUBMISSIONS: "platformFormSubmissions",
   ADAMS_BRAINS: "adamsBrains",
   BRAIN_SOURCES: "brainSources",
   BRAIN_CHUNKS: "brainChunks",

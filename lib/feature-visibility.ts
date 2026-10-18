@@ -43,6 +43,7 @@ export const SIDEBAR_FEATURES = {
   solutions: { label: "Solutions", section: "work", href: "/portal/solutions" },
   modules: { label: "Modules", section: "work", href: "/portal/modules" },
   moduleNotifications: { label: "Module Alerts", section: "work", href: "/portal/module-notifications" },
+  formBuilder: { label: "AI Form Builder", section: "work", href: "/portal/form-builder" },
 
   // Intelligence
   askAdamsBrain: { label: "AdamsBrain", section: "work", href: "/portal/adams-brain" },
@@ -186,6 +187,7 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       solutions: true,
       modules: true,
       moduleNotifications: true,
+      formBuilder: true,
       askAdamsBrain: true,
       teamMembers: false,
       strategicPartners: false,
@@ -274,6 +276,7 @@ export const DEFAULT_ROLE_VISIBILITY: Record<UserRole, {
       solutions: true,
       modules: true,
       moduleNotifications: true,
+      formBuilder: true,
       askAdamsBrain: true,
       teamMembers: false,
       strategicPartners: false,

@@ -273,6 +273,17 @@ service cloud.firestore {
       allow read, create, update, delete: if isAuthenticated();
     }
 
+    // Enterprise AI Form Builder (Forms & Submissions)
+    match /platformForms/{formId} {
+      allow read: if true;
+      allow create, update, delete: if isAuthenticated();
+    }
+    match /platformFormSubmissions/{subId} {
+      allow read: if isAuthenticated();
+      allow create: if true;
+      allow update, delete: if isAuthenticated();
+    }
+
     // Module App Settings
     match /moduleSettings/{slug} {
       allow read, write: if isAuthenticated();
