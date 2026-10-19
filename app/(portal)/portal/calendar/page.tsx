@@ -47,7 +47,7 @@ import {
   GraduationCap,
 } from "lucide-react";
 import { collection, getDocs, updateDoc, deleteDoc, doc, Timestamp, addDoc, query, orderBy, onSnapshot } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { COLLECTIONS, type OneToOneQueueItemDoc, type CalendarEventDoc, type UserTrainingCertDoc } from "@/lib/schema";
 import { showError, showSuccess } from "@/lib/toast";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -341,6 +341,12 @@ export default function CalendarPage() {
   // Initial load: Do full historical sync first time, then incremental syncs
   useEffect(() => {
     fetchOneToOneQueue();
+    void auth?.currentUser?.getIdToken().then((token) =>
+      fetch("/api/admin/calendar/compliance-sync", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      }),
+    ).catch(() => undefined);
 
     const unsubscribeCalendar = loadCalendarEvents();
 

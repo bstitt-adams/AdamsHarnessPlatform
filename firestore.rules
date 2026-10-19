@@ -256,6 +256,20 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
+    match /assetHistory/{historyId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    match /platformAutomations/{automationId} {
+      allow read, create, update, delete: if isAdmin();
+    }
+
+    match /automationRuns/{runId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
     // User Orders (My Orders)
     match /userOrders/{orderId} {
       allow read, create, update: if isAuthenticated();

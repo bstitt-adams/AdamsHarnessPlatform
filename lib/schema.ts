@@ -850,11 +850,46 @@ export interface UserAssetDoc {
   assetType: string; // e.g., "laptop", "cell phone", "ipad", "vehicle", "hotspot", or custom
   assetName: string;
   identifier: string; // Serial #, Phone #, Plate/VIN, Asset Tag
-  status: "active" | "maintenance" | "returned" | "lost";
+  status: "available" | "active" | "maintenance" | "returned" | "retired" | "lost";
+  condition?: "new" | "good" | "fair" | "damaged";
+  manufacturer?: string;
+  model?: string;
+  serialNumber?: string;
+  assetTag?: string;
+  phoneNumber?: string;
+  carrier?: string;
+  plan?: string;
+  imei?: string;
+  purchaseDate?: string;
+  purchaseCost?: number;
+  warrantyExpiration?: string;
+  nextInspectionDate?: string;
+  assignmentReturnedAt?: Timestamp;
   notes?: string;
   assignedByUid: string;
   assignedByName: string;
   assignedAt: Timestamp;
+  createdAt?: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export interface PlatformAutomationDoc {
+  id: string;
+  name: string;
+  prompt: string;
+  triggerType: "manual" | "scheduled" | "calendar_event" | "asset_event" | "lms_expiration";
+  schedule?: string;
+  actions: Array<{
+    type: "calendar" | "task" | "email" | "teams" | "telegram" | "gbrain" | "hermes" | "lms_reminder" | "asset_event";
+    configuration: Record<string, string>;
+  }>;
+  status: "draft" | "active" | "paused";
+  requiresApproval: boolean;
+  lastRunAt?: Timestamp;
+  nextRunAt?: Timestamp;
+  createdByUid: string;
+  createdByName: string;
+  createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
@@ -2329,6 +2364,9 @@ export const COLLECTIONS = {
   MODULE_UPLOADS: "moduleUploads",
   MODULE_SETTINGS: "moduleSettings",
   USER_ASSETS: "userAssets",
+  ASSET_HISTORY: "assetHistory",
+  PLATFORM_AUTOMATIONS: "platformAutomations",
+  AUTOMATION_RUNS: "automationRuns",
   USER_ORDERS: "userOrders",
   USER_IDEAS: "userIdeas",
   USER_TRAINING_CERTS: "userTrainingCerts",

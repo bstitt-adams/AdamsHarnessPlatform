@@ -286,6 +286,19 @@ const adminItems: { title: string; href: string; icon: React.ElementType; badge?
     icon: Wrench,
     featureKey: "platformDevelopment",
   },
+  {
+    title: "Asset Manager",
+    href: "/portal/admin/asset-manager",
+    icon: Laptop,
+    featureKey: "assetManager",
+  },
+  {
+    title: "Time / Automations",
+    href: "/portal/admin/time-automations",
+    icon: CalendarClock,
+    badge: "AI",
+    featureKey: "timeAutomations",
+  },
 ];
 
 // Adams Electric

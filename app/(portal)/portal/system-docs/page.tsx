@@ -486,7 +486,8 @@ const systemDocumentation: FeatureDoc[] = [
       "Company-wide master calendar for Adams Electric meetings, rocks, to-dos, issues, and automatically synced training & certification events.",
     features: [
       "Month and day views with deduplicated real-time Firestore event sync and local-timezone date handling",
-      "Automatic synchronization of Training Completion dates, Certification Expiration / Renewal dates (from My Training and Certs), Academy Workshops, and MindChuk task reminders",
+      "Managed 90-day compliance synchronization with 90/60/30/7-day and due-date reminders for Team Member certifications, vehicle inspections, asset warranties, project milestones, safety deadlines, and active automation schedules",
+      "Source-aware cleanup removes stale calendar reminders when a certification, inspection, warranty, milestone, safety deadline, or automation date changes; overdue due-date events remain for 30 days",
       "Dedicated 'Training' KPI card and event type filter",
     ],
     steps: [
@@ -598,6 +599,45 @@ const systemDocumentation: FeatureDoc[] = [
       "5. Click 'Store in Hermes Harness' in the top right (or open the 'GBrain GitHub & Hermes API' tab) to compile RESOLVER.md + HERMES_MEMORY.json for Hermes, Telegram, and Microsoft Teams.",
     ],
     relatedPages: ["/portal/admin/adams-brain", "/portal/settings?tab=gbrain", "/portal/adams-brain"],
+  },
+  {
+    id: "asset-manager-admin",
+    title: "Asset Manager (Admin)",
+    category: "Admin",
+    icon: Laptop,
+    description: "Track the complete lifecycle of company phones, laptops, iPads, hotspots, and other equipment and connect assignments directly to Team Members.",
+    features: [
+      "Company inventory with asset tags, serial numbers, status, condition, purchase cost, warranty, carrier, plan, IMEI, and assignment history",
+      "Excel (.xlsx) and CSV spreadsheet import, downloadable template, flexible column-mapping wizard, validation, and upsert by asset tag, serial number, or identifier",
+      "Direct Team Member assignment by ID, UID, and email with linked Assets profile tab",
+    ],
+    steps: [
+      "1. Open 'Admin → Asset Manager' (/portal/admin/asset-manager).",
+      "2. Add an asset manually and choose a Team Member, or download the Adams CSV template.",
+      "3. Upload a CSV exported from Excel, map incoming columns, and import or update matching assets.",
+      "4. Open a Team Member name in Admin to review their Assets, LMS, and Communications tabs.",
+    ],
+    relatedPages: ["/portal/admin/asset-manager", "/portal/my-assets", "/portal/admin/team-members"],
+  },
+  {
+    id: "time-automations-admin",
+    title: "Time / Automations (Admin)",
+    category: "Admin",
+    icon: CalendarClock,
+    description: "Create prompt-based AI workflow definitions and administer Adams Master Calendar events from one control center.",
+    features: [
+      "Natural-language automation drafting with scheduled, calendar, asset, certification, and manual triggers",
+      "Workflow actions for calendar events, assigned tasks, email, Microsoft Teams, Telegram, GBrain, Hermes, LMS reminders, and asset events",
+      "Approval, draft, active, paused, manual-run, run-history, and queued-integration states",
+      "Embedded Master Calendar event creation, upcoming-event review, and deletion",
+    ],
+    steps: [
+      "1. Open 'Admin → Time / Automations' (/portal/admin/time-automations).",
+      "2. Describe the desired result, click 'Generate Draft with AI', and review the inferred trigger and actions.",
+      "3. Save the draft, approve and activate it, or use Run to test it immediately.",
+      "4. Use Master Calendar Manager to create and maintain company calendar events.",
+    ],
+    relatedPages: ["/portal/admin/time-automations", "/portal/calendar"],
   },
   {
     id: "team-members-admin",
