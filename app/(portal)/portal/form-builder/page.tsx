@@ -233,7 +233,12 @@ export default function FormBuilderStudioPage() {
       : profile.email || "Adams Electric Admin";
 
   const loadPlatformDataAndForms = useCallback(async () => {
-    if (!db) return;
+    const firestore = db;
+    if (!firestore) return;
+    const loadCollection = (path: string | undefined) => {
+      if (!path?.trim()) return Promise.resolve(null);
+      return getDocs(collection(firestore, path)).catch(() => null);
+    };
     try {
       const [
         formsSnap,
@@ -244,15 +249,13 @@ export default function FormBuilderStudioPage() {
         assetsSnap,
         coursesSnap,
       ] = await Promise.all([
-        getDocs(collection(db, COLLECTIONS.PLATFORM_FORMS)).catch(() => null),
-        getDocs(collection(db, COLLECTIONS.PLATFORM_FORM_SUBMISSIONS)).catch(
-          () => null,
-        ),
-        getDocs(collection(db, COLLECTIONS.TEAM_MEMBERS)).catch(() => null),
-        getDocs(collection(db, COLLECTIONS.PROJECTS)).catch(() => null),
-        getDocs(collection(db, COLLECTIONS.SITECALENDARS)).catch(() => null),
-        getDocs(collection(db, COLLECTIONS.USER_ASSETS)).catch(() => null),
-        getDocs(collection(db, "lms_courses")).catch(() => null),
+        loadCollection(COLLECTIONS.PLATFORM_FORMS),
+        loadCollection(COLLECTIONS.PLATFORM_FORM_SUBMISSIONS),
+        loadCollection(COLLECTIONS.TEAM_MEMBERS),
+        loadCollection(COLLECTIONS.PROJECTS),
+        loadCollection(COLLECTIONS.SITECALENDARS),
+        loadCollection(COLLECTIONS.USER_ASSETS),
+        loadCollection("lms_courses"),
       ]);
 
       const loadedForms: PlatformFormDoc[] = [];

@@ -63,6 +63,8 @@ import {
   Sparkles,
   ExternalLink,
   X,
+  Share2,
+  Smartphone,
 } from "lucide-react";
 
 export type MindChukItemKind =
@@ -72,6 +74,14 @@ export type MindChukItemKind =
   | "link"
   | "photo"
   | "reminder";
+
+interface ShareableTeamMember {
+  id: string;
+  firebaseUid?: string;
+  firstName: string;
+  lastName: string;
+  emailPrimary: string;
+}
 
 export interface UserTaskItem {
   id: string;
@@ -92,6 +102,7 @@ export interface UserTaskItem {
   createdAtLabel?: string;
   ownerId?: string;
   ownerName?: string;
+  sharedByName?: string;
 }
 
 const MAX_IMAGE_BYTES = 650 * 1024;
@@ -141,6 +152,10 @@ export function MindChukTasksWorkspace({
     "all" | MindChukItemKind | "pinned"
   >("all");
   const [viewMode, setViewMode] = useState<"feed" | "table">("feed");
+  const [teamMembers, setTeamMembers] = useState<ShareableTeamMember[]>([]);
+  const [sharingItemId, setSharingItemId] = useState<string | null>(null);
+  const [shareRecipientId, setShareRecipientId] = useState("");
+  const [sharing, setSharing] = useState(false);
 
   // MindChuk Instant Capture State
   const [captureText, setCaptureText] = useState("");
@@ -177,11 +192,30 @@ export function MindChukTasksWorkspace({
     }
     setLoading(true);
     try {
-      const [todosSnap, rocksSnap, actionsSnap] = await Promise.all([
+      const [todosSnap, rocksSnap, actionsSnap, teamSnap] = await Promise.all([
         getDocs(collection(db, COLLECTIONS.TRACTION_TODOS)).catch(() => null),
         getDocs(collection(db, COLLECTIONS.TRACTION_ROCKS)).catch(() => null),
         getDocs(collection(db, COLLECTIONS.ACTION_ITEMS)).catch(() => null),
+        getDocs(collection(db, COLLECTIONS.TEAM_MEMBERS)).catch(() => null),
       ]);
+
+      const availableMembers: ShareableTeamMember[] = [];
+      teamSnap?.forEach((memberDoc) => {
+        const data = memberDoc.data();
+        const emailPrimary = String(data.emailPrimary || "").trim();
+        if (!emailPrimary || memberDoc.id === currentMemberId) return;
+        availableMembers.push({
+          id: memberDoc.id,
+          firebaseUid: String(data.firebaseUid || data.authUid || "") || undefined,
+          firstName: String(data.firstName || ""),
+          lastName: String(data.lastName || ""),
+          emailPrimary,
+        });
+      });
+      availableMembers.sort((a, b) =>
+        `${a.firstName} ${a.lastName}`.localeCompare(`${b.firstName} ${b.lastName}`),
+      );
+      setTeamMembers(availableMembers);
 
       const matchesUser = (data: Record<string, unknown>) => {
         const ownerId = String(
@@ -254,6 +288,8 @@ export function MindChukTasksWorkspace({
               })
             : undefined,
           ownerName: String(data.ownerName || viewedName),
+          sharedByName:
+            typeof data.sharedByName === "string" ? data.sharedByName : undefined,
         });
       });
 
@@ -524,6 +560,51 @@ export function MindChukTasksWorkspace({
     }
   };
 
+  const handleShareTask = async (item: UserTaskItem) => {
+    if (!db || !shareRecipientId) return;
+    const recipient = teamMembers.find((member) => member.id === shareRecipientId);
+    if (!recipient) return;
+    setSharing(true);
+    try {
+      const recipientName = `${recipient.firstName} ${recipient.lastName}`.trim();
+      const dueDate = item.dueDate?.match(/^\d{4}-\d{2}-\d{2}$/)
+        ? Timestamp.fromDate(new Date(`${item.dueDate}T09:00:00`))
+        : item.dueDate || Timestamp.now();
+      await addDoc(collection(db, COLLECTIONS.TRACTION_TODOS), {
+        description: item.title,
+        notes: item.body || "",
+        mindchukKind: "task",
+        ownerId: recipient.id,
+        ownerUid: recipient.firebaseUid || "",
+        ownerName: recipientName,
+        ownerEmail: recipient.emailPrimary.toLowerCase(),
+        assignedTo: recipient.id,
+        assigneeId: recipient.id,
+        assigneeName: recipientName,
+        priority: item.priority,
+        status: "in-progress",
+        completed: false,
+        pinned: false,
+        tags: Array.from(new Set([...item.tags, "shared"])),
+        dueDate,
+        sharedById: currentMemberId || currentUid,
+        sharedByName: viewedName,
+        sharedByEmail: currentEmail,
+        sharedFromId: item.id,
+        sharedFromSource: item.source,
+        createdAt: Timestamp.now(),
+        updatedAt: Timestamp.now(),
+      });
+      setSharingItemId(null);
+      setShareRecipientId("");
+      toast.success(`Shared as a task with ${recipientName}`);
+    } catch {
+      toast.error("Failed to share task");
+    } finally {
+      setSharing(false);
+    }
+  };
+
   const handleDeleteTask = async (item: UserTaskItem) => {
     if (!db) return;
     if (!confirm(`Delete "${item.title}"?`)) return;
@@ -574,7 +655,7 @@ export function MindChukTasksWorkspace({
   }, [tasks, search, selectedKindFilter, selectedTag]);
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-4 p-3 pb-24 sm:space-y-6 sm:p-6 sm:pb-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -595,10 +676,14 @@ export function MindChukTasksWorkspace({
           <p className="text-sm text-muted-foreground">
             MindChuk — For Minds That Never Turn Off. Save tasks, thoughts, notes, links, photos, and reminders into your private searchable feed for {viewedName}.
           </p>
+          <p className="mt-2 flex items-center gap-1.5 text-xs text-muted-foreground sm:hidden">
+            <Smartphone className="h-3.5 w-3.5" />
+            Add this page to your Home Screen for one-tap mobile access.
+          </p>
         </div>
 
         {/* View Mode Toggle */}
-        <div className="flex items-center gap-1 border rounded-lg p-1 self-start">
+        <div className="hidden items-center gap-1 border rounded-lg p-1 self-start sm:flex">
           <Button
             type="button"
             size="sm"
@@ -623,7 +708,7 @@ export function MindChukTasksWorkspace({
       </div>
 
       {/* KPI Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="hidden gap-4 sm:grid sm:grid-cols-2 lg:grid-cols-5">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs uppercase text-muted-foreground">
@@ -685,7 +770,7 @@ export function MindChukTasksWorkspace({
       </div>
 
       {/* MindChuk Instant Brain-Dump Capture Box */}
-      <Card className="border-primary/40 shadow-sm">
+      <Card className="border-primary/40 shadow-sm sm:static">
         <CardHeader className="pb-2">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
             <div>
@@ -1002,6 +1087,11 @@ export function MindChukTasksWorkspace({
                                 • Saved {item.createdAtLabel}
                               </span>
                             )}
+                            {item.sharedByName && (
+                              <Badge variant="outline" className="text-[10px]">
+                                Shared by {item.sharedByName}
+                              </Badge>
+                            )}
                           </div>
 
                           <p
@@ -1115,6 +1205,20 @@ export function MindChukTasksWorkspace({
                       {/* Item Actions */}
                       <div className="flex flex-wrap items-center gap-1.5 shrink-0">
                         <Button
+                          variant="outline"
+                          size="sm"
+                          className="h-8 text-xs"
+                          onClick={() => {
+                            setSharingItemId(
+                              sharingItemId === item.id ? null : item.id,
+                            );
+                            setShareRecipientId("");
+                          }}
+                        >
+                          <Share2 className="mr-1 h-3.5 w-3.5" />
+                          Share
+                        </Button>
+                        <Button
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8"
@@ -1173,6 +1277,40 @@ export function MindChukTasksWorkspace({
                         </Button>
                       </div>
                     </div>
+                    {sharingItemId === item.id && (
+                      <div className="mt-3 flex flex-col gap-2 border-t pt-3 sm:flex-row sm:items-end">
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <Label className="text-xs">Share as a task with</Label>
+                          <Select
+                            value={shareRecipientId}
+                            onValueChange={setShareRecipientId}
+                          >
+                            <SelectTrigger className="w-full min-w-0">
+                              <SelectValue placeholder="Choose a platform team member" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {teamMembers.map((member) => (
+                                <SelectItem key={member.id} value={member.id}>
+                                  {`${member.firstName} ${member.lastName}`.trim()} · {member.emailPrimary}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                        <Button
+                          className="w-full sm:w-auto"
+                          disabled={!shareRecipientId || sharing}
+                          onClick={() => void handleShareTask(item)}
+                        >
+                          {sharing ? (
+                            <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />
+                          ) : (
+                            <Share2 className="mr-1.5 h-4 w-4" />
+                          )}
+                          Assign Task
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 );
               })}

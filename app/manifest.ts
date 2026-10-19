@@ -20,6 +20,15 @@ export default function manifest(): MetadataRoute.Manifest {
       },
     ],
     categories: ["business", "productivity"],
+    shortcuts: [
+      {
+        name: "My Tasks",
+        short_name: "Tasks",
+        description: "Quickly capture and complete Adams Platform tasks",
+        url: "/portal/my-tasks",
+        icons: [{ src: "/icon.png", sizes: "512x512", type: "image/png" }],
+      },
+    ],
     lang: "en-US",
     dir: "ltr",
   };
