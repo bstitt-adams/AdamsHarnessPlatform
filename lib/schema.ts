@@ -774,11 +774,30 @@ export interface TeamMemberDoc {
   authUid?: string; // Legacy link to Firebase Auth user UID
   firstName: string;
   lastName: string;
+  middleName?: string;
   emailPrimary: string;
   emailSecondary?: string;
   mobile?: string;
+  workPhone?: string;
+  homePhone?: string;
+  hireDate?: Timestamp;
   expertise: string;
   title?: string;
+  jobTitleId?: string;
+  jobTitleRaw?: string;
+  workforceDepartmentId?: string;
+  workforceDepartmentName?: string;
+  businessUnitIds?: string[];
+  businessUnitNames?: string[];
+  primaryBusinessUnitId?: string;
+  authProvisioned?: boolean;
+  mustChangePassword?: boolean;
+  temporaryPasswordSetAt?: Timestamp;
+  sourceWorkbook?: string;
+  sourceSheet?: string;
+  sourceRow?: number;
+  importBatchId?: string;
+  searchKeywords?: string[];
   company?: string;
   location?: string;
   bio?: string;
@@ -865,11 +884,99 @@ export interface UserAssetDoc {
   warrantyExpiration?: string;
   nextInspectionDate?: string;
   assignmentReturnedAt?: Timestamp;
+  ownershipType?: "company" | "personal" | "shared" | "jobsite";
+  sourceWorkbook?: string;
+  sourceSheet?: string;
+  sourceRow?: number;
+  sourceColumn?: string;
+  sourceLabel?: string;
+  rawPhoneNumber?: string;
+  assignmentMatchStatus?: "matched" | "unmatched" | "not_applicable";
   notes?: string;
   assignedByUid: string;
   assignedByName: string;
   assignedAt: Timestamp;
   createdAt?: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/** Physical Adams Electric office, warehouse, or jobsite location */
+export interface OfficeLocationDoc {
+  id: string;
+  name: string;
+  locationType: "office" | "warehouse" | "jobsite" | "prefab" | "healthcare" | "other";
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  state?: string;
+  postalCode?: string;
+  phone?: string;
+  alternatePhone?: string;
+  fax?: string;
+  contactName?: string;
+  contactPhone?: string;
+  contactMethods?: Array<{ type: string; label: string; value: string }>;
+  status: "active" | "planned" | "inactive";
+  notes?: string;
+  sourceWorkbook?: string;
+  sourceSheet?: string;
+  sourceRow?: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/** Shared conference bridge or location-specific conference access code */
+export interface ConferenceLineDoc {
+  id: string;
+  name: string;
+  locationLabel: string;
+  accessNumber: string;
+  chairCode?: string;
+  participantCode?: string;
+  status: "active" | "inactive";
+  notes?: string;
+  sourceWorkbook?: string;
+  sourceSheet?: string;
+  sourceRow?: number;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/** Workforce or craft grouping sourced from HR/workforce workbooks */
+export interface WorkforceDepartmentDoc {
+  id: string;
+  name: string;
+  code: string;
+  sourceName?: string;
+  memberCount?: number;
+  isActive: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/** Canonical job title reference used for people, training, permissions, and reporting */
+export interface JobTitleDoc {
+  id: string;
+  displayTitle: string;
+  normalizedTitle: string;
+  sourceTitles: string[];
+  jobFamily?: string;
+  levelCode?: string;
+  workforceDepartmentId?: string;
+  isActive: boolean;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/** Organizational business unit such as Mission Critical */
+export interface BusinessUnitDoc {
+  id: string;
+  name: string;
+  code: string;
+  unitType: "business_unit" | "division" | "region" | "team";
+  memberCount?: number;
+  isActive: boolean;
+  createdAt: Timestamp;
   updatedAt: Timestamp;
 }
 
@@ -2354,8 +2461,12 @@ export const COLLECTIONS = {
   // Success Stories (Testimonials)
   SUCCESS_STORIES: "successStories",
   DEPARTMENTS: "departments",
+  WORKFORCE_DEPARTMENTS: "workforceDepartments",
+  JOB_TITLES: "jobTitles",
+  BUSINESS_UNITS: "businessUnits",
   PROCESS_INTERVIEWS: "processInterviews",
   SOLUTION_SPECIFICATIONS: "solutionSpecifications",
+  INTERVIEW_PRDS: "interviewPrds",
   ADAMS_AUDIT_LOGS: "adamsAuditLogs",
   MODULE_BUILDS: "moduleBuilds",
   MODULE_RECORDS: "moduleRecords",
@@ -2365,6 +2476,9 @@ export const COLLECTIONS = {
   MODULE_SETTINGS: "moduleSettings",
   USER_ASSETS: "userAssets",
   ASSET_HISTORY: "assetHistory",
+  IMAGES: "images",
+  OFFICE_LOCATIONS: "officeLocations",
+  CONFERENCE_LINES: "conferenceLines",
   PLATFORM_AUTOMATIONS: "platformAutomations",
   AUTOMATION_RUNS: "automationRuns",
   USER_ORDERS: "userOrders",
@@ -2422,6 +2536,11 @@ export const strategicPartnersCollection = () => getCollection<StrategicPartnerD
 
 // Team Members collection reference
 export const teamMembersCollection = () => getCollection<TeamMemberDoc>(COLLECTIONS.TEAM_MEMBERS);
+export const officeLocationsCollection = () => getCollection<OfficeLocationDoc>(COLLECTIONS.OFFICE_LOCATIONS);
+export const conferenceLinesCollection = () => getCollection<ConferenceLineDoc>(COLLECTIONS.CONFERENCE_LINES);
+export const workforceDepartmentsCollection = () => getCollection<WorkforceDepartmentDoc>(COLLECTIONS.WORKFORCE_DEPARTMENTS);
+export const jobTitlesCollection = () => getCollection<JobTitleDoc>(COLLECTIONS.JOB_TITLES);
+export const businessUnitsCollection = () => getCollection<BusinessUnitDoc>(COLLECTIONS.BUSINESS_UNITS);
 
 // Platform Settings collection reference
 export const platformSettingsCollection = () => getCollection<PlatformSettingsDoc>(COLLECTIONS.PLATFORM_SETTINGS);

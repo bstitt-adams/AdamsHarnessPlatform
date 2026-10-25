@@ -23,6 +23,7 @@ import { COLLECTIONS } from "@/lib/schema";
 
 const startSchema = z.strictObject({
   departmentId: z.string().trim().min(1).max(200),
+  respondentName: z.string().trim().min(2).max(200),
 });
 
 async function listPublicDepartments() {
@@ -85,6 +86,7 @@ export async function POST(request: NextRequest) {
     if (!department) {
       return NextResponse.json({ error: "Department not found" }, { status: 404 });
     }
+    const respondentName = parsed.data.respondentName;
 
     const db = getDb();
     const ref = db.collection(COLLECTIONS.PROCESS_INTERVIEWS).doc();
@@ -92,11 +94,12 @@ export async function POST(request: NextRequest) {
     const interview: ProcessInterviewDoc = {
       id: ref.id,
       departmentId: department.id,
-      title: `Public requirements interview — ${department.name}`,
+      title: `Public requirements interview — ${respondentName} (${department.name})`,
       task: "",
       status: "interviewing",
       createdByUid: "public-anonymous",
-      createdByName: "Public visitor",
+      createdByName: respondentName,
+      respondentName,
       source: "public",
       publicSessionToken: randomBytes(32).toString("hex"),
       messages: [],
@@ -133,7 +136,11 @@ export async function POST(request: NextRequest) {
       actorUid: "public-anonymous",
       actorName: "Public visitor",
       actorRole: "public",
-      detail: { departmentId: department.id, departmentName: department.name },
+      detail: {
+        departmentId: department.id,
+        departmentName: department.name,
+        respondentName,
+      },
     });
 
     const { publicSessionToken: _sessionToken, ...safeInterview } = interview;

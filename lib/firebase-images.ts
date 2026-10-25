@@ -9,7 +9,6 @@
 import {
   collection,
   doc,
-  getDoc,
   setDoc,
   updateDoc,
   deleteDoc,
@@ -20,10 +19,11 @@ import {
   Timestamp,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
+import { COLLECTIONS } from "./schema";
 
 // Collection name for images
-export const IMAGES_COLLECTION = "images";
+export const IMAGES_COLLECTION = COLLECTIONS.IMAGES;
 
 // Image document structure
 export interface ImageDoc {
@@ -181,22 +181,26 @@ export async function uploadImage(
   return imageDoc;
 }
 
+async function imageApiHeaders(): Promise<HeadersInit> {
+  const token = await auth?.currentUser?.getIdToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 /**
  * Get an image by ID
  */
 export async function getImage(imageId: string): Promise<ImageDoc | null> {
-  if (!db) {
-    throw new Error("Firebase not initialized");
-  }
-
-  const docRef = doc(db, IMAGES_COLLECTION, imageId);
-  const docSnap = await getDoc(docRef);
-
-  if (!docSnap.exists()) {
+  const response = await fetch(`/api/images/${encodeURIComponent(imageId)}`, {
+    headers: await imageApiHeaders(),
+  });
+  if (response.status === 404) {
     return null;
   }
-
-  return docSnap.data() as ImageDoc;
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to load image");
+  }
+  return data.image as ImageDoc;
 }
 
 /**
@@ -213,46 +217,30 @@ export async function getImageDataUrl(imageId: string): Promise<string | null> {
 /**
  * Get all images (metadata only, without base64 data)
  */
-export async function listImages(category?: ImageCategory): Promise<ImageMetadata[]> {
-  if (!db) {
-    throw new Error("Firebase not initialized");
-  }
+export async function listImages(
+  category?: ImageCategory,
+  includeInactive = false,
+): Promise<ImageMetadata[]> {
+  const params = new URLSearchParams();
+  if (category) params.set("category", category);
+  if (includeInactive) params.set("includeInactive", "true");
 
-  const imagesRef = collection(db, IMAGES_COLLECTION);
-  
-  // If filtering by category, don't use orderBy (avoids composite index)
-  // Sort client-side instead
-  const q = category
-    ? query(imagesRef, where("category", "==", category))
-    : query(imagesRef, orderBy("createdAt", "desc"));
-
-  const snapshot = await getDocs(q);
-  
-  const images = snapshot.docs.map((doc) => {
-    const data = doc.data() as ImageDoc;
-    // Return metadata without the base64 data
-    return {
-      id: data.id,
-      name: data.name,
-      description: data.description,
-      category: data.category,
-      mimeType: data.mimeType,
-      width: data.width,
-      height: data.height,
-      size: data.size,
-      createdAt: data.createdAt.toDate(),
-      updatedAt: data.updatedAt?.toDate(),
-      tags: data.tags,
-      isActive: data.isActive,
-    };
+  const response = await fetch(`/api/images${params.size ? `?${params}` : ""}`, {
+    headers: await imageApiHeaders(),
   });
-  
-  // Sort client-side if we filtered by category (avoids composite index)
-  if (category) {
-    images.sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to load images");
   }
-  
-  return images;
+
+  return (data.images || []).map((image: Omit<ImageMetadata, "createdAt" | "updatedAt"> & {
+    createdAt: string;
+    updatedAt?: string;
+  }) => ({
+    ...image,
+    createdAt: new Date(image.createdAt),
+    updatedAt: image.updatedAt ? new Date(image.updatedAt) : undefined,
+  }));
 }
 
 /**
@@ -312,29 +300,16 @@ export async function getImageByName(
   name: string,
   category?: ImageCategory
 ): Promise<ImageDoc | null> {
-  if (!db) {
-    throw new Error("Firebase not initialized");
+  const params = new URLSearchParams({ name });
+  if (category) params.set("category", category);
+  const response = await fetch(`/api/images?${params}`, {
+    headers: await imageApiHeaders(),
+  });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "Failed to load image");
   }
-
-  const imagesRef = collection(db, IMAGES_COLLECTION);
-  let q = query(imagesRef, where("name", "==", name), where("isActive", "==", true));
-  
-  if (category) {
-    q = query(
-      imagesRef,
-      where("name", "==", name),
-      where("category", "==", category),
-      where("isActive", "==", true)
-    );
-  }
-
-  const snapshot = await getDocs(q);
-  
-  if (snapshot.empty) {
-    return null;
-  }
-
-  return snapshot.docs[0].data() as ImageDoc;
+  return (data.image as ImageDoc | null) ?? null;
 }
 
 /**

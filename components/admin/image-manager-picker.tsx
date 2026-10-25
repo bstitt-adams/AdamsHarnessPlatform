@@ -93,7 +93,7 @@ export function ImageManagerPicker({ onSelect, selectedImageId, category = "hero
     setLoading(true);
     try {
       const cat = filterCategory === "all" ? undefined : filterCategory;
-      const images = await listImages(cat);
+      const images = await listImages(cat, true);
       
       const imageResults: ImageResult[] = await Promise.all(
         images.map(async (img) => {

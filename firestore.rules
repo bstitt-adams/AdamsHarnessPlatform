@@ -261,6 +261,32 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // Company office locations and shared conference lines
+    match /officeLocations/{locationId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /conferenceLines/{lineId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /workforceDepartments/{departmentId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /jobTitles/{jobTitleId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /businessUnits/{businessUnitId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isAdmin();
+    }
+
     match /platformAutomations/{automationId} {
       allow read, create, update, delete: if isAdmin();
     }
@@ -867,6 +893,11 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /interviewPrds/{prdId} {
+      allow read: if isHarnessAdmin();
+      allow write: if false;
+    }
+
     match /adamsAuditLogs/{logId} {
       allow read: if isHarnessAdmin();
       allow write: if false;
@@ -929,6 +960,11 @@ service cloud.firestore {
     }
     match /heroSlides/{id} {
       allow read: if true;
+      allow write: if isHarnessAdmin();
+    }
+    match /images/{imageId} {
+      allow get: if isHarnessAdmin() || resource.data.isActive == true;
+      allow list: if isHarnessAdmin() || resource.data.isActive == true;
       allow write: if isHarnessAdmin();
     }
     match /quizQuestions/{id} {

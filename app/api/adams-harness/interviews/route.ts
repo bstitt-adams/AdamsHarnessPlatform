@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ error: "Invalid interview input" }, { status: 400 });
     }
-    const { departmentId, title, task } = parsed.data;
+    const { departmentId, title, task, respondentName } = parsed.data;
 
     const db = getDb();
     const deptSnap = await db.collection(COLLECTIONS.DEPARTMENTS).doc(departmentId).get();
@@ -88,6 +88,7 @@ export async function POST(request: NextRequest) {
       createdByUid: actor.uid,
       createdByTeamMemberId: actor.teamMemberId,
       createdByName: actor.email,
+      respondentName: respondentName || actor.email,
       messages: [],
       facts: emptyInterviewFacts(),
       coverage: emptyCoverage(true),
@@ -122,7 +123,11 @@ export async function POST(request: NextRequest) {
       actorUid: actor.uid,
       actorName: actor.email,
       actorRole: actor.role,
-      detail: { departmentId, title },
+      detail: {
+        departmentId,
+        title,
+        respondentName: respondentName || actor.email,
+      },
     });
 
     return NextResponse.json({ interview: serializeDoc(interview) }, { status: 201 });

@@ -12,6 +12,8 @@
     "seed:firebase": "node scripts/seed-firebase.js",
     "seed:academy": "node --experimental-strip-types scripts/seed-firebase-academy.ts",
     "seed:firebase:all": "npm run seed:firebase && npm run seed:academy && node scripts/seed-site-calendars.js",
+    "import:adams-cell-phones": "node --experimental-strip-types scripts/import-adams-cell-phones.ts",
+    "import:mission-critical-directory": "node --experimental-strip-types scripts/import-mission-critical-directory.ts",
     "delete:book-call-leads": "node scripts/delete-book-call-leads.js",
     "cleanup:db": "node scripts/cleanup-database.js",
     "test:db": "node test-connection.js"
@@ -49,6 +51,7 @@
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",
+    "fflate": "^0.8.3",
     "firebase": "^12.7.0",
     "firebase-admin": "^13.6.0",
     "framer-motion": "^12.42.2",

@@ -420,7 +420,7 @@ export function ImageManager() {
     setLoading(true);
     try {
       const category = filterCategory === "all" ? undefined : filterCategory;
-      const imageList = await listImages(category);
+      const imageList = await listImages(category, true);
       setImages(imageList);
     } catch (error) {
       console.error("Failed to load images:", error);

@@ -65,7 +65,7 @@ export function LessonImagePicker({ value, onChange, label = "Lesson Image" }: L
   const loadImages = useCallback(async () => {
     setLoading(true);
     try {
-      const imageList = await listImages();
+      const imageList = await listImages(undefined, true);
       setImages(imageList);
     } catch (error) {
       console.error("Failed to load images:", error);

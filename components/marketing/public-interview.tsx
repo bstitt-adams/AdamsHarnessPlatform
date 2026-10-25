@@ -28,6 +28,7 @@ interface PublicInterview {
   status: string;
   messages: ChatMessage[];
   readyForSpecification: boolean;
+  respondentName?: string;
 }
 
 let msgSeq = 0;
@@ -41,6 +42,7 @@ const localMessage = (role: "user" | "assistant", content: string): ChatMessage 
 export function PublicInterview() {
   const [departments, setDepartments] = useState<PublicDepartment[]>([]);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [respondentName, setRespondentName] = useState("");
   const [interviewId, setInterviewId] = useState<string | null>(null);
   const [interview, setInterview] = useState<PublicInterview | null>(null);
   const [input, setInput] = useState("");
@@ -58,12 +60,11 @@ export function PublicInterview() {
       })
       .then(({ departments }) => {
         setDepartments(departments);
-        const list = departments.map((d) => `${d.index}. ${d.name}`).join("\n");
         setMessages([
           localMessage(
             "assistant",
             departments.length > 0
-              ? `Welcome to the Adams Platform requirements interview. I'll ask questions one at a time to understand the process you'd like to improve.\n\nFirst, which department does this process belong to? Reply with the number:\n\n${list}`
+              ? "Welcome to the Adams Platform requirements interview. I'll ask questions one at a time to understand the process you'd like to improve.\n\nBefore we begin, what is your full name?"
               : "Welcome! No departments are configured yet, so the interview can't begin. Please contact the Adams Electric team.",
           ),
         ]);
@@ -84,10 +85,33 @@ export function PublicInterview() {
     setSending(true);
     try {
       if (!interviewId) {
-        const choice = parseInt(content, 10);
-        const dept = Number.isInteger(choice) ? departments.find((d) => d.index === choice) : undefined;
         setMessages((prev) => [...prev, localMessage("user", content)]);
         setInput("");
+
+        if (!respondentName) {
+          if (content.trim().length < 2) {
+            setMessages((prev) => [
+              ...prev,
+              localMessage("assistant", "Please enter your full name so we know who is providing the requirements."),
+            ]);
+            setSending(false);
+            return;
+          }
+          setRespondentName(content.trim());
+          const list = departments.map((d) => `${d.index}. ${d.name}`).join("\n");
+          setMessages((prev) => [
+            ...prev,
+            localMessage(
+              "assistant",
+              `Thanks, ${content.trim()}. Which department does this process belong to? Reply with the number:\n\n${list}`,
+            ),
+          ]);
+          setSending(false);
+          return;
+        }
+
+        const choice = parseInt(content, 10);
+        const dept = Number.isInteger(choice) ? departments.find((d) => d.index === choice) : undefined;
         if (!dept) {
           setMessages((prev) => [
             ...prev,
@@ -102,7 +126,7 @@ export function PublicInterview() {
         const res = await fetch("/api/public/interview", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ departmentId: dept.id }),
+          body: JSON.stringify({ departmentId: dept.id, respondentName }),
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok) throw new Error(typeof data?.error === "string" ? data.error : `Failed (${res.status})`);
@@ -173,7 +197,9 @@ export function PublicInterview() {
   const ready = interview?.readyForSpecification === true;
   const inputPlaceholder = interviewId
     ? "Type your answer..."
-    : "Reply with the department number...";
+    : respondentName
+      ? "Reply with the department number..."
+      : "Enter your full name...";
 
   if (loading) {
     return (
@@ -195,7 +221,11 @@ export function PublicInterview() {
               <div>
                 <CardTitle>Requirements Interview</CardTitle>
                 <CardDescription>
-                  {interviewId ? "Answer each question — one at a time." : "Choose a department to begin."}
+                  {interviewId
+                    ? `Answer each question — one at a time.${interview?.respondentName ? ` Respondent: ${interview.respondentName}` : ""}`
+                    : respondentName
+                      ? `Respondent: ${respondentName} — choose a department to begin.`
+                      : "Enter your name and department to begin."}
                 </CardDescription>
               </div>
             </div>

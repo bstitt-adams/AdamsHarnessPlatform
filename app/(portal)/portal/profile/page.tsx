@@ -73,6 +73,7 @@ import {
   Eye,
   EyeOff,
   Key,
+  Laptop,
   Loader2,
   Mic,
   Volume2,
@@ -84,6 +85,9 @@ import { cn } from "@/lib/utils";
 import { useUserProfile } from "@/contexts/user-profile-context";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import ContactsTab from "./contacts-tab";
+import { collection, getDocs } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
+import { COLLECTIONS, type UserAssetDoc } from "@/lib/schema";
 
 // User roles
 const userRoles = [
@@ -170,6 +174,8 @@ export default function ProfilePage() {
   const { profile: userProfile, getDisplayName, getInitials, saveProfileToFirestore, linkedTeamMember } = useUserProfile();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
+  const [linkedAssets, setLinkedAssets] = useState<UserAssetDoc[]>([]);
+  const [assetsLoading, setAssetsLoading] = useState(false);
   
   const [profile, setProfile] = useState({
     id: "current-user",
@@ -223,6 +229,30 @@ export default function ProfilePage() {
       setAvatarPreview(userProfile.avatarUrl);
     }
   }, [userProfile.avatarUrl]);
+
+  useEffect(() => {
+    if (!db || !linkedTeamMember) {
+      setLinkedAssets([]);
+      return;
+    }
+    setAssetsLoading(true);
+    void getDocs(collection(db, COLLECTIONS.USER_ASSETS))
+      .then((snapshot) => {
+        const email = linkedTeamMember.emailPrimary.toLowerCase();
+        const uid = linkedTeamMember.firebaseUid || auth?.currentUser?.uid || "";
+        setLinkedAssets(snapshot.docs
+          .map((docSnap) => ({ id: docSnap.id, ...docSnap.data() }) as UserAssetDoc)
+          .filter((asset) =>
+            asset.assignedToTeamMemberId === linkedTeamMember.id ||
+            (asset.assignedToEmail || "").toLowerCase() === email ||
+            (uid && asset.assignedToUid === uid),
+          ));
+      })
+      .catch((error) => {
+        console.error("Failed to load linked assets:", error);
+      })
+      .finally(() => setAssetsLoading(false));
+  }, [linkedTeamMember]);
 
   // Password change state
   const [passwordForm, setPasswordForm] = useState({
@@ -550,7 +580,7 @@ export default function ProfilePage() {
 
       {/* Tabbed Content */}
       <Tabs defaultValue="basic" className="space-y-6">
-        <TabsList className="grid grid-cols-8 w-full">
+        <TabsList className="grid grid-cols-9 w-full">
           <TabsTrigger value="basic" className="text-xs sm:text-sm">
             <User className="h-4 w-4 mr-1 hidden sm:inline" />
             Basic Info
@@ -558,6 +588,10 @@ export default function ProfilePage() {
           <TabsTrigger value="professional" className="text-xs sm:text-sm">
             <Briefcase className="h-4 w-4 mr-1 hidden sm:inline" />
             Professional
+          </TabsTrigger>
+          <TabsTrigger value="assets" className="text-xs sm:text-sm">
+            <Laptop className="h-4 w-4 mr-1 hidden sm:inline" />
+            Assets
           </TabsTrigger>
           <TabsTrigger value="contacts" className="text-xs sm:text-sm">
             <Users className="h-4 w-4 mr-1 hidden sm:inline" />
@@ -902,6 +936,85 @@ export default function ProfilePage() {
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* Assets Tab */}
+        <TabsContent value="assets" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Workforce Information</CardTitle>
+              <CardDescription>Organizational details synchronized from the Adams workforce directory.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {linkedTeamMember ? (
+                <div className="grid gap-4 md:grid-cols-2">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Job Title</p>
+                    <p className="font-medium">{linkedTeamMember.title || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Workforce Department</p>
+                    <p className="font-medium">{linkedTeamMember.workforceDepartmentName || linkedTeamMember.expertise || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Business Unit</p>
+                    <p className="font-medium">{linkedTeamMember.businessUnitNames?.join(", ") || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Hire Date</p>
+                    <p className="font-medium">{linkedTeamMember.hireDate?.toDate?.().toLocaleDateString() || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Work Email</p>
+                    <p className="font-medium">{linkedTeamMember.emailPrimary}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Personal Email</p>
+                    <p className="font-medium">{linkedTeamMember.emailSecondary || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Work Phone</p>
+                    <p className="font-medium">{linkedTeamMember.workPhone || linkedTeamMember.mobile || "—"}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Home Phone</p>
+                    <p className="font-medium">{linkedTeamMember.homePhone || "—"}</p>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No linked Team Member record is available for this account.</p>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Assigned Assets</CardTitle>
+              <CardDescription>Phones, computers, iPads, hotspots, vehicles, and other equipment connected to your Team Member record.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {assetsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" />Loading assets...</div>
+              ) : linkedAssets.length > 0 ? (
+                <div className="space-y-3">
+                  {linkedAssets.map((asset) => (
+                    <div key={asset.id} className="flex items-center justify-between rounded-md border p-3">
+                      <div className="flex items-center gap-3">
+                        <Laptop className="h-5 w-5 text-muted-foreground" />
+                        <div>
+                          <p className="font-medium">{asset.assetName}</p>
+                          <p className="text-sm text-muted-foreground">{asset.assetType} · {asset.assetTag || asset.serialNumber || asset.identifier}</p>
+                        </div>
+                      </div>
+                      <Badge variant="outline">{asset.status}</Badge>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No assets are currently linked to your Team Member record.</p>
+              )}
             </CardContent>
           </Card>
         </TabsContent>

@@ -159,6 +159,7 @@ function buildStateSummary(interview: ProcessInterviewDoc): string {
 
   return [
     `Interview title: ${interview.title}`,
+    `Respondent: ${interview.respondentName || interview.createdByName || "Not provided"}`,
     `Seeded task: ${interview.task || "(none)"}`,
     `Topics already covered: ${covered.join(", ") || "none"}`,
     `Topics still missing: ${missing.join(", ") || "none"}`,

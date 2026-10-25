@@ -275,6 +275,13 @@ const adminItems: { title: string; href: string; icon: React.ElementType; badge?
     featureKey: "moduleBuilds",
   },
   {
+    title: "Interview PRDs",
+    href: "/portal/admin/interviews",
+    icon: Bot,
+    badge: "AI",
+    featureKey: "interviewPrds",
+  },
+  {
     title: "AdamsBrain Admin",
     href: "/portal/admin/adams-brain",
     icon: Database,

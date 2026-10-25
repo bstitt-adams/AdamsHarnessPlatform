@@ -105,11 +105,16 @@ export default function TeamMembersPage() {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
+    middleName: "",
     emailPrimary: "",
     emailSecondary: "",
     mobile: "",
+    workPhone: "",
+    homePhone: "",
     expertise: "",
     title: "",
+    workforceDepartmentName: "",
+    businessUnitNames: [] as string[],
     company: "",
     location: "",
     bio: "",
@@ -421,11 +426,16 @@ export default function TeamMembersPage() {
     setFormData({
       firstName: member.firstName,
       lastName: member.lastName,
+      middleName: member.middleName || "",
       emailPrimary: member.emailPrimary,
       emailSecondary: member.emailSecondary || "",
       mobile: member.mobile || "",
+      workPhone: member.workPhone || member.mobile || "",
+      homePhone: member.homePhone || "",
       expertise: member.expertise,
       title: member.title || "",
+      workforceDepartmentName: member.workforceDepartmentName || "",
+      businessUnitNames: member.businessUnitNames || [],
       company: member.company || "",
       location: member.location || "",
       bio: member.bio || "",
@@ -446,11 +456,16 @@ export default function TeamMembersPage() {
     setFormData({
       firstName: "",
       lastName: "",
+      middleName: "",
       emailPrimary: "",
       emailSecondary: "",
       mobile: "",
+      workPhone: "",
+      homePhone: "",
       expertise: "",
       title: "",
+      workforceDepartmentName: "",
+      businessUnitNames: [],
       company: "",
       location: "",
       bio: "",
@@ -627,7 +642,7 @@ export default function TeamMembersPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name *</Label>
                     <Input
@@ -635,6 +650,15 @@ export default function TeamMembersPage() {
                       value={formData.firstName}
                       onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
                       placeholder="John"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="middleName">Middle Name</Label>
+                    <Input
+                      id="middleName"
+                      value={formData.middleName}
+                      onChange={(e) => setFormData({ ...formData, middleName: e.target.value })}
+                      placeholder="Michael"
                     />
                   </div>
                   <div className="space-y-2">
@@ -669,7 +693,7 @@ export default function TeamMembersPage() {
                     />
                   </div>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="mobile">Mobile</Label>
                     <Input
@@ -679,6 +703,26 @@ export default function TeamMembersPage() {
                       placeholder="(555) 123-4567"
                     />
                   </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="workPhone">Work Phone</Label>
+                    <Input
+                      id="workPhone"
+                      value={formData.workPhone}
+                      onChange={(e) => setFormData({ ...formData, workPhone: e.target.value })}
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="homePhone">Home Phone</Label>
+                    <Input
+                      id="homePhone"
+                      value={formData.homePhone}
+                      onChange={(e) => setFormData({ ...formData, homePhone: e.target.value })}
+                      placeholder="(555) 123-4567"
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="role">Role *</Label>
                     <Select
@@ -708,6 +752,26 @@ export default function TeamMembersPage() {
                     onChange={(e) => setFormData({ ...formData, expertise: e.target.value })}
                     placeholder="e.g., Operations, Six Sigma, Marketing"
                   />
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="workforceDepartmentName">Workforce Department</Label>
+                    <Input
+                      id="workforceDepartmentName"
+                      value={formData.workforceDepartmentName}
+                      onChange={(e) => setFormData({ ...formData, workforceDepartmentName: e.target.value })}
+                      placeholder="e.g., Electrician"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="businessUnitNames">Business Units</Label>
+                    <Input
+                      id="businessUnitNames"
+                      value={formData.businessUnitNames.join(", ")}
+                      onChange={(e) => setFormData({ ...formData, businessUnitNames: e.target.value.split(",").map((value) => value.trim()).filter(Boolean) })}
+                      placeholder="e.g., Mission Critical"
+                    />
+                  </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
@@ -1188,6 +1252,11 @@ export default function TeamMembersPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end gap-1">
+                          <Button asChild variant="ghost" size="icon" title="View connected records">
+                            <Link href={`/portal/admin/team-members/${member.id}`}>
+                              <ChevronRight className="h-4 w-4" />
+                            </Link>
+                          </Button>
                           <Button
                             variant={isInSchedulingList(member.id) ? "secondary" : "ghost"}
                             size="icon"
@@ -1254,8 +1323,11 @@ export default function TeamMembersPage() {
               </CardHeader>
               <CardContent className="space-y-3">
                 <div>
-                  <p className="text-xs text-muted-foreground mb-1">Expertise</p>
-                  <p className="text-sm">{member.expertise}</p>
+                  <p className="text-xs text-muted-foreground mb-1">Workforce Department</p>
+                  <p className="text-sm">{member.workforceDepartmentName || member.expertise}</p>
+                  {member.businessUnitNames?.length ? (
+                    <p className="text-xs text-muted-foreground mt-1">{member.businessUnitNames.join(", ")}</p>
+                  ) : null}
                 </div>
                 <div className="space-y-1">
                   <div className="flex items-center gap-2 text-sm">
@@ -1288,6 +1360,11 @@ export default function TeamMembersPage() {
                     </Badge>
                   )}
                   <div className="flex gap-1">
+                    <Button asChild variant="outline" size="sm" title="View connected records">
+                      <Link href={`/portal/admin/team-members/${member.id}`}>
+                        <ChevronRight className="h-4 w-4" />
+                      </Link>
+                    </Button>
                     <Button
                       variant={isInSchedulingList(member.id) ? "secondary" : "outline"}
                       size="sm"

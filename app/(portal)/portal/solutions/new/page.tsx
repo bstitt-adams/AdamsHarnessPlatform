@@ -17,6 +17,7 @@ import {
 import { Loader2, Paperclip } from "lucide-react";
 import { toast } from "sonner";
 import { adamsFetch, adamsFetchJson } from "@/lib/adams-harness/client-api";
+import { useUserProfile } from "@/contexts/user-profile-context";
 
 interface Department {
   id: string;
@@ -65,10 +66,12 @@ const STARTER_TEMPLATES = [
 
 export default function NewSolutionInterviewPage() {
   const router = useRouter();
+  const { profile } = useUserProfile();
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
   const [departmentId, setDepartmentId] = useState("");
   const [confirmed, setConfirmed] = useState(false);
+  const [respondentName, setRespondentName] = useState("");
   const [title, setTitle] = useState("");
   const [task, setTask] = useState("");
   const [templateKey, setTemplateKey] = useState<string>("custom");
@@ -86,9 +89,16 @@ export default function NewSolutionInterviewPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    const profileName = `${profile.firstName} ${profile.lastName}`.trim();
+    if (!respondentName && (profileName || profile.email)) {
+      setRespondentName(profileName || profile.email);
+    }
+  }, [profile, respondentName]);
+
   const submit = async () => {
-    if (!departmentId || !title.trim()) {
-      toast.error("Choose a department and give the interview a title");
+    if (!departmentId || !title.trim() || !respondentName.trim()) {
+      toast.error("Enter your name, choose a department, and give the interview a title");
       return;
     }
     setSubmitting(true);
@@ -101,6 +111,7 @@ export default function NewSolutionInterviewPage() {
             departmentId,
             title: title.trim(),
             task: task.trim(),
+            respondentName: respondentName.trim(),
           }),
         },
       );
@@ -189,6 +200,20 @@ export default function NewSolutionInterviewPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="respondent-name">Your name</Label>
+              <Input
+                id="respondent-name"
+                placeholder="Full name of the person providing requirements"
+                value={respondentName}
+                onChange={(e) => setRespondentName(e.target.value)}
+                maxLength={200}
+                required
+              />
+              <p className="text-xs text-muted-foreground">
+                Saved with the interview so reviewers know who supplied the requirements.
+              </p>
+            </div>
             <div className="space-y-2">
               <Label>Start from a template</Label>
               <div className="grid gap-2 sm:grid-cols-2">

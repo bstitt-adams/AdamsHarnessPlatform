@@ -123,6 +123,7 @@ export const createInterviewSchema = z.strictObject({
   departmentId: trimmedString(200),
   title: trimmedString(300),
   task: z.string().trim().max(4000).default(""),
+  respondentName: z.string().trim().min(2).max(200).optional(),
 });
 
 export const postInterviewMessageSchema = z.strictObject({
@@ -143,6 +144,8 @@ export interface ProcessInterviewDoc {
   createdByUid: string;
   createdByTeamMemberId?: string;
   createdByName?: string;
+  /** Display name of the person providing the requirements. */
+  respondentName?: string;
   messages: InterviewMessage[];
   facts: InterviewFacts;
   coverage: Record<string, boolean>;
@@ -236,6 +239,120 @@ export interface SolutionSpecificationDoc {
   changeSummary?: string;
   approval?: SpecificationApproval;
   latestBuildId?: string;
+  createdByUid: string;
+  createdByName?: string;
+  model?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export const interviewPrdStatusSchema = z.enum([
+  "draft",
+  "in_review",
+  "staged",
+  "deploying",
+  "deployed",
+  "superseded",
+  "archived",
+]);
+export type InterviewPrdStatus = z.infer<typeof interviewPrdStatusSchema>;
+
+export const appRequestKindSchema = z.enum([
+  "new_app",
+  "existing_app_enhancement",
+  "uncertain",
+]);
+export type AppRequestKind = z.infer<typeof appRequestKindSchema>;
+
+export const targetAppAnalysisSchema = z.strictObject({
+  slug: nullableString(120),
+  name: nullableString(300),
+  reason: z.string().trim().max(3000).default(""),
+  confidence: z.number().min(0).max(1).default(0),
+});
+export type TargetAppAnalysis = z.infer<typeof targetAppAnalysisSchema>;
+
+export const dataSharingRecommendationSchema = z.strictObject({
+  appSlug: trimmedString(120),
+  appName: trimmedString(300),
+  direction: z.enum(["read", "write", "bidirectional"]),
+  dataEntities: stringList(50, 300),
+  recommendation: z.string().trim().max(4000).default(""),
+  benefit: z.string().trim().max(2000).default(""),
+});
+export type DataSharingRecommendation = z.infer<typeof dataSharingRecommendationSchema>;
+
+export const interviewPrdSectionsSchema = z.strictObject({
+  overview: z.string().trim().max(10_000).default(""),
+  problemStatement: z.string().trim().max(10_000).default(""),
+  goals: stringList(100, 1000),
+  userStories: stringList(100, 2000),
+  functionalRequirements: stringList(200, 3000),
+  dataModel: z.array(namedItemSchema).max(100).default([]),
+  integrations: z.array(namedItemSchema).max(100).default([]),
+  permissionsSecurity: z.string().trim().max(10_000).default(""),
+  analytics: stringList(100, 1000),
+  acceptanceCriteria: stringList(100, 2000),
+  assumptions: stringList(100, 1000),
+  openQuestions: stringList(100, 1000),
+  rolloutPlan: stringList(100, 1000),
+});
+export type InterviewPrdSections = z.infer<typeof interviewPrdSectionsSchema>;
+
+export const interviewPrdAnalysisSchema = z.strictObject({
+  title: trimmedString(300),
+  executiveSummary: z.string().trim().max(10_000).default(""),
+  requestKind: appRequestKindSchema.default("uncertain"),
+  targetApp: targetAppAnalysisSchema.nullable().catch(null),
+  classificationReason: z.string().trim().max(4000).default(""),
+  dataSharingOpportunities: z.array(dataSharingRecommendationSchema).max(50).default([]),
+  integrationRecommendations: z.array(namedItemSchema).max(100).default([]),
+  prdMarkdown: z.string().trim().min(1).max(50_000),
+  sections: interviewPrdSectionsSchema.default(() => interviewPrdSectionsSchema.parse({})),
+  specificationSections: specificationSectionsSchema.default(() => specificationSectionsSchema.parse({})),
+});
+export type InterviewPrdAnalysis = z.infer<typeof interviewPrdAnalysisSchema>;
+
+export const generateInterviewPrdSchema = z.strictObject({
+  interviewId: trimmedString(200),
+  adminContext: z.string().trim().max(10_000).default("").optional(),
+});
+
+export const regenerateInterviewPrdSchema = z.strictObject({
+  instructions: z.string().trim().max(10_000).default("").optional(),
+});
+
+export const patchInterviewPrdSchema = z.strictObject({
+  title: trimmedString(300).optional(),
+  content: z.string().trim().min(1).max(50_000).optional(),
+  adminNotes: z.string().trim().max(10_000).optional(),
+  status: z.enum(["draft", "in_review", "staged", "archived"]).optional(),
+});
+
+export interface InterviewPrdDoc {
+  id: string;
+  interviewId: string;
+  departmentId: string;
+  title: string;
+  version: number;
+  status: InterviewPrdStatus;
+  requestKind: AppRequestKind;
+  targetApp?: TargetAppAnalysis | null;
+  classificationReason: string;
+  executiveSummary: string;
+  content: string;
+  sections: InterviewPrdSections;
+  specificationSections: SpecificationSections;
+  dataSharingOpportunities: DataSharingRecommendation[];
+  integrationRecommendations: { name: string; description: string }[];
+  adminNotes?: string;
+  requiresRegeneration?: boolean;
+  canonicalHash: string;
+  specificationId?: string;
+  latestBuildId?: string;
+  moduleSlug?: string;
+  productionUrl?: string;
+  deployedAt?: Timestamp;
   createdByUid: string;
   createdByName?: string;
   model?: string;
@@ -582,6 +699,7 @@ export interface AdamsAuditLogDoc {
   entityType:
     | "department"
     | "interview"
+    | "interview_prd"
     | "specification"
     | "module_build"
     | "module_record"

@@ -54,6 +54,8 @@ interface InterviewSummary {
   task?: string;
   status: string;
   departmentId: string;
+  respondentName?: string;
+  createdByName?: string;
   readyForSpecification: boolean;
   updatedAt?: string;
   createdAt?: string;
@@ -136,6 +138,8 @@ export default function SolutionsPage() {
         item.id.toLowerCase().includes(q) ||
         item.status.toLowerCase().includes(q) ||
         deptName.toLowerCase().includes(q) ||
+        (item.respondentName || "").toLowerCase().includes(q) ||
+        (item.createdByName || "").toLowerCase().includes(q) ||
         (item.task || "").toLowerCase().includes(q)
       );
     });
@@ -388,6 +392,7 @@ export default function SolutionsPage() {
                         />
                       </div>
                     </TableHead>
+                    <TableHead>Respondent</TableHead>
                     <TableHead>Department</TableHead>
                     <TableHead>Status</TableHead>
                     <TableHead>Updated</TableHead>
@@ -400,6 +405,9 @@ export default function SolutionsPage() {
                     return (
                       <TableRow key={interview.id}>
                         <TableCell className="font-medium">{interview.title}</TableCell>
+                        <TableCell className="text-sm">
+                          {interview.respondentName || interview.createdByName || "-"}
+                        </TableCell>
                         <TableCell>
                           {departments.get(interview.departmentId)?.name ||
                             interview.departmentId}

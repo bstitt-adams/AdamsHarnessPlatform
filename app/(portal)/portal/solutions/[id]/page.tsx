@@ -81,6 +81,8 @@ interface Interview {
   title: string;
   status: string;
   createdByUid: string;
+  createdByName?: string;
+  respondentName?: string;
   departmentId: string;
   messages: Message[];
   coverage: Record<string, boolean>;
@@ -461,6 +463,7 @@ export default function SolutionInterviewPage() {
             <h1 className="text-2xl font-bold">{interview.title}</h1>
             <p className="text-muted-foreground">
               {departmentName && `${departmentName} | `}
+              Respondent: {interview.respondentName || interview.createdByName || "Unknown"} |{" "}
               <Badge variant="secondary" className="ml-1">
                 {interview.status.replace("_", " ")}
               </Badge>
