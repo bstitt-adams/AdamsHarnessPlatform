@@ -5,6 +5,7 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
+import { authErrorResponse, requireAdmin } from "@/lib/auth/server-auth";
 import { googleDriveProvider, GoogleDriveProvider } from "@/lib/services/storage-providers/google-drive-provider";
 
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID || "";
@@ -12,6 +13,7 @@ const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || "";
 
 export async function GET(request: NextRequest) {
   try {
+    await requireAdmin(request);
     const config = await googleDriveProvider.loadConfig();
 
     return NextResponse.json({
@@ -22,6 +24,8 @@ export async function GET(request: NextRequest) {
       lastSyncAt: config?.lastSyncAt?.toDate?.()?.toISOString(),
     });
   } catch (error) {
+    const authError = authErrorResponse(error);
+    if (authError) return authError;
     console.error("Error getting Google Drive status:", error);
     return NextResponse.json(
       { success: false, error: (error as Error).message },
@@ -32,6 +36,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    await requireAdmin(request);
     const body = await request.json();
     const { action, code, redirectUri } = body;
 
@@ -131,6 +136,8 @@ export async function POST(request: NextRequest) {
       { status: 400 }
     );
   } catch (error) {
+    const authError = authErrorResponse(error);
+    if (authError) return authError;
     console.error("Google Drive API error:", error);
     return NextResponse.json(
       { success: false, error: (error as Error).message },

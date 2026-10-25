@@ -850,64 +850,6 @@ export default function TeamMembersPage() {
                     rows={3}
                   />
                 </div>
-                
-                {/* Leadership Role Flags */}
-                <div className="space-y-3 p-4 border rounded-lg bg-muted/50">
-                  <Label className="text-sm font-medium">Leadership Roles (for About/Leadership pages)</Label>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Check the boxes below to display this team member on the About and Leadership pages with the corresponding role.
-                  </p>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="isCEO"
-                        checked={formData.isCEO}
-                        onChange={(e) => setFormData({ ...formData, isCEO: e.target.checked })}
-                        className="h-4 w-4 rounded border-gray-300"
-                      />
-                      <Label htmlFor="isCEO" className="text-sm font-normal cursor-pointer">
-                        CEO / Chief Executive Officer
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="isCOO"
-                        checked={formData.isCOO}
-                        onChange={(e) => setFormData({ ...formData, isCOO: e.target.checked })}
-                        className="h-4 w-4 rounded border-gray-300"
-                      />
-                      <Label htmlFor="isCOO" className="text-sm font-normal cursor-pointer">
-                        COO / Chief Operations Officer
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="isCTO"
-                        checked={formData.isCTO}
-                        onChange={(e) => setFormData({ ...formData, isCTO: e.target.checked })}
-                        className="h-4 w-4 rounded border-gray-300"
-                      />
-                      <Label htmlFor="isCTO" className="text-sm font-normal cursor-pointer">
-                        CTO / Chief Technology Officer
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        id="isCRO"
-                        checked={formData.isCRO}
-                        onChange={(e) => setFormData({ ...formData, isCRO: e.target.checked })}
-                        className="h-4 w-4 rounded border-gray-300"
-                      />
-                      <Label htmlFor="isCRO" className="text-sm font-normal cursor-pointer">
-                        CRO / Chief Revenue Officer
-                      </Label>
-                    </div>
-                  </div>
-                </div>
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setDialogOpen(false)}>

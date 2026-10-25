@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { addDoc, collection, doc, getDocs, setDoc, Timestamp } from "firebase/firestore";
-import { Download, FileSpreadsheet, Laptop, Loader2, Plus, Search, Upload } from "lucide-react";
+import { addDoc, collection, doc, getDocs, setDoc, Timestamp, updateDoc } from "firebase/firestore";
+import { Download, FileSpreadsheet, Laptop, Loader2, Plus, Search, Upload, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { strFromU8, unzipSync } from "fflate";
 import { db, auth } from "@/lib/firebase";
@@ -104,6 +104,48 @@ export default function AssetManagerPage() {
     } catch { toast.error("Unable to save asset"); } finally { setSaving(false); }
   };
 
+  const assignAsset = async (asset: UserAssetDoc, teamMemberId: string) => {
+    if (!db) return;
+    const member = members.find((item) => item.id === teamMemberId);
+    const assignedToName = member ? `${member.firstName} ${member.lastName}`.trim() : "Unassigned";
+    const now = Timestamp.now();
+    try {
+      await updateDoc(doc(db, COLLECTIONS.USER_ASSETS, asset.id), {
+        assignedToTeamMemberId: member?.id || "",
+        assignedToName,
+        assignedToEmail: member?.emailPrimary || "",
+        assignedToUid: member?.firebaseUid || "",
+        assignmentMatchStatus: member ? "matched" : "not_applicable",
+        assignmentReturnedAt: member ? null : now,
+        status: member ? (asset.status === "available" || asset.status === "returned" ? "active" : asset.status) : "available",
+        updatedAt: now,
+      });
+      await addDoc(collection(db, COLLECTIONS.ASSET_HISTORY), {
+        assetId: asset.id,
+        action: member ? "assigned" : "unassigned",
+        teamMemberId: member?.id || "",
+        teamMemberName: assignedToName,
+        performedByUid: auth?.currentUser?.uid || "",
+        performedByName: linkedTeamMember ? `${linkedTeamMember.firstName} ${linkedTeamMember.lastName}` : profile.email || "Administrator",
+        createdAt: now,
+      });
+      toast.success(member ? `${asset.assetName} assigned to ${assignedToName}` : `${asset.assetName} unassigned`);
+      setAssets((current) => current.map((item) => item.id === asset.id ? {
+        ...item,
+        assignedToTeamMemberId: member?.id || "",
+        assignedToName,
+        assignedToEmail: member?.emailPrimary || "",
+        assignedToUid: member?.firebaseUid || "",
+        assignmentMatchStatus: member ? "matched" : "not_applicable",
+        assignmentReturnedAt: member ? undefined : now,
+        status: member ? (asset.status === "available" || asset.status === "returned" ? "active" : asset.status) : "available",
+        updatedAt: now,
+      } : item));
+    } catch {
+      toast.error("Unable to update asset assignment");
+    }
+  };
+
   const handleSpreadsheet = async (file?: File) => {
     if (!file) return;
     try {
@@ -142,12 +184,13 @@ export default function AssetManagerPage() {
 
   const filtered = useMemo(() => assets.filter((asset) => JSON.stringify(asset).toLowerCase().includes(search.toLowerCase())), [assets, search]);
   const count = (status: UserAssetDoc["status"]) => assets.filter((asset) => asset.status === status).length;
+  const assignedCount = assets.filter((asset) => Boolean(asset.assignedToTeamMemberId)).length;
 
   return <div className="space-y-6 p-6">
     <div><h1 className="flex items-center gap-2 text-2xl font-bold"><Laptop className="h-6 w-6 text-primary" />Asset Manager</h1><p className="text-sm text-muted-foreground">Manage the full lifecycle of Adams Electric phones, laptops, iPads, hotspots, and other assigned equipment.</p></div>
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[["Total", assets.length], ["Assigned", count("active")], ["Available", count("available")], ["Attention", count("maintenance") + count("lost")]].map(([label, value]) => <Card key={label}><CardHeader className="pb-1"><CardDescription>{label}</CardDescription></CardHeader><CardContent className="text-3xl font-bold">{value}</CardContent></Card>)}</div>
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[["Total", assets.length], ["Assigned", assignedCount], ["Available", count("available")], ["Attention", count("maintenance") + count("lost")]].map(([label, value]) => <Card key={label}><CardHeader className="pb-1"><CardDescription>{label}</CardDescription></CardHeader><CardContent className="text-3xl font-bold">{value}</CardContent></Card>)}</div>
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-      <Card><CardHeader><CardTitle>Company Asset Inventory</CardTitle><div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search asset, serial, tag, employee, carrier..." /></div></CardHeader><CardContent className="overflow-x-auto">{loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : <Table><TableHeader><TableRow><TableHead>Asset</TableHead><TableHead>Tag / Serial</TableHead><TableHead>Assigned To</TableHead><TableHead>Status</TableHead><TableHead>Warranty</TableHead></TableRow></TableHeader><TableBody>{filtered.map((asset) => <TableRow key={asset.id}><TableCell><div className="font-medium">{asset.assetName}</div><div className="text-xs text-muted-foreground">{asset.assetType} · {[asset.manufacturer, asset.model].filter(Boolean).join(" ")}</div></TableCell><TableCell>{asset.assetTag || asset.serialNumber || asset.identifier || "—"}</TableCell><TableCell>{asset.assignedToTeamMemberId ? <Link className="text-primary hover:underline" href={`/portal/admin/team-members/${asset.assignedToTeamMemberId}`}>{asset.assignedToName}</Link> : "Unassigned"}</TableCell><TableCell><Badge variant="outline" className="capitalize">{asset.status}</Badge></TableCell><TableCell>{asset.warrantyExpiration || "—"}</TableCell></TableRow>)}</TableBody></Table>}</CardContent></Card>
+      <Card><CardHeader><CardTitle>Company Asset Inventory</CardTitle><div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search asset, serial, tag, employee, carrier..." /></div></CardHeader><CardContent className="overflow-x-auto">{loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : <Table><TableHeader><TableRow><TableHead>Asset</TableHead><TableHead>Tag / Serial</TableHead><TableHead>Assigned To</TableHead><TableHead>Status</TableHead><TableHead>Warranty</TableHead><TableHead className="min-w-[220px]">Assign</TableHead></TableRow></TableHeader><TableBody>{filtered.map((asset) => <TableRow key={asset.id}><TableCell><Link className="font-medium text-primary hover:underline" href={`/portal/admin/asset-manager/${asset.id}`}>{asset.assetName}</Link><div className="text-xs text-muted-foreground">{asset.assetType} · {[asset.manufacturer, asset.model].filter(Boolean).join(" ")}</div></TableCell><TableCell>{asset.assetTag || asset.serialNumber || asset.identifier || "—"}</TableCell><TableCell>{asset.assignedToTeamMemberId ? <Link className="text-primary hover:underline" href={`/portal/admin/team-members/${asset.assignedToTeamMemberId}`}>{asset.assignedToName}</Link> : "Unassigned"}</TableCell><TableCell><Badge variant="outline" className="capitalize">{asset.status}</Badge></TableCell><TableCell>{asset.warrantyExpiration || "—"}</TableCell><TableCell><Select value={asset.assignedToTeamMemberId || "unassigned"} onValueChange={(teamMemberId) => void assignAsset(asset, teamMemberId)}><SelectTrigger className="w-[220px]"><div className="flex items-center gap-2"><UserCheck className="h-4 w-4 text-muted-foreground" /><SelectValue /></div></SelectTrigger><SelectContent><SelectItem value="unassigned">Unassigned</SelectItem>{members.map((member) => <SelectItem key={member.id} value={member.id}>{member.firstName} {member.lastName}</SelectItem>)}</SelectContent></Select></TableCell></TableRow>)}</TableBody></Table>}</CardContent></Card>
       <Card><CardHeader><CardTitle>Add and Assign Asset</CardTitle><CardDescription>Capture inventory, lifecycle, ownership, cellular, purchase, and warranty details.</CardDescription></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
         <div><Label>Asset type</Label><Select value={form.assetType} onValueChange={(assetType) => setForm({ ...form, assetType })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["laptop", "cell phone", "ipad", "hotspot", "tablet", "other"].map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent></Select></div>
         <div><Label>Asset name *</Label><Input value={form.assetName} onChange={(e) => setForm({ ...form, assetName: e.target.value })} /></div>

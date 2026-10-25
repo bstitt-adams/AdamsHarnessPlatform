@@ -94,6 +94,31 @@ function normalizeName(value: string) {
     .join(" ");
 }
 
+function properCaseName(value: string) {
+  const particles = new Set(["de", "del", "der", "di", "du", "la", "le", "van", "von"]);
+  const romanNumerals = new Set(["ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"]);
+  return value
+    .trim()
+    .toLowerCase()
+    .split(/(\s+)/)
+    .map((part) => {
+      if (/^\s+$/.test(part)) return part;
+      return part
+        .split(/([-'])/)
+        .map((segment) => {
+          if (!segment || segment === "-" || segment === "'") return segment;
+          if (particles.has(segment)) return segment;
+          if (romanNumerals.has(segment)) return segment.toUpperCase();
+          if (/^mc[a-z]/.test(segment)) return `Mc${segment.charAt(2).toUpperCase()}${segment.slice(3)}`;
+          return segment.charAt(0).toUpperCase() + segment.slice(1);
+        })
+        .join("");
+    })
+    .join("")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function digits(value: string) {
   const cleaned = value.replace(/\D/g, "");
   return cleaned.length === 11 && cleaned.startsWith("1") ? cleaned.slice(1) : cleaned;
@@ -159,9 +184,9 @@ async function main() {
   const workforceDepartments = new Map<string, { id: string; name: string; count: number }>();
   const titles = new Map<string, { id: string; display: string; sources: Set<string>; departmentId: string }>();
   const parsedMembers = rows.map((row) => {
-    const firstName = (row.B || "").trim();
-    const lastName = (row.A || "").trim();
-    const middleName = (row.C || "").trim();
+    const firstName = properCaseName(row.B || "");
+    const lastName = properCaseName(row.A || "");
+    const middleName = properCaseName(row.C || "");
     const homeEmail = (row.D || "").trim().toLowerCase();
     const workPhone = formatPhone(row.E || "");
     const homePhone = formatPhone(row.F || "");

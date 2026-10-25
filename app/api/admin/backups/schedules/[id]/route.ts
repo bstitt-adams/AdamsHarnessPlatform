@@ -1,91 +1,74 @@
-/**
- * Single Schedule API Routes
- * GET - Get schedule details
- * PUT - Update schedule
- * DELETE - Delete schedule
- */
-
 import { NextRequest, NextResponse } from "next/server";
-import { backupScheduler } from "@/lib/services/backup-scheduler";
+import { Timestamp } from "firebase-admin/firestore";
+import { authErrorResponse, requireAdmin } from "@/lib/auth/server-auth";
+import { adminDb } from "@/lib/firebase-admin";
+import { getNextRunTime } from "@/lib/services/backup-scheduler";
+import { COLLECTIONS, type BackupScheduleDoc } from "@/lib/schema";
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+function serialize(schedule: BackupScheduleDoc) {
+  const convert = (value: unknown) => typeof (value as { toDate?: unknown })?.toDate === "function"
+    ? (value as { toDate: () => Date }).toDate().toISOString()
+    : value;
+  return { ...schedule, nextRunAt: convert(schedule.nextRunAt), lastRunAt: convert(schedule.lastRunAt), createdAt: convert(schedule.createdAt), updatedAt: convert(schedule.updatedAt) };
+}
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireAdmin(request);
+    if (!adminDb) return NextResponse.json({ success: false, error: "Firebase Admin is not configured" }, { status: 503 });
     const { id } = await params;
-    const schedule = await backupScheduler.getSchedule(id);
-
-    if (!schedule) {
-      return NextResponse.json(
-        { success: false, error: "Schedule not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      schedule,
-    });
+    const snap = await adminDb.collection(COLLECTIONS.BACKUP_SCHEDULES).doc(id).get();
+    if (!snap.exists) return NextResponse.json({ success: false, error: "Schedule not found" }, { status: 404 });
+    return NextResponse.json({ success: true, schedule: serialize(snap.data() as BackupScheduleDoc) });
   } catch (error) {
-    console.error("Error fetching schedule:", error);
-    return NextResponse.json(
-      { success: false, error: (error as Error).message },
-      { status: 500 }
-    );
+    const authError = authErrorResponse(error);
+    if (authError) return authError;
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireAdmin(request);
+    if (!adminDb) return NextResponse.json({ success: false, error: "Firebase Admin is not configured" }, { status: 503 });
     const { id } = await params;
     const body = await request.json();
+    const ref = adminDb.collection(COLLECTIONS.BACKUP_SCHEDULES).doc(id);
+    const snap = await ref.get();
+    if (!snap.exists) return NextResponse.json({ success: false, error: "Schedule not found" }, { status: 404 });
+    const schedule = snap.data() as BackupScheduleDoc;
 
-    // Handle enable/disable action
     if (body.action === "toggle") {
-      await backupScheduler.setScheduleEnabled(id, body.enabled);
-      return NextResponse.json({
-        success: true,
-        message: body.enabled ? "Schedule enabled" : "Schedule disabled",
+      const enabled = Boolean(body.enabled);
+      await ref.update({
+        enabled,
+        updatedAt: Timestamp.now(),
+        ...(enabled ? { nextRunAt: Timestamp.fromDate(getNextRunTime(schedule.cronExpression, schedule.timezone)) } : {}),
       });
+      return NextResponse.json({ success: true, message: enabled ? "Schedule enabled" : "Schedule disabled" });
     }
 
-    // Update schedule
-    await backupScheduler.updateSchedule(id, body);
-
-    return NextResponse.json({
-      success: true,
-      message: "Schedule updated",
-    });
+    const allowed = ["name", "description", "backupType", "collections", "storageProviders", "retentionPolicy", "notifications", "timezone"];
+    const updates = Object.fromEntries(Object.entries(body).filter(([key, value]) => allowed.includes(key) && value !== undefined));
+    await ref.update({ ...updates, updatedAt: Timestamp.now() });
+    return NextResponse.json({ success: true, message: "Schedule updated" });
   } catch (error) {
-    console.error("Error updating schedule:", error);
-    return NextResponse.json(
-      { success: false, error: (error as Error).message },
-      { status: 500 }
-    );
+    const authError = authErrorResponse(error);
+    if (authError) return authError;
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
+    await requireAdmin(request);
+    if (!adminDb) return NextResponse.json({ success: false, error: "Firebase Admin is not configured" }, { status: 503 });
     const { id } = await params;
-    await backupScheduler.deleteSchedule(id);
-
-    return NextResponse.json({
-      success: true,
-      message: "Schedule deleted",
-    });
+    await adminDb.collection(COLLECTIONS.BACKUP_SCHEDULES).doc(id).delete();
+    return NextResponse.json({ success: true, message: "Schedule deleted" });
   } catch (error) {
-    console.error("Error deleting schedule:", error);
-    return NextResponse.json(
-      { success: false, error: (error as Error).message },
-      { status: 500 }
-    );
+    const authError = authErrorResponse(error);
+    if (authError) return authError;
+    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : String(error) }, { status: 500 });
   }
 }

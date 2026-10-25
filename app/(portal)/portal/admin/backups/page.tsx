@@ -72,10 +72,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
-import { db } from "@/lib/firebase";
+import { auth, db } from "@/lib/firebase";
 import { collection, onSnapshot, query, orderBy, limit } from "firebase/firestore";
 import { COLLECTIONS, type BackupMetadataDoc, type BackupScheduleDoc } from "@/lib/schema";
-import { backupService, formatBytes } from "@/lib/services/backup-service";
+import { formatBytes } from "@/lib/services/backup-service";
 import { describeCronExpression, TIMEZONE_OPTIONS } from "@/lib/services/backup-scheduler";
 
 interface BackupStats {
@@ -171,6 +171,24 @@ interface GoogleDriveStatus {
   lastSyncAt?: string;
 }
 
+function timestampToDate(value: unknown): Date | null {
+  if (!value) return null;
+  if (typeof (value as { toDate?: unknown }).toDate === "function") return (value as { toDate: () => Date }).toDate();
+  if (typeof value === "string") return new Date(value);
+  if (typeof (value as { seconds?: unknown }).seconds === "number") return new Date((value as { seconds: number }).seconds * 1000);
+  return null;
+}
+
+async function adminFetch(input: string, init: RequestInit = {}) {
+  const user = auth?.currentUser;
+  if (!user) throw new Error("Please sign in again");
+  const token = await user.getIdToken();
+  const headers = new Headers(init.headers);
+  headers.set("Authorization", `Bearer ${token}`);
+  if (init.body && !headers.has("Content-Type")) headers.set("Content-Type", "application/json");
+  return fetch(input, { ...init, headers });
+}
+
 export default function BackupsPage() {
   const [backups, setBackups] = useState<BackupMetadataDoc[]>([]);
   const [schedules, setSchedules] = useState<BackupScheduleDoc[]>([]);
@@ -249,7 +267,7 @@ export default function BackupsPage() {
   // Fetch Google Drive status
   const fetchGoogleDriveStatus = useCallback(async () => {
     try {
-      const response = await fetch("/api/admin/backups/google-drive");
+      const response = await adminFetch("/api/admin/backups/google-drive");
       const data = await response.json();
       if (data.success) {
         setGoogleDriveStatus({
@@ -267,7 +285,7 @@ export default function BackupsPage() {
   // Fetch schedules
   const fetchSchedules = useCallback(async () => {
     try {
-      const response = await fetch("/api/admin/backups/schedules");
+      const response = await adminFetch("/api/admin/backups/schedules");
       const data = await response.json();
       if (data.success) {
         setSchedules(data.schedules);
@@ -287,9 +305,8 @@ export default function BackupsPage() {
     setIsConnecting(true);
     try {
       const redirectUri = `${window.location.origin}/api/admin/backups/google-drive/callback`;
-      const response = await fetch("/api/admin/backups/google-drive", {
+      const response = await adminFetch("/api/admin/backups/google-drive", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "get-auth-url", redirectUri }),
       });
 
@@ -304,14 +321,20 @@ export default function BackupsPage() {
 
         // Listen for OAuth callback
         const handleMessage = async (event: MessageEvent) => {
+          if (event.origin !== window.location.origin) return;
+          if (event.data?.type === "google-oauth-callback" && event.data?.error) {
+            window.removeEventListener("message", handleMessage);
+            popup?.close();
+            toast.error("Google authorization failed", { description: event.data.error });
+            return;
+          }
           if (event.data?.type === "google-oauth-callback" && event.data?.code) {
             window.removeEventListener("message", handleMessage);
             popup?.close();
 
             // Exchange code for tokens
-            const exchangeResponse = await fetch("/api/admin/backups/google-drive", {
+            const exchangeResponse = await adminFetch("/api/admin/backups/google-drive", {
               method: "POST",
-              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 action: "exchange-code",
                 code: event.data.code,
@@ -348,9 +371,8 @@ export default function BackupsPage() {
 
   const handleDisconnectGoogleDrive = async () => {
     try {
-      const response = await fetch("/api/admin/backups/google-drive", {
+      const response = await adminFetch("/api/admin/backups/google-drive", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "disconnect" }),
       });
 
@@ -368,9 +390,8 @@ export default function BackupsPage() {
   const handleCreateSchedule = async () => {
     setIsCreatingSchedule(true);
     try {
-      const response = await fetch("/api/admin/backups/schedules", {
+      const response = await adminFetch("/api/admin/backups/schedules", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: scheduleName,
           frequency: scheduleFrequency,
@@ -411,9 +432,8 @@ export default function BackupsPage() {
   // Toggle schedule enabled
   const handleToggleSchedule = async (scheduleId: string, enabled: boolean) => {
     try {
-      const response = await fetch(`/api/admin/backups/schedules/${scheduleId}`, {
+      const response = await adminFetch(`/api/admin/backups/schedules/${scheduleId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "toggle", enabled }),
       });
 
@@ -430,7 +450,7 @@ export default function BackupsPage() {
   // Delete schedule
   const handleDeleteSchedule = async (scheduleId: string) => {
     try {
-      const response = await fetch(`/api/admin/backups/schedules/${scheduleId}`, {
+      const response = await adminFetch(`/api/admin/backups/schedules/${scheduleId}`, {
         method: "DELETE",
       });
 
@@ -454,19 +474,26 @@ export default function BackupsPage() {
         setBackupProgress((prev) => Math.min(prev + 10, 90));
       }, 500);
 
-      const result = await backupService.createBackup({
-        type: backupType,
-        collections: backupType === "collections" ? selectedCollections : undefined,
-        compression,
-        encryption,
+      const response = await adminFetch("/api/admin/backups", {
+        method: "POST",
+        body: JSON.stringify({
+          type: backupType,
+          collections: backupType === "collections" ? selectedCollections : undefined,
+          compression,
+          encryption,
+          storageProviders: googleDriveStatus.connected ? ["google-drive"] : [],
+        }),
       });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Backup creation failed");
+      const result = payload.backup;
 
       clearInterval(progressInterval);
       setBackupProgress(100);
 
       if (result.status === "success") {
         toast.success("Backup created successfully", {
-          description: `${Object.values(result.documentCounts).reduce((a, b) => a + b, 0)} documents backed up`,
+          description: `${Object.values(result.documentCounts as Record<string, number>).reduce((a, b) => a + b, 0)} documents backed up`,
         });
       } else if (result.status === "partial") {
         toast.warning("Backup completed with warnings", {
@@ -494,7 +521,9 @@ export default function BackupsPage() {
     if (!backupToDelete) return;
 
     try {
-      await backupService.deleteBackup(backupToDelete.id);
+      const response = await adminFetch(`/api/admin/backups/${backupToDelete.id}`, { method: "DELETE" });
+      const payload = await response.json();
+      if (!response.ok) throw new Error(payload.error || "Delete failed");
       toast.success("Backup deleted");
       setDeleteDialogOpen(false);
       setBackupToDelete(null);
@@ -510,9 +539,33 @@ export default function BackupsPage() {
   };
 
   const handleDownloadBackup = async (backup: BackupMetadataDoc) => {
-    toast.info("Download feature coming soon", {
-      description: "Cloud storage integration required for downloads",
-    });
+    if (!googleDriveStatus.connected) {
+      toast.error("Connect Google Drive first", {
+        description: "Cloud storage integration is required for backup downloads",
+      });
+      return;
+    }
+
+    try {
+      const response = await adminFetch(`/api/admin/backups/${backup.id}/download`);
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload.error || "Backup download failed");
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `${backup.id}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      toast.success("Backup downloaded from Google Drive");
+    } catch (error) {
+      toast.error("Unable to download backup", {
+        description: error instanceof Error ? error.message : "Google Drive download failed",
+      });
+    }
   };
 
   const toggleCollection = (collectionId: string) => {
@@ -828,7 +881,7 @@ export default function BackupsPage() {
                         <TableCell>
                           {schedule.nextRunAt ? (
                             <span className="text-sm">
-                              {formatDistanceToNow(schedule.nextRunAt.toDate(), { addSuffix: true })}
+                              {formatDistanceToNow(timestampToDate(schedule.nextRunAt) || new Date(), { addSuffix: true })}
                             </span>
                           ) : (
                             "-"
@@ -837,7 +890,7 @@ export default function BackupsPage() {
                         <TableCell>
                           {schedule.lastRunAt ? (
                             <span className="text-sm">
-                              {formatDistanceToNow(schedule.lastRunAt.toDate(), { addSuffix: true })}
+                              {formatDistanceToNow(timestampToDate(schedule.lastRunAt) || new Date(), { addSuffix: true })}
                             </span>
                           ) : (
                             "Never"

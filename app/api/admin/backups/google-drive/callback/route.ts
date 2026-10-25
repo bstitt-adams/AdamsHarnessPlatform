@@ -10,6 +10,15 @@ export async function GET(request: NextRequest) {
   const code = searchParams.get("code");
   const error = searchParams.get("error");
   const state = searchParams.get("state");
+  const origin = request.nextUrl.origin;
+  const safeError = error?.replace(/[<>&"']/g, "") || (code ? null : "missing_authorization_code");
+  const hasError = Boolean(safeError);
+  const payload = JSON.stringify({
+    type: "google-oauth-callback",
+    code,
+    state,
+    error: safeError,
+  });
 
   // Return an HTML page that sends the code to the parent window
   const html = `
@@ -52,9 +61,9 @@ export async function GET(request: NextRequest) {
       </head>
       <body>
         <div class="container">
-          ${error ? `
+          ${hasError ? `
             <h2 class="error">Authorization Failed</h2>
-            <p>Error: ${error}</p>
+            <p>Error: ${safeError || "unknown_error"}</p>
             <p>This window will close automatically.</p>
           ` : `
             <div class="spinner"></div>
@@ -64,26 +73,11 @@ export async function GET(request: NextRequest) {
           `}
         </div>
         <script>
-          ${error ? `
-            // Send error to parent
-            if (window.opener) {
-              window.opener.postMessage({
-                type: 'google-oauth-callback',
-                error: '${error}'
-              }, '*');
-            }
-            setTimeout(() => window.close(), 3000);
-          ` : `
-            // Send code to parent window
-            if (window.opener) {
-              window.opener.postMessage({
-                type: 'google-oauth-callback',
-                code: '${code}',
-                state: '${state || ''}'
-              }, '*');
-            }
-            setTimeout(() => window.close(), 2000);
-          `}
+          const payload = ${payload};
+          if (window.opener) {
+            window.opener.postMessage(payload, ${JSON.stringify(origin)});
+          }
+          setTimeout(() => window.close(), ${hasError ? 3000 : 2000});
         </script>
       </body>
     </html>

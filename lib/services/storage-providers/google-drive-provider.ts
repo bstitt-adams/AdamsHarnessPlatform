@@ -3,8 +3,8 @@
  * Handles OAuth authentication and file operations with Google Drive
  */
 
-import { db } from "@/lib/firebase";
-import { doc, getDoc, setDoc, Timestamp } from "firebase/firestore";
+import { Timestamp } from "firebase-admin/firestore";
+import { adminDb } from "@/lib/firebase-admin";
 import { COLLECTIONS } from "@/lib/schema";
 
 // ============================================================================
@@ -23,10 +23,10 @@ export interface GoogleDriveConfig {
   id: string;
   name: string;
   enabled: boolean;
-  credentials?: GoogleDriveCredentials;
-  folderId?: string;
-  folderName?: string;
-  email?: string;
+  credentials?: GoogleDriveCredentials | null;
+  folderId?: string | null;
+  folderName?: string | null;
+  email?: string | null;
   connected: boolean;
   lastSyncAt?: Timestamp;
   createdAt: Timestamp;
@@ -182,13 +182,15 @@ export class GoogleDriveProvider {
    * Load configuration from Firestore
    */
   async loadConfig(): Promise<GoogleDriveConfig | null> {
-    if (!db) return null;
+    if (!adminDb) return null;
 
     try {
-      const docRef = doc(db, COLLECTIONS.BACKUP_STORAGE_PROVIDERS, GOOGLE_DRIVE_CONFIG_ID);
-      const docSnap = await getDoc(docRef);
+      const docSnap = await adminDb
+        .collection(COLLECTIONS.BACKUP_STORAGE_PROVIDERS)
+        .doc(GOOGLE_DRIVE_CONFIG_ID)
+        .get();
 
-      if (docSnap.exists()) {
+      if (docSnap.exists) {
         this.config = docSnap.data() as GoogleDriveConfig;
         return this.config;
       }
@@ -204,7 +206,7 @@ export class GoogleDriveProvider {
    * Save configuration to Firestore
    */
   async saveConfig(config: Partial<GoogleDriveConfig>): Promise<void> {
-    if (!db) throw new Error("Database not initialized");
+    if (!adminDb) throw new Error("Firebase Admin is not configured");
 
     const now = Timestamp.now();
     const existingConfig = await this.loadConfig();
@@ -220,10 +222,10 @@ export class GoogleDriveProvider {
       ...config,
     };
 
-    await setDoc(
-      doc(db, COLLECTIONS.BACKUP_STORAGE_PROVIDERS, GOOGLE_DRIVE_CONFIG_ID),
-      newConfig
-    );
+    await adminDb
+      .collection(COLLECTIONS.BACKUP_STORAGE_PROVIDERS)
+      .doc(GOOGLE_DRIVE_CONFIG_ID)
+      .set(newConfig);
 
     this.config = newConfig;
   }
@@ -472,10 +474,10 @@ export class GoogleDriveProvider {
    */
   async disconnect(): Promise<void> {
     await this.saveConfig({
-      credentials: undefined,
-      folderId: undefined,
-      folderName: undefined,
-      email: undefined,
+      credentials: null,
+      folderId: null,
+      folderName: null,
+      email: null,
       connected: false,
     });
   }
