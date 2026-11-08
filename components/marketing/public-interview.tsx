@@ -152,6 +152,8 @@ export function PublicInterview() {
         if (!res.ok) throw new Error(typeof data?.error === "string" ? data.error : `Failed (${res.status})`);
         setInterview(data.interview);
         setMessages(data.interview.messages);
+        if (data.prd?.id) toast.success(`PRD v${data.prd.version} generated`);
+        if (data.prdError) toast.error(data.prdError);
         setInput("");
       }
     } catch (error) {
@@ -325,6 +327,7 @@ export function PublicInterview() {
           </div>
           <p className="mt-3 text-xs text-muted-foreground">
             No sign-in required. Your answers are saved as a requirements interview for the Adams Electric team.
+            {interviewId ? " Type yolo to let AI recommend best-practice answers, complete the interview, and generate a PRD draft." : ""}
           </p>
         </CardContent>
       </Card>

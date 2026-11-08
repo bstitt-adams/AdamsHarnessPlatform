@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AssetExternalLinksPanel } from "@/components/admin/asset-external-links-panel";
 
 interface AssetHistoryDoc {
   id: string;
@@ -20,6 +21,11 @@ interface AssetHistoryDoc {
   action?: string;
   teamMemberId?: string;
   teamMemberName?: string;
+  fromTeamMemberId?: string;
+  fromTeamMemberName?: string;
+  toTeamMemberId?: string;
+  toTeamMemberName?: string;
+  reassignedByName?: string;
   performedByName?: string;
   createdAt?: Timestamp;
 }
@@ -91,6 +97,10 @@ export default function AssetDetailPage() {
     if (!db || !asset) return;
     const member = members.find((item) => item.id === teamMemberId);
     const assignedToName = member ? `${member.firstName} ${member.lastName}`.trim() : "Unassigned";
+    const previousTeamMemberId = asset.assignedToTeamMemberId || "";
+    const previousTeamMemberName = asset.assignedToName || "Unassigned";
+    const performedByName = linkedTeamMember ? `${linkedTeamMember.firstName} ${linkedTeamMember.lastName}` : profile.email || "Administrator";
+    const action = member ? (previousTeamMemberId && previousTeamMemberId !== member.id ? "reassigned" : "assigned") : "unassigned";
     const now = Timestamp.now();
     setSaving(true);
     try {
@@ -102,20 +112,35 @@ export default function AssetDetailPage() {
         assignmentMatchStatus: member ? "matched" : "not_applicable",
         assignmentReturnedAt: member ? null : now,
         status: member ? (asset.status === "available" || asset.status === "returned" ? "active" : asset.status) : "available",
+        lastAssignmentAction: action,
+        lastReassignedAt: now,
+        lastReassignedByUid: auth?.currentUser?.uid || "",
+        lastReassignedByName: performedByName,
+        lastReassignedFromTeamMemberId: previousTeamMemberId,
+        lastReassignedFromTeamMemberName: previousTeamMemberName,
+        lastReassignedToTeamMemberId: member?.id || "",
+        lastReassignedToTeamMemberName: assignedToName,
         updatedAt: now,
       });
-      await addDoc(collection(db, COLLECTIONS.ASSET_HISTORY), {
+      addDoc(collection(db, COLLECTIONS.ASSET_HISTORY), {
         assetId: asset.id,
-        action: member ? "assigned" : "unassigned",
+        action,
         teamMemberId: member?.id || "",
         teamMemberName: assignedToName,
+        fromTeamMemberId: previousTeamMemberId,
+        fromTeamMemberName: previousTeamMemberName,
+        toTeamMemberId: member?.id || "",
+        toTeamMemberName: assignedToName,
+        reassignedByUid: auth?.currentUser?.uid || "",
+        reassignedByName: performedByName,
         performedByUid: auth?.currentUser?.uid || "",
-        performedByName: linkedTeamMember ? `${linkedTeamMember.firstName} ${linkedTeamMember.lastName}` : profile.email || "Administrator",
+        performedByName,
         createdAt: now,
-      });
+      }).catch((error) => console.warn("Unable to write asset history", error));
       toast.success(member ? `Assigned to ${assignedToName}` : "Asset unassigned");
       await load();
-    } catch {
+    } catch (error) {
+      console.error("Unable to update asset assignment", error);
       toast.error("Unable to update asset assignment");
     } finally {
       setSaving(false);
@@ -192,14 +217,21 @@ export default function AssetDetailPage() {
           </CardContent>
         </Card>
 
+        <AssetExternalLinksPanel assetId={asset.id} onChanged={() => void load()} />
+
         <Card>
           <CardHeader><CardTitle className="flex items-center gap-2"><History className="h-5 w-5" />Assignment History</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             {history.length === 0 && <p className="text-sm text-muted-foreground">No assignment history has been recorded.</p>}
-            {history.map((item) => <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
-              <div><div className="font-medium capitalize">{item.action || "updated"}</div><div className="text-sm text-muted-foreground">{item.teamMemberName || "Unassigned"} · {item.performedByName || "System"}</div></div>
-              <div className="text-sm text-muted-foreground">{displayTimestamp(item.createdAt)}</div>
-            </div>)}
+            {history.map((item) => {
+              const fromName = item.fromTeamMemberName || (item.action === "assigned" ? "Unassigned" : "—");
+              const toName = item.toTeamMemberName || item.teamMemberName || "Unassigned";
+              const actor = item.reassignedByName || item.performedByName || "System";
+              return <div key={item.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border p-3">
+                <div><div className="font-medium capitalize">{item.action || "updated"}</div><div className="text-sm text-muted-foreground">{fromName} → {toName}</div><div className="text-xs text-muted-foreground">By {actor}</div></div>
+                <div className="text-sm text-muted-foreground">{displayTimestamp(item.createdAt)}</div>
+              </div>;
+            })}
           </CardContent>
         </Card>
       </div>

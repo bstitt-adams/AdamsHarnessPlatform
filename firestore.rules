@@ -261,6 +261,26 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /assetExternalLinks/{linkId} {
+      allow read, write: if isAdmin();
+    }
+
+    match /assetSyncRuns/{runId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
+    // Hardhat QR tokens and immutable scan/lifecycle audit events
+    match /hardhatQrCodes/{codeId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /hardhatQrEvents/{eventId} {
+      allow read, create: if isAdmin();
+      allow update, delete: if false;
+    }
+
     // Company office locations and shared conference lines
     match /officeLocations/{locationId} {
       allow read: if isAuthenticated();
@@ -310,7 +330,9 @@ service cloud.firestore {
 
     // User Uploaded Training & Certifications (My Training and Certs)
     match /userTrainingCerts/{certId} {
-      allow read, create, update, delete: if isAuthenticated();
+      allow read: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow create: if isAdmin() || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
+      allow update, delete: if isAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
     }
 
     // Enterprise AI Form Builder (Forms & Submissions)

@@ -138,7 +138,19 @@ function SettingsPageContent() {
     remoteUrl: "",
     apiKey: "",
     model: "hermes-agent",
+    buildWorkspace: "",
   });
+  const [hermesEndpointStatus, setHermesEndpointStatus] = useState<{
+    local?: { ok: boolean; latencyMs?: number };
+    remote?: { ok: boolean; latencyMs?: number };
+    checking?: boolean;
+  }>({});
+  const [hermesHealth, setHermesHealth] = useState<{
+    configured: boolean;
+    healthy: boolean;
+    mode?: string;
+    endpointHost?: string;
+  } | null>(null);
   const [telegramConfig, setTelegramConfig] = useState({
     enabled: true,
     botToken: "",
@@ -257,7 +269,23 @@ function SettingsPageContent() {
               localUrl: data.hermes?.localUrl || prev.localUrl,
               remoteUrl: data.hermes?.remoteUrl || "",
               model: data.hermes?.model || "hermes-agent",
+              buildWorkspace: data.hermes?.buildWorkspace || "",
             }));
+          }
+          // Load the server-resolved Hermes target (mode + host + health)
+          try {
+            const token = await auth?.currentUser?.getIdToken();
+            if (token) {
+              const healthRes = await fetch("/api/adams-harness/health", {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (healthRes.ok) {
+                const health = await healthRes.json();
+                setHermesHealth(health.hermes ?? null);
+              }
+            }
+          } catch {
+            // Health display is optional; ignore failures.
           }
           if (data.telegram) {
             setTelegramConfig((prev) => ({
@@ -363,6 +391,14 @@ function SettingsPageContent() {
           baseUrl: llmConfig.baseUrl || "",
           useOpenAICompatible: llmConfig.useOpenAICompatible,
         },
+        hermes: {
+          mode: hermesConfig.mode,
+          localUrl: hermesConfig.localUrl,
+          remoteUrl: hermesConfig.remoteUrl,
+          model: hermesConfig.model,
+          buildWorkspace: hermesConfig.buildWorkspace,
+          status: testingStatus.hermes === "success" ? "connected" : "disconnected",
+        },
         webhookEvents: webhookEvents as Record<string, boolean>,
         notificationSettings: notificationSettings,
         socialLinks: socialLinks,
@@ -414,6 +450,35 @@ function SettingsPageContent() {
       } catch (error) {
         setTestingStatus(prev => ({ ...prev, hermes: "error" }));
         toast.error(error instanceof Error ? error.message : "Hermes connection failed");
+      }
+      return;
+    }
+
+    if (configId === "hermes-both") {
+      setHermesEndpointStatus({ checking: true });
+      try {
+        const user = auth?.currentUser;
+        if (!user) throw new Error("Not signed in");
+        const token = await user.getIdToken();
+        const ping = async (mode: "local" | "remote") => {
+          const response = await fetch("/api/admin/hermes/test", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ ...hermesConfig, mode, persist: false }),
+          });
+          const result = await response.json();
+          return { ok: response.ok && result.ok, latencyMs: result.latencyMs };
+        };
+        const [local, remote] = await Promise.all([
+          hermesConfig.localUrl.trim() ? ping("local") : Promise.resolve(undefined),
+          hermesConfig.remoteUrl.trim() ? ping("remote") : Promise.resolve(undefined),
+        ]);
+        setHermesEndpointStatus({ local, remote });
+        if (local?.ok || remote?.ok) toast.success("Endpoint check complete");
+        else toast.error("Neither endpoint is reachable");
+      } catch (error) {
+        setHermesEndpointStatus({});
+        toast.error(error instanceof Error ? error.message : "Endpoint check failed");
       }
       return;
     }
@@ -785,7 +850,7 @@ function SettingsPageContent() {
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2"><Brain className="h-5 w-5" /> Hermes Integration</CardTitle>
-              <CardDescription>Configure the Adams Harness interview assistant and test either a local or remote Hermes endpoint.</CardDescription>
+              <CardDescription>Configure the Adams Harness assistant. Switch between a local Docker container and a remote Azure deployment — the active endpoint applies to all Hermes features.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="space-y-2">
@@ -793,28 +858,55 @@ function SettingsPageContent() {
                 <Select value={hermesConfig.mode} onValueChange={(value: "local" | "remote" | "env") => { setHermesConfig({ ...hermesConfig, mode: value }); setHasChanges(true); }}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="local">Local Hermes</SelectItem>
-                    <SelectItem value="remote">Remote Hermes</SelectItem>
+                    <SelectItem value="local">Local Hermes (Docker)</SelectItem>
+                    <SelectItem value="remote">Remote Hermes (Azure)</SelectItem>
                     <SelectItem value="env">Environment variables</SelectItem>
                   </SelectContent>
                 </Select>
+                {hermesHealth && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <Badge variant={hermesHealth.healthy ? "secondary" : "outline"}>
+                      {hermesHealth.configured
+                        ? `Active: ${hermesHealth.mode === "local" ? "Docker (local)" : hermesHealth.mode === "remote" ? "Azure (remote)" : "Environment"}${hermesHealth.endpointHost ? ` — ${hermesHealth.endpointHost}` : ""}${hermesHealth.healthy ? "" : " (unreachable)"}`
+                        : "Hermes not configured"}
+                    </Badge>
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">Local only works when this app runs on the same machine as the container — production (Vercel) must use Remote or Environment.</p>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2"><Label htmlFor="hermesLocalUrl">Local URL</Label><Input id="hermesLocalUrl" placeholder="http://localhost:8000" value={hermesConfig.localUrl} onChange={(e) => { setHermesConfig({ ...hermesConfig, localUrl: e.target.value }); setHasChanges(true); }} /></div>
-                <div className="space-y-2"><Label htmlFor="hermesRemoteUrl">Remote URL</Label><Input id="hermesRemoteUrl" placeholder="https://hermes.example.com" value={hermesConfig.remoteUrl} onChange={(e) => { setHermesConfig({ ...hermesConfig, remoteUrl: e.target.value }); setHasChanges(true); }} /></div>
+                <div className="space-y-2">
+                  <Label htmlFor="hermesLocalUrl">Local URL (Docker)</Label>
+                  <Input id="hermesLocalUrl" placeholder="http://localhost:8000" value={hermesConfig.localUrl} onChange={(e) => { setHermesConfig({ ...hermesConfig, localUrl: e.target.value }); setHasChanges(true); }} />
+                  {hermesEndpointStatus.local && <Badge variant={hermesEndpointStatus.local.ok ? "secondary" : "destructive"}>{hermesEndpointStatus.local.ok ? `Reachable${hermesEndpointStatus.local.latencyMs ? ` (${hermesEndpointStatus.local.latencyMs}ms)` : ""}` : "Unreachable"}</Badge>}
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="hermesRemoteUrl">Remote URL (Azure)</Label>
+                  <Input id="hermesRemoteUrl" placeholder="https://hermes.<env>.azurecontainerapps.io" value={hermesConfig.remoteUrl} onChange={(e) => { setHermesConfig({ ...hermesConfig, remoteUrl: e.target.value }); setHasChanges(true); }} />
+                  {hermesEndpointStatus.remote && <Badge variant={hermesEndpointStatus.remote.ok ? "secondary" : "destructive"}>{hermesEndpointStatus.remote.ok ? `Reachable${hermesEndpointStatus.remote.latencyMs ? ` (${hermesEndpointStatus.remote.latencyMs}ms)` : ""}` : "Unreachable"}</Badge>}
+                </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2"><Label htmlFor="hermesModel">Model</Label><Input id="hermesModel" value={hermesConfig.model} onChange={(e) => { setHermesConfig({ ...hermesConfig, model: e.target.value }); setHasChanges(true); }} /></div>
                 <div className="space-y-2"><Label htmlFor="hermesApiKey">API key</Label><Input id="hermesApiKey" type={showKeys.hermes ? "text" : "password"} value={hermesConfig.apiKey} onChange={(e) => { setHermesConfig({ ...hermesConfig, apiKey: e.target.value }); setHasChanges(true); }} /></div>
               </div>
-              <div className="flex items-center gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="hermesBuildWorkspace">Build workspace path (optional)</Label>
+                <Input id="hermesBuildWorkspace" placeholder="/workspace or C:\hermes-workspace" value={hermesConfig.buildWorkspace} onChange={(e) => { setHermesConfig({ ...hermesConfig, buildWorkspace: e.target.value }); setHasChanges(true); }} />
+                <p className="text-xs text-muted-foreground">Overrides HERMES_BUILD_WORKSPACE for module builds. Use the container-internal path (e.g. /workspace) that the active Hermes sees.</p>
+              </div>
+              <div className="flex items-center gap-3 flex-wrap">
                 <Button variant="outline" onClick={() => testConnection("hermes")} disabled={testingStatus.hermes === "testing"}>
                   {testingStatus.hermes === "testing" ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : testingStatus.hermes === "success" ? <CheckCircle className="mr-2 h-4 w-4 text-green-500" /> : testingStatus.hermes === "error" ? <XCircle className="mr-2 h-4 w-4 text-red-500" /> : <TestTube className="mr-2 h-4 w-4" />}
                   Test {hermesConfig.mode === "env" ? "configured" : hermesConfig.mode} Hermes
                 </Button>
+                <Button variant="outline" onClick={() => testConnection("hermes-both")} disabled={hermesEndpointStatus.checking}>
+                  {hermesEndpointStatus.checking ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Check both endpoints
+                </Button>
                 {testingStatus.hermes === "success" && <Badge variant="secondary">Connected</Badge>}
               </div>
-              <p className="text-xs text-muted-foreground">The API key is sent only to the server for the connection test and is never returned by the test endpoint. Save settings after testing.</p>
+              <p className="text-xs text-muted-foreground">The API key is sent only to the server for the connection test and is never returned by the test endpoint. "Check both endpoints" pings local and remote without saving.</p>
             </CardContent>
           </Card>
         </TabsContent>

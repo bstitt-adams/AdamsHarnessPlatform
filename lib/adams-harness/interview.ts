@@ -1,6 +1,8 @@
 import { randomUUID } from "crypto";
+import { z } from "zod";
 import {
   interviewAssistantTurnSchema,
+  interviewFactsSchema,
   REQUIRED_COVERAGE_KEYS,
   type InterviewAssistantTurn,
   type InterviewFacts,
@@ -394,6 +396,149 @@ function runGuidedFallbackTurn(interview: ProcessInterviewDoc): InterviewTurnRes
     readyForSpecification,
     model: "adams-guided-interviewer",
   };
+}
+
+const interviewYoloSchema = z.strictObject({
+  assistantMessage: z.string().trim().min(1).max(10_000),
+  facts: interviewFactsSchema.partial().default({}),
+});
+
+const YOLO_SYSTEM_PROMPT = `You are the Adams Platform requirements interview autopilot. The respondent entered "yolo" and asked you to finish the interview using recommended best-practice answers.
+
+Return one JSON object:
+{
+  "assistantMessage": string,
+  "facts": { partial InterviewFacts object }
+}
+
+Rules:
+- Infer a realistic, operationally sound workflow from the existing interview title, respondent, attachments, and conversation.
+- In "assistantMessage", provide a concise numbered list of the recommended answers you are applying, grouped by missing discovery topic.
+- Populate "facts" for every uncovered required topic. Do not invent personally sensitive data, credentials, or unsupported integrations.
+- Use Adams Electric/electrical-construction best practices: clear role ownership, audit trail, notifications, escalation, evidence, compliance, exceptions, integrations, and human approvals.
+- The assistantMessage must end by telling the respondent the requirements are ready for PRD generation.`;
+
+function fallbackYoloFacts(interview: ProcessInterviewDoc): InterviewFacts {
+  const task = interview.facts.task || interview.task || "Department workflow automation";
+  return {
+    task,
+    trigger: interview.facts.trigger || "The process starts when a work request, jobsite event, schedule milestone, or recurring operational need is identified.",
+    frequency: interview.facts.frequency || "As needed, with recurring checkpoints for open items and overdue work.",
+    currentSteps: interview.facts.currentSteps.length ? interview.facts.currentSteps : [
+      "Request or work item is identified and captured.",
+      "A coordinator enters or forwards the information through spreadsheets, email, chat, or paper forms.",
+      "Responsible team members complete the work and report progress manually.",
+      "A supervisor reviews completion and follows up on missing or overdue items.",
+    ],
+    actors: interview.facts.actors.length ? interview.facts.actors : [
+      "Requestor or process owner",
+      "Department coordinator",
+      "Assigned field or office team member",
+      "Supervisor or department approver",
+    ],
+    systems: interview.facts.systems.length ? interview.facts.systems : [
+      "Adams Platform",
+      "Email",
+      "Spreadsheets",
+      "Microsoft Teams or Telegram notifications where configured",
+    ],
+    copiedData: interview.facts.copiedData.length ? interview.facts.copiedData : [
+      "Request details, assignee, due date, status, evidence, and completion notes should be captured once and reused across the workflow.",
+    ],
+    painPoints: interview.facts.painPoints.length ? interview.facts.painPoints : [
+      "Manual follow-up",
+      "Duplicated data entry",
+      "Unclear ownership",
+      "Delayed completion evidence",
+      "Limited visibility into overdue work",
+    ],
+    desiredProcess: interview.facts.desiredProcess || "Create a structured Adams Platform workflow that captures the request once, assigns an owner, tracks status and due dates, collects evidence, notifies stakeholders, escalates overdue items, and preserves an audit trail.",
+    notifications: interview.facts.notifications.length ? interview.facts.notifications : [
+      "Notify the assignee when work is assigned.",
+      "Notify the requester and supervisor when status changes or work is completed.",
+      "Escalate overdue work to the department owner.",
+    ],
+    completionEvidence: interview.facts.completionEvidence.length ? interview.facts.completionEvidence : [
+      "Completion notes",
+      "Required attachments or photos where applicable",
+      "Supervisor sign-off for regulated or high-risk items",
+    ],
+    timingEscalation: interview.facts.timingEscalation || "Use process-specific due dates, remind assignees before the deadline, and escalate overdue items to the supervisor or department owner.",
+    exceptions: interview.facts.exceptions.length ? interview.facts.exceptions : [
+      "Urgent safety issues are prioritized immediately.",
+      "Missing information returns the item to the requester or coordinator.",
+      "Blocked work requires a documented reason and owner.",
+    ],
+    compliance: interview.facts.compliance.length ? interview.facts.compliance : [
+      "Preserve user, timestamp, status, approval, attachment, and change-history records for auditability.",
+    ],
+    integrations: interview.facts.integrations.length ? interview.facts.integrations : [
+      "Reuse Team Members, departments, business units, assets, and notification services already available in the Adams Platform.",
+    ],
+    humanApprovals: interview.facts.humanApprovals.length ? interview.facts.humanApprovals : [
+      "Department owner or supervisor approval before completion when required.",
+    ],
+  };
+}
+
+export async function runInterviewYolo(
+  interview: ProcessInterviewDoc,
+): Promise<InterviewTurnResult> {
+  const missing = REQUIRED_COVERAGE_KEYS.filter((key) => !interview.coverage[key]);
+  let facts = mergeFacts(interview.facts, fallbackYoloFacts(interview));
+  let assistantText = "I'll finish the interview using recommended Adams Platform best practices.";
+
+  try {
+    const { data, model } = await requestHermesStructured({
+      systemPrompt: `${YOLO_SYSTEM_PROMPT}\n\nCurrent interview state:\n${buildStateSummary(interview)}\n\nMissing topics: ${missing.join(", ") || "none"}`,
+      messages: interview.messages.slice(-MAX_HISTORY_MESSAGES).map((m) => ({ role: m.role, content: m.content })),
+      schema: interviewYoloSchema,
+      temperature: 0.35,
+    });
+    facts = mergeFacts(facts, data.facts);
+    assistantText = data.assistantMessage;
+    return {
+      assistantMessage: newMessage("assistant", assistantText),
+      turn: {
+        assistantMessage: assistantText,
+        facts: data.facts,
+        coverage: Object.fromEntries(REQUIRED_COVERAGE_KEYS.map((key) => [key, true])),
+        unresolvedQuestions: [],
+        readyForSpecification: true,
+      },
+      facts,
+      coverage: Object.fromEntries(REQUIRED_COVERAGE_KEYS.map((key) => [key, true])),
+      unresolvedQuestions: [],
+      readyForSpecification: true,
+      model,
+    };
+  } catch {
+    const fallbackMessage = [
+      "I could not reach the AI assistant, so I applied standard Adams Platform best-practice recommendations to complete the interview:",
+      "1. Capture the request once and assign a clear owner.",
+      "2. Track status, due dates, completion evidence, and exception handling.",
+      "3. Notify assignees and supervisors, then escalate overdue work to the department owner.",
+      "4. Preserve an audit trail and require supervisor approval for high-risk or regulated work.",
+      "5. Reuse Team Members, departments, business units, assets, and configured notification services.",
+      "The requirements are ready for PRD generation.",
+    ].join("\n");
+    const coverage = Object.fromEntries(REQUIRED_COVERAGE_KEYS.map((key) => [key, true]));
+    return {
+      assistantMessage: newMessage("assistant", fallbackMessage),
+      turn: {
+        assistantMessage: fallbackMessage,
+        facts,
+        coverage,
+        unresolvedQuestions: [],
+        readyForSpecification: true,
+      },
+      facts,
+      coverage,
+      unresolvedQuestions: [],
+      readyForSpecification: true,
+      model: "adams-interview-yolo-fallback",
+    };
+  }
 }
 
 export async function runInterviewTurn(

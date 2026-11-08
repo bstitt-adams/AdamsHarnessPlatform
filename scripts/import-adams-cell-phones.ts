@@ -7,7 +7,7 @@
  */
 
 import { config } from "dotenv";
-import { readFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { initializeApp, cert } from "firebase-admin/app";
 import { getFirestore, Timestamp } from "firebase-admin/firestore";
 import { strFromU8, unzipSync } from "fflate";
@@ -16,7 +16,9 @@ config({ path: ".env.local", quiet: true });
 config({ quiet: true });
 
 const WORKBOOK_PATH = "docs/adams_data/ADAMS CELL PHONES.xlsx";
+const COMPARISON_REPORT_PATH = "docs/adams_data/adams-cell-phones-team-member-comparison.csv";
 const DRY_RUN = process.argv.includes("--dry-run");
+const WRITE_COMPARISON_REPORT = process.argv.includes("--write-comparison-report");
 
 type Row = Record<string, string> & { __row: number };
 type TeamMember = {
@@ -87,6 +89,41 @@ function normalizeName(value: string) {
     .join(" ");
 }
 
+const NAME_ALIASES = new Map([
+  ["alex", "alexander"], ["andy", "andrew"], ["bill", "william"], ["billy", "william"], ["bob", "robert"], ["bobby", "robert"], ["chris", "christopher"], ["dave", "david"], ["dan", "daniel"], ["danny", "daniel"], ["dick", "richard"], ["ed", "edward"], ["eddie", "edward"], ["frank", "francis"], ["fred", "frederick"], ["hank", "henry"], ["jack", "john"], ["jim", "james"], ["jimmy", "james"], ["joe", "joseph"], ["joey", "joseph"], ["josh", "joshua"], ["larry", "lawrence"], ["matt", "matthew"], ["mike", "michael"], ["pat", "patrick"], ["rob", "robert"], ["sam", "samuel"], ["steve", "stephen"], ["ted", "theodore"], ["teddy", "theodore"], ["tom", "thomas"], ["tommy", "thomas"], ["tony", "anthony"], ["zach", "zachary"],
+]);
+
+function aliasName(value: string) {
+  return normalizeName(value).split(" ").map((token) => NAME_ALIASES.get(token) || token).sort().join(" ");
+}
+
+function bigramScore(a: string, b: string) {
+  if (!a || !b) return 0;
+  const grams = (value: string) => new Map([...Array(Math.max(value.length - 1, 0)).keys()].map((index) => [value.slice(index, index + 2), index]));
+  const aGrams = grams(a), bGrams = grams(b);
+  let overlap = 0;
+  for (const gram of aGrams.keys()) if (bGrams.has(gram)) overlap++;
+  return (2 * overlap) / Math.max(aGrams.size + bGrams.size, 1);
+}
+
+function nameScore(candidate: string, memberName: string) {
+  const normalizedCandidate = normalizeName(candidate);
+  const normalizedMember = normalizeName(memberName);
+  const aliasedCandidate = aliasName(candidate);
+  const aliasedMember = aliasName(memberName);
+  const phraseScore = Math.max(bigramScore(normalizedCandidate, normalizedMember), bigramScore(aliasedCandidate, aliasedMember));
+  const candidateTokens = normalizedCandidate.split(" ");
+  const memberTokens = normalizedMember.split(" ");
+  const sharedTokens = candidateTokens.filter((token) => memberTokens.includes(token)).length;
+  const tokenScore = sharedTokens / Math.max(candidateTokens.length, memberTokens.length, 1);
+  const aliasedCandidateTokens = aliasedCandidate.split(" ");
+  const aliasedMemberTokens = aliasedMember.split(" ");
+  const candidateContained = aliasedCandidateTokens.length > 0 && aliasedCandidateTokens.every((token) => aliasedMemberTokens.includes(token));
+  const memberContained = aliasedMemberTokens.length > 0 && aliasedMemberTokens.every((token) => aliasedCandidateTokens.includes(token));
+  const containmentScore = candidateContained ? 0.9 : memberContained ? 0.86 : 0;
+  return Math.round(Math.max(phraseScore, tokenScore * 0.92, containmentScore) * 100);
+}
+
 function personCandidate(label: string) {
   const sharedAsset = /\b(apprenticeship|jobsite|job site|site|office|warehouse|prefab|hilti|router|hotspot|jetpack|mifi|aircard|line|duke|wake forest|atrium|mercy)\b/i;
   if (sharedAsset.test(label)) return "";
@@ -152,7 +189,12 @@ async function main() {
 
   const now = Timestamp.now();
   const stats = { teamMembers: members.length, assets: 0, matched: 0, unmatched: 0, personal: 0, locations: 0, conferenceLines: 0, skipped: 0 };
+  const matchedNames = new Set<string>();
+  const fuzzyNames = new Set<string>();
+  const missingNames = new Set<string>();
+  const ambiguousNames = new Set<string>();
   const unmatchedNames = new Set<string>();
+  const comparisonStatuses = new Map<string, { status: string; teamMemberName: string; score: number }>();
 
   for (const row of devices) {
     const label = (row.A || "").trim();
@@ -163,6 +205,26 @@ async function main() {
       if (!rawPhone || digits(rawPhone).length < 7) continue;
       const candidate = personCandidate(label);
       const matches = candidate ? membersByName.get(normalizeName(candidate)) || [] : [];
+      if (candidate) {
+        if (matches.length === 1) {
+          const memberName = `${matches[0].firstName || ""} ${matches[0].lastName || ""}`.trim();
+          matchedNames.add(candidate);
+          comparisonStatuses.set(candidate, { status: "matched", teamMemberName: memberName, score: 100 });
+        } else if (matches.length > 1) {
+          ambiguousNames.add(candidate);
+          comparisonStatuses.set(candidate, { status: "ambiguous", teamMemberName: "", score: 0 });
+        } else {
+          const best = members.reduce<{ name: string; score: number }>((current, member) => {
+            const memberName = `${member.firstName || ""} ${member.lastName || ""}`.trim();
+            const score = nameScore(candidate, memberName);
+            return score > current.score ? { name: memberName, score } : current;
+          }, { name: "", score: 0 });
+          const fuzzyMatch = best.score >= 78;
+          if (fuzzyMatch) fuzzyNames.add(candidate);
+          else missingNames.add(candidate);
+          comparisonStatuses.set(candidate, { status: fuzzyMatch ? "fuzzy_match" : "missing", teamMemberName: best.name, score: best.score });
+        }
+      }
       const id = `adams-device-r${String(row.__row).padStart(3, "0")}-${column.toLowerCase()}`;
       const ref = db.collection("userAssets").doc(id);
       const existing = await ref.get();
@@ -272,7 +334,12 @@ async function main() {
     stats.conferenceLines++;
   }
 
-  console.log(JSON.stringify({ dryRun: DRY_RUN, ...stats, unmatchedPeople: unmatchedNames.size }, null, 2));
+  if (WRITE_COMPARISON_REPORT) {
+    const rows = [...comparisonStatuses.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([name, comparison]) => `${JSON.stringify(name)},${comparison.status},${JSON.stringify(comparison.teamMemberName)},${comparison.score}`);
+    writeFileSync(COMPARISON_REPORT_PATH, `workbook_name,team_member_status,suggested_team_member,match_score\n${rows.join("\n")}\n`);
+  }
+
+  console.log(JSON.stringify({ dryRun: DRY_RUN, ...stats, matchedPeople: matchedNames.size, matchedNames: [...matchedNames].sort(), fuzzyPeople: fuzzyNames.size, fuzzyNames: [...fuzzyNames].sort(), missingPeople: missingNames.size, missingNames: [...missingNames].sort(), ambiguousPeople: ambiguousNames.size, ambiguousNames: [...ambiguousNames].sort(), unmatchedPeople: unmatchedNames.size, unmatchedNames: [...unmatchedNames].sort() }, null, 2));
 }
 
 main().catch((error) => {

@@ -491,6 +491,56 @@
         { "fieldPath": "departmentId", "order": "ASCENDING" },
         { "fieldPath": "status", "order": "ASCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "userAssets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "assetName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "userAssets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "assetType", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "assetName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "userAssets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "assignedToTeamMemberId", "order": "ASCENDING" },
+        { "fieldPath": "assetName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "userAssets",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "assignedToEmail", "order": "ASCENDING" },
+        { "fieldPath": "assetName", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "assetExternalLinks",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "provider", "order": "ASCENDING" },
+        { "fieldPath": "status", "order": "ASCENDING" },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "assetSyncRuns",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "provider", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

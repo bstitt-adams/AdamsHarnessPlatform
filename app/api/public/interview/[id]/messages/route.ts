@@ -3,7 +3,7 @@ import {
   postInterviewMessageSchema,
   type ProcessInterviewDoc,
 } from "@/lib/adams-harness/types";
-import { newMessage, runInterviewTurn } from "@/lib/adams-harness/interview";
+import { newMessage, runInterviewTurn, runInterviewYolo } from "@/lib/adams-harness/interview";
 import { isRateLimited } from "@/lib/adams-harness/rate-limit";
 import {
   getDb,
@@ -12,6 +12,8 @@ import {
   serializeDoc,
 } from "@/lib/adams-harness/server-store";
 import { HermesError } from "@/lib/hermes/client";
+import { createInterviewPrd } from "@/lib/adams-harness/interview-prds";
+import type { AuthenticatedActor } from "@/lib/auth/server-auth";
 import { COLLECTIONS } from "@/lib/schema";
 
 function clientKey(request: NextRequest): string {
@@ -52,6 +54,7 @@ export async function POST(
       return NextResponse.json({ error: "Interview is completed" }, { status: 400 });
     }
 
+    const wantsYolo = parsed.data.content.trim().toLowerCase() === "yolo";
     const userMessage = newMessage("user", parsed.data.content);
     const working: ProcessInterviewDoc = {
       ...interview,
@@ -60,7 +63,7 @@ export async function POST(
 
     let turn;
     try {
-      turn = await runInterviewTurn(working);
+      turn = wantsYolo ? await runInterviewYolo(working) : await runInterviewTurn(working);
     } catch (error) {
       if (error instanceof HermesError) {
         return NextResponse.json(
@@ -95,9 +98,31 @@ export async function POST(
     });
 
     const updated = (await ref.get()).data() as ProcessInterviewDoc;
+    let prd = null;
+    let prdError = null;
+    if (wantsYolo && updated.readyForSpecification) {
+      const actor: AuthenticatedActor = {
+        uid: "public-interview-yolo",
+        email: "interview-assistant@adams-electric.com",
+        role: "team",
+        departmentIds: [interview.departmentId],
+      };
+      try {
+        prd = await createInterviewPrd({
+          interviewId: id,
+          actor,
+          adminContext: "Generated from the public interview `yolo` command using AI-recommended best-practice responses.",
+        });
+      } catch (error) {
+        prdError = error instanceof Error ? error.message : "PRD generation failed";
+      }
+    }
+
     return NextResponse.json({
       interview: serializeDoc({ ...updated, id: ref.id }),
       assistantMessage: turn.assistantMessage,
+      ...(prd ? { prd: serializeDoc(prd) } : {}),
+      ...(prdError ? { prdError } : {}),
     });
   } catch (error) {
     const httpError = httpErrorResponse(error);

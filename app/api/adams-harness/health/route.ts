@@ -23,9 +23,7 @@ export async function GET(request: NextRequest) {
       github,
       webhookSecretConfigured: Boolean(process.env.GITHUB_WEBHOOK_SECRET?.trim()),
       cronSecretConfigured: Boolean(process.env.CRON_SECRET?.trim()),
-      hermesWorkspaceConfigured: Boolean(
-        process.env.HERMES_BUILD_WORKSPACE?.trim(),
-      ),
+      hermesWorkspaceConfigured: Boolean(hermes.buildWorkspaceConfigured),
     });
   } catch (error) {
     if (error instanceof ApiAuthError) return authErrorResponse(error);

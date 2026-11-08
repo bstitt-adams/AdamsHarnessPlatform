@@ -1,0 +1,31 @@
+# Local Hermes agent container for Adams Platform.
+#
+# Set HERMES_IMAGE to your Hermes image before starting, e.g.:
+#   HERMES_IMAGE=myregistry/hermes-agent:1.2.3 docker compose up -d hermes
+#
+# After it starts, configure the app in Portal Settings -> Integrations ->
+# Hermes -> Mode "Local Hermes (Docker)" with Local URL http://localhost:8000.
+#
+# NOTE: "localhost" only works while the Next.js app runs on this same
+# machine. If the app ever runs in Docker itself, use host.docker.internal:8000
+# as the local URL instead.
+
+services:
+  hermes:
+    image: ${HERMES_IMAGE:-hermes-agent:latest}
+    container_name: adams-hermes
+    restart: unless-stopped
+    ports:
+      - "${HERMES_PORT:-8000}:8000"
+    environment:
+      # Directory Hermes uses for module build workspaces inside the container.
+      HERMES_BUILD_WORKSPACE: /workspace
+      # Pass through whatever credentials the Hermes image requires.
+      # Uncomment and set the ones your image expects:
+      # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      HERMES_API_TOKEN: ${HERMES_API_KEY:-}
+    volumes:
+      # Host path is configurable; container path must stay /workspace to match
+      # HERMES_BUILD_WORKSPACE above.
+      - ${HERMES_WORKSPACE_HOST_PATH:-./hermes-workspace}:/workspace

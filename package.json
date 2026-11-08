@@ -14,6 +14,7 @@
     "seed:firebase:all": "npm run seed:firebase && npm run seed:academy && node scripts/seed-site-calendars.js",
     "import:adams-cell-phones": "node --experimental-strip-types scripts/import-adams-cell-phones.ts",
     "import:mission-critical-directory": "node --experimental-strip-types scripts/import-mission-critical-directory.ts",
+    "import:osha-cert-tracker": "node --experimental-strip-types scripts/import-osha-certification-tracker.ts",
     "delete:book-call-leads": "node scripts/delete-book-call-leads.js",
     "cleanup:db": "node scripts/cleanup-database.js",
     "test:db": "node test-connection.js"

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { toast } from "sonner";
 import {
@@ -10,6 +10,7 @@ import {
   deleteDoc,
   doc,
   query,
+  updateDoc,
   where,
   Timestamp,
 } from "firebase/firestore";
@@ -151,14 +152,21 @@ export default function MyTrainingAndCertsPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [savingUpload, setSavingUpload] = useState(false);
   const [previewRecord, setPreviewRecord] = useState<UserTrainingCertDoc | null>(null);
+  const [artifactTarget, setArtifactTarget] = useState<UserTrainingCertDoc | null>(null);
+  const artifactInputRef = useRef<HTMLInputElement>(null);
   const [formData, setFormData] = useState({
     trainingTitle: "",
     trainingCategory: "OSHA / Safety Compliance",
+    certificationType: "Other",
     issuingOrganization: "",
     credentialId: "",
     completionDate: new Date().toISOString().split("T")[0],
     expirationDate: "",
     trainingHours: "",
+    jobsite: "",
+    authorizedTrainer: "",
+    dolCardReceived: "unknown",
+    cardReceivedDate: "",
     notes: "",
     artifactFileName: "",
     artifactMimeType: "",
@@ -187,9 +195,11 @@ export default function MyTrainingAndCertsPage() {
         new Set([targetUid, targetMemberId].filter(Boolean))
       );
 
+      const isPrivileged = ["admin", "superadmin"].includes(profile.role || "");
+      const uploadsRef = collection(db, COLLECTIONS.USER_TRAINING_CERTS);
       const [coursesSnap, uploadedSnap] = await Promise.all([
         getDocs(collection(db, "lms_courses")).catch(() => null),
-        getDocs(collection(db, COLLECTIONS.USER_TRAINING_CERTS)).catch(() => null),
+        getDocs(isPrivileged ? uploadsRef : query(uploadsRef, where("userId", "==", targetUid))).catch(() => null),
       ]);
 
       const courseMap = new Map<string, string>();
@@ -275,7 +285,7 @@ export default function MyTrainingAndCertsPage() {
     } finally {
       setLoading(false);
     }
-  }, [targetUid, targetMemberId, targetEmail, viewedName]);
+  }, [profile.role, targetUid, targetMemberId, targetEmail, viewedName]);
 
   useEffect(() => {
     void loadTraining();
@@ -338,8 +348,16 @@ export default function MyTrainingAndCertsPage() {
         userEmail: targetEmail,
         trainingTitle: formData.trainingTitle.trim(),
         trainingCategory: formData.trainingCategory,
+        certificationType: formData.certificationType,
         issuingOrganization: formData.issuingOrganization.trim(),
         credentialId: formData.credentialId.trim(),
+        jobsite: formData.jobsite.trim(),
+        authorizedTrainer: formData.authorizedTrainer.trim(),
+        dolCardReceived: formData.dolCardReceived,
+        cardReceivedDate: formData.cardReceivedDate,
+        artifactStatus: "received",
+        followUpStatus: "resolved",
+        notificationStatus: "monitoring",
         completionDate: formData.completionDate,
         expirationDate: formData.expirationDate,
         ...(hours !== undefined && Number.isFinite(hours)
@@ -408,11 +426,16 @@ export default function MyTrainingAndCertsPage() {
       setFormData({
         trainingTitle: "",
         trainingCategory: "OSHA / Safety Compliance",
+        certificationType: "Other",
         issuingOrganization: "",
         credentialId: "",
         completionDate: new Date().toISOString().split("T")[0],
         expirationDate: "",
         trainingHours: "",
+        jobsite: "",
+        authorizedTrainer: "",
+        dolCardReceived: "unknown",
+        cardReceivedDate: "",
         notes: "",
         artifactFileName: "",
         artifactMimeType: "",
@@ -439,6 +462,38 @@ export default function MyTrainingAndCertsPage() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  };
+
+  const handleAttachArtifact = (file: File | undefined) => {
+    const firestore = db;
+    if (!firestore || !artifactTarget || !file) return;
+    if (file.size > MAX_ARTIFACT_BYTES) {
+      toast.error("File is too large for Base64 Firestore storage. Please upload a file under 700 KB.");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      void updateDoc(doc(firestore, COLLECTIONS.USER_TRAINING_CERTS, artifactTarget.id), {
+        artifactFileName: file.name,
+        artifactMimeType: file.type || "application/octet-stream",
+        artifactSize: file.size,
+        artifactBase64: result,
+        artifactStatus: "received",
+        followUpStatus: "resolved",
+        followUpRequirement: "",
+        notificationStatus: "monitoring",
+        updatedAt: Timestamp.now(),
+      }).then(async () => {
+        toast.success("Certification artifact attached and follow-up resolved");
+        setArtifactTarget(null);
+        await loadTraining();
+      }).catch((error) => {
+        console.error("Unable to attach certification artifact", error);
+        toast.error("Unable to attach certification artifact");
+      });
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleDeleteUploadedCert = async (item: UserTrainingCertDoc) => {
@@ -478,6 +533,7 @@ export default function MyTrainingAndCertsPage() {
 
   return (
     <div className="space-y-6 p-6">
+      <input ref={artifactInputRef} type="file" accept=".pdf,image/png,image/jpeg,image/webp" className="hidden" onChange={(event) => { handleAttachArtifact(event.target.files?.[0]); event.target.value = ""; }} />
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 text-xs text-muted-foreground mb-1">
@@ -571,6 +627,67 @@ export default function MyTrainingAndCertsPage() {
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="certificationType">Certification Type</Label>
+                    <Select
+                      value={formData.certificationType}
+                      onValueChange={(v) => setFormData({ ...formData, certificationType: v })}
+                    >
+                      <SelectTrigger id="certificationType"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {["OSHA 30", "OSHA 10", "OSHA 510", "NFPA 70E", "CPR AED First Aid", "Other"].map((type) => (
+                          <SelectItem key={type} value={type}>{type}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="jobsite">Jobsite</Label>
+                    <Input
+                      id="jobsite"
+                      value={formData.jobsite}
+                      onChange={(e) => setFormData({ ...formData, jobsite: e.target.value })}
+                      placeholder="e.g. CLT04 / Mission Critical"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="authorizedTrainer">Authorized Trainer / Instructor</Label>
+                    <Input
+                      id="authorizedTrainer"
+                      value={formData.authorizedTrainer}
+                      onChange={(e) => setFormData({ ...formData, authorizedTrainer: e.target.value })}
+                      placeholder="Trainer or instructor name"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="dolCardReceived">DOL Card Received</Label>
+                    <Select
+                      value={formData.dolCardReceived}
+                      onValueChange={(v) => setFormData({ ...formData, dolCardReceived: v })}
+                    >
+                      <SelectTrigger id="dolCardReceived"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="unknown">Unknown</SelectItem>
+                        <SelectItem value="yes">Yes</SelectItem>
+                        <SelectItem value="no">No</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="cardReceivedDate">Card / Certificate Received Date</Label>
+                    <Input
+                      id="cardReceivedDate"
+                      type="date"
+                      value={formData.cardReceivedDate}
+                      onChange={(e) => setFormData({ ...formData, cardReceivedDate: e.target.value })}
+                    />
+                  </div>
                   <div className="space-y-1.5">
                     <Label htmlFor="credentialId">
                       Certificate / Credential ID #
@@ -803,7 +920,8 @@ export default function MyTrainingAndCertsPage() {
                   <TableRow>
                     <TableHead>Training / Credential</TableHead>
                     <TableHead>Category</TableHead>
-                    <TableHead>Issuing Org &amp; ID</TableHead>
+                    <TableHead>Issuing Org / Trainer</TableHead>
+                    <TableHead>Jobsite / Artifact</TableHead>
                     <TableHead>Completed</TableHead>
                     <TableHead>Expiration Date</TableHead>
                     <TableHead>Status</TableHead>
@@ -828,11 +946,19 @@ export default function MyTrainingAndCertsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">{item.issuingOrganization}</div>
+                          {item.authorizedTrainer ? <div className="text-xs text-muted-foreground">Trainer: {item.authorizedTrainer}</div> : null}
                           {item.credentialId && (
                             <div className="text-xs font-mono text-muted-foreground">
                               ID: {item.credentialId}
                             </div>
                           )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="text-sm">{item.jobsite || "—"}</div>
+                          <Badge variant={item.artifactBase64 ? "default" : "secondary"} className="mt-1">
+                            {item.artifactBase64 ? "Artifact attached" : item.artifactStatus === "needs_review" ? "Review required" : "Missing artifact"}
+                          </Badge>
+                          {item.followUpRequirement ? <div className="mt-1 max-w-[220px] text-xs text-amber-700">{item.followUpRequirement}</div> : null}
                         </TableCell>
                         <TableCell className="text-xs text-muted-foreground">
                           {item.completionDate || "—"}
@@ -848,7 +974,16 @@ export default function MyTrainingAndCertsPage() {
                             <Button
                               variant="ghost"
                               size="icon"
+                              title="Attach Artifact"
+                              onClick={() => { setArtifactTarget(item); artifactInputRef.current?.click(); }}
+                            >
+                              <Upload className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
                               title="Preview Artifact"
+                              disabled={!item.artifactBase64}
                               onClick={() => setPreviewRecord(item)}
                             >
                               <Eye className="h-4 w-4" />
@@ -857,6 +992,7 @@ export default function MyTrainingAndCertsPage() {
                               variant="ghost"
                               size="icon"
                               title="Download Artifact"
+                              disabled={!item.artifactBase64}
                               onClick={() => handleDownloadArtifact(item)}
                             >
                               <Download className="h-4 w-4" />

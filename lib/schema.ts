@@ -860,8 +860,7 @@ export interface PlatformDevReportDoc {
 }
 
 /** Tracked Asset assigned to a specific user */
-export interface UserAssetDoc {
-  id: string;
+export interface UserAssetDoc {  id: string;
   assignedToTeamMemberId: string;
   assignedToName: string;
   assignedToEmail: string;
@@ -896,8 +895,170 @@ export interface UserAssetDoc {
   assignedByUid: string;
   assignedByName: string;
   assignedAt: Timestamp;
+  lastAssignmentAction?: "assigned" | "reassigned" | "unassigned";
+  lastReassignedAt?: Timestamp;
+  lastReassignedByUid?: string;
+  lastReassignedByName?: string;
+  lastReassignedFromTeamMemberId?: string;
+  lastReassignedFromTeamMemberName?: string;
+  lastReassignedToTeamMemberId?: string;
+  lastReassignedToTeamMemberName?: string;
+  externalSystems?: AssetExternalSystemSummary[];
   createdAt?: Timestamp;
   updatedAt: Timestamp;
+}
+
+export type AssetProvider = "jamf" | "ninjaOne";
+export type AssetRemoteType = "jamfComputer" | "jamfMobile" | "ninjaManaged" | "ninjaStaged" | "ninjaUnmanaged";
+export type AssetLinkStatus = "linked" | "pending" | "synced" | "error" | "unsupported" | "manual_required" | "remote_missing" | "decommissioned" | "deleted";
+export type AssetSyncDirection = "inbound" | "outbound" | "bidirectional";
+export type AssetRemoteCapability = "read" | "create" | "update" | "delete" | "decommission" | "assignOwner";
+
+export interface AssetExternalSystemSummary {
+  provider: AssetProvider;
+  remoteType: AssetRemoteType;
+  remoteId: string;
+  remoteName?: string;
+  status: AssetLinkStatus;
+  lastSyncAt?: Timestamp;
+  lastSyncResult?: "success" | "partial" | "failed" | "skipped";
+  lastSyncError?: string;
+}
+
+/** Immutable lifecycle/assignment event for a company asset. */
+export interface AssetHistoryDoc {
+  id: string;
+  assetId: string;
+  action: string;
+  teamMemberId?: string;
+  teamMemberName?: string;
+  fromTeamMemberId?: string;
+  fromTeamMemberName?: string;
+  toTeamMemberId?: string;
+  toTeamMemberName?: string;
+  reassignedByUid?: string;
+  reassignedByName?: string;
+  performedByUid?: string;
+  performedByName?: string;
+  metadata?: Record<string, string | number | boolean | null>;
+  createdAt: Timestamp;
+}
+
+/** Link between an Adams asset and a device/asset record in an external management platform. */
+export interface AssetExternalLinkDoc {
+  id: string;
+  assetId: string;
+  provider: AssetProvider;
+  remoteType: AssetRemoteType;
+  remoteId: string;
+  remoteName?: string;
+  remoteSerial?: string;
+  remoteAssetTag?: string;
+  remoteOwnerUid?: string;
+  remoteUrl?: string;
+  status: AssetLinkStatus;
+  syncDirection: AssetSyncDirection;
+  capabilities?: Partial<Record<AssetRemoteCapability, boolean>>;
+  fieldOwnerMap?: Record<string, "adams" | "remote">;
+  remoteSnapshot?: Record<string, string | number | boolean | null>;
+  remoteUpdatedAt?: Timestamp;
+  lastSyncAt?: Timestamp;
+  lastSyncDirection?: "inbound" | "outbound";
+  lastSyncResult?: "success" | "partial" | "failed" | "skipped";
+  lastSyncError?: string;
+  remediation?: string[];
+  createdByUid: string;
+  createdByName: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export type AssetSyncRunStatus = "success" | "partial" | "failed";
+
+/** Audit document for a provider connection test, import, outbound push, or reconciliation run. */
+export interface AssetSyncRunDoc {
+  id: string;
+  provider: AssetProvider;
+  operation: "test" | "capability" | "crud-smoke" | "inbound" | "outbound" | "link" | "lifecycle";
+  direction: "inbound" | "outbound" | "none";
+  status: AssetSyncRunStatus;
+  totalRemoteRecords?: number;
+  matchedAssets?: number;
+  createdAssets?: number;
+  updatedAssets?: number;
+  linkedAssets?: number;
+  skippedRecords?: number;
+  failedRecords?: number;
+  results?: Array<{
+    assetId?: string;
+    remoteId?: string;
+    status: AssetLinkStatus | "success" | "failed" | "skipped";
+    message?: string;
+    remediation?: string[];
+  }>;
+  remediation?: string[];
+  actorUid: string;
+  actorName: string;
+  startedAt: Timestamp;
+  completedAt?: Timestamp;
+  createdAt: Timestamp;
+}
+
+export type HardhatQrStatus = "active" | "inactive" | "revoked";
+export type HardhatQrEventAction =
+  | "generated"
+  | "activated"
+  | "deactivated"
+  | "revoked"
+  | "rotated"
+  | "printed"
+  | "scanned";
+
+/** Public token assigned to a physical hardhat label. The document ID is the scan token. */
+export interface HardhatQrCodeDoc {
+  id: string;
+  teamMemberId: string;
+  teamMemberName: string;
+  moduleSlug?: string;
+  moduleRecordId?: string;
+  hardhatAssetId?: string;
+  status: HardhatQrStatus;
+  tokenVersion: number;
+  scanCount: number;
+  printCount: number;
+  issuedByUid: string;
+  issuedByName: string;
+  issuedAt: Timestamp;
+  lastRotatedAt?: Timestamp;
+  lastPrintedAt?: Timestamp;
+  lastPrintedByUid?: string;
+  lastPrintedByName?: string;
+  lastScannedAt?: Timestamp;
+  activatedAt?: Timestamp;
+  deactivatedAt?: Timestamp;
+  revokedAt?: Timestamp;
+  revokedByUid?: string;
+  revokedByName?: string;
+  revokeReason?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+/** Audit event for QR generation, lifecycle changes, printing, and scans. */
+export interface HardhatQrEventDoc {
+  id: string;
+  codeId: string;
+  teamMemberId: string;
+  moduleSlug?: string;
+  moduleRecordId?: string;
+  action: HardhatQrEventAction;
+  actorUid?: string;
+  actorName?: string;
+  actorType: "admin" | "system" | "public_scan";
+  ipHash?: string;
+  userAgent?: string;
+  metadata?: Record<string, string | number | boolean | null>;
+  createdAt: Timestamp;
 }
 
 /** Physical Adams Electric office, warehouse, or jobsite location */
@@ -1035,7 +1196,7 @@ export interface UserIdeaDoc {
   updatedAt: Timestamp;
 }
 
-/** User-uploaded Training / Certification record with Base64 attachment artifact */
+/** User-uploaded or imported Training / Certification record */
 export interface UserTrainingCertDoc {
   id: string;
   userId: string;
@@ -1044,16 +1205,38 @@ export interface UserTrainingCertDoc {
   userEmail: string;
   trainingTitle: string;
   trainingCategory: string;
+  certificationType?: string;
   issuingOrganization: string;
   credentialId?: string;
   completionDate: string;
-  expirationDate: string; // Required field (YYYY-MM-DD)
+  expirationDate: string; // Required field (YYYY-MM-DD); use a far-future sentinel for non-expiring credentials
   trainingHours?: number;
+  jobsite?: string;
+  industry?: string;
+  language?: string;
+  source?: string;
+  authorizedTrainer?: string;
+  trainerOshaNumber?: string;
+  dolCardReceived?: "yes" | "no" | "unknown";
+  cardReceivedDate?: string;
+  certificateFile?: string;
+  sourceEmail?: string;
+  artifactStatus?: "received" | "missing" | "needs_review" | "not_required";
+  followUpStatus?: "open" | "received" | "resolved" | "not_required";
+  followUpRequirement?: string;
+  governingCertification?: string;
   notes?: string;
-  artifactFileName: string;
-  artifactMimeType: string;
-  artifactSize: number;
-  artifactBase64: string; // Base64 encoded data URI or raw base64
+  notificationStatus?: "monitoring" | "queued" | "notified" | "escalated" | "resolved";
+  nextFollowUpAt?: string;
+  lastNotificationAt?: Timestamp;
+  artifactFileName?: string;
+  artifactMimeType?: string;
+  artifactSize?: number;
+  artifactBase64?: string; // Base64 encoded data URI or raw base64
+  sourceWorkbook?: string;
+  sourceSheet?: string;
+  sourceRow?: number;
+  importBatchId?: string;
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -1279,6 +1462,8 @@ export interface PlatformSettingsDoc {
     remoteUrl?: string;
     apiKey?: string;
     model?: string;
+    /** Optional override for HERMES_BUILD_WORKSPACE (e.g. /workspace in Docker) */
+    buildWorkspace?: string;
     status?: "connected" | "disconnected" | "error";
     lastTested?: Timestamp;
   };
@@ -2476,6 +2661,10 @@ export const COLLECTIONS = {
   MODULE_SETTINGS: "moduleSettings",
   USER_ASSETS: "userAssets",
   ASSET_HISTORY: "assetHistory",
+  ASSET_EXTERNAL_LINKS: "assetExternalLinks",
+  ASSET_SYNC_RUNS: "assetSyncRuns",
+  HARDHAT_QR_CODES: "hardhatQrCodes",
+  HARDHAT_QR_EVENTS: "hardhatQrEvents",
   IMAGES: "images",
   OFFICE_LOCATIONS: "officeLocations",
   CONFERENCE_LINES: "conferenceLines",
@@ -2536,6 +2725,12 @@ export const strategicPartnersCollection = () => getCollection<StrategicPartnerD
 
 // Team Members collection reference
 export const teamMembersCollection = () => getCollection<TeamMemberDoc>(COLLECTIONS.TEAM_MEMBERS);
+export const userAssetsCollection = () => getCollection<UserAssetDoc>(COLLECTIONS.USER_ASSETS);
+export const assetHistoryCollection = () => getCollection<AssetHistoryDoc>(COLLECTIONS.ASSET_HISTORY);
+export const assetExternalLinksCollection = () => getCollection<AssetExternalLinkDoc>(COLLECTIONS.ASSET_EXTERNAL_LINKS);
+export const assetSyncRunsCollection = () => getCollection<AssetSyncRunDoc>(COLLECTIONS.ASSET_SYNC_RUNS);
+export const hardhatQrCodesCollection = () => getCollection<HardhatQrCodeDoc>(COLLECTIONS.HARDHAT_QR_CODES);
+export const hardhatQrEventsCollection = () => getCollection<HardhatQrEventDoc>(COLLECTIONS.HARDHAT_QR_EVENTS);
 export const officeLocationsCollection = () => getCollection<OfficeLocationDoc>(COLLECTIONS.OFFICE_LOCATIONS);
 export const conferenceLinesCollection = () => getCollection<ConferenceLineDoc>(COLLECTIONS.CONFERENCE_LINES);
 export const workforceDepartmentsCollection = () => getCollection<WorkforceDepartmentDoc>(COLLECTIONS.WORKFORCE_DEPARTMENTS);

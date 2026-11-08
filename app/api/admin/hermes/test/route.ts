@@ -10,6 +10,8 @@ const testSchema = z.object({
   remoteUrl: z.string().trim().max(500).optional().default(""),
   apiKey: z.string().max(1000).optional().default(""),
   model: z.string().trim().min(1).max(200).default("hermes-agent"),
+  buildWorkspace: z.string().trim().max(500).optional().default(""),
+  persist: z.boolean().optional().default(true),
 });
 
 export async function POST(request: NextRequest) {
@@ -33,7 +35,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: `${parsed.data.mode} Hermes URL is required` }, { status: 400 });
     }
     const result = await pingHermes(config);
-    if (result.ok && adminDb && parsed.data.mode !== "env") {
+    if (result.ok && parsed.data.persist && adminDb && parsed.data.mode !== "env") {
       await Promise.all([
         adminDb.collection("platformSecrets").doc("hermes").set({ apiKey: parsed.data.apiKey }, { merge: true }),
         adminDb.collection("platformSettings").doc("global").set({
@@ -42,6 +44,7 @@ export async function POST(request: NextRequest) {
             localUrl: parsed.data.localUrl,
             remoteUrl: parsed.data.remoteUrl,
             model: parsed.data.model,
+            buildWorkspace: parsed.data.buildWorkspace,
             status: "connected",
             lastTested: new Date(),
           },

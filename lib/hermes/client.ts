@@ -45,11 +45,14 @@ function getEnvHermesConfig(): HermesResolvedConfig | null {
   return buildHermesConfig(baseUrl, apiKey, model);
 }
 
-interface StoredHermesSettings {
+export interface StoredHermesSettings {
   mode?: "local" | "remote" | "env";
   localUrl?: string;
   remoteUrl?: string;
   model?: string;
+  buildWorkspace?: string;
+  status?: string;
+  lastTested?: unknown;
 }
 
 interface StoredHermesSecret {
@@ -61,16 +64,27 @@ interface StoredHermesSecret {
  * precedence when mode is "local" or "remote"; otherwise env vars
  * (HERMES_API_URL / HERMES_API_KEY / HERMES_MODEL) are used.
  */
+/** Reads the stored Hermes settings document (mode, URLs, workspace). */
+export async function resolveHermesSettings(): Promise<StoredHermesSettings | null> {
+  try {
+    const { adminDb } = await import("@/lib/firebase-admin");
+    if (!adminDb) return null;
+    const snap = await adminDb.collection("platformSettings").doc("global").get();
+    return (snap.data()?.hermes as StoredHermesSettings | undefined) ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export async function resolveHermesConfig(): Promise<HermesResolvedConfig | null> {
   const env = getEnvHermesConfig();
   try {
     const { adminDb } = await import("@/lib/firebase-admin");
     if (!adminDb) return env;
-    const [settingsSnap, secretSnap] = await Promise.all([
-      adminDb.collection("platformSettings").doc("global").get(),
+    const [stored, secretSnap] = await Promise.all([
+      resolveHermesSettings(),
       adminDb.collection("platformSecrets").doc("hermes").get(),
     ]);
-    const stored = settingsSnap.data()?.hermes as StoredHermesSettings | undefined;
     const secret = secretSnap.data() as StoredHermesSecret | undefined;
     if (stored && stored.mode !== "env") {
       const baseUrl = (stored.mode === "local" ? stored.localUrl : stored.remoteUrl)?.trim();
@@ -87,6 +101,17 @@ export async function resolveHermesConfig(): Promise<HermesResolvedConfig | null
     // Fall through to env config when settings are unavailable.
   }
   return env;
+}
+
+/**
+ * Resolves the workspace path Hermes uses for module builds. Stored settings
+ * take precedence so local Docker and Azure deployments can use different
+ * workspaces without redeploying the app; HERMES_BUILD_WORKSPACE is the
+ * fallback.
+ */
+export async function resolveHermesBuildWorkspace(): Promise<string | null> {
+  const stored = await resolveHermesSettings();
+  return stored?.buildWorkspace?.trim() || process.env.HERMES_BUILD_WORKSPACE?.trim() || null;
 }
 
 /** Ping an OpenAI-compatible Hermes endpoint. Used by the admin test route. */
@@ -228,12 +253,26 @@ export async function getHermesHealth(): Promise<{
   configured: boolean;
   healthy: boolean;
   model?: string;
+  mode?: string;
+  endpointHost?: string;
+  buildWorkspaceConfigured?: boolean;
   error?: string;
 }> {
-  const config = await resolveHermesConfig();
+  const [config, stored] = await Promise.all([resolveHermesConfig(), resolveHermesSettings()]);
+  const mode = stored?.mode && stored.mode !== "env" ? stored.mode : "env";
+  const buildWorkspaceConfigured = Boolean(
+    stored?.buildWorkspace?.trim() || process.env.HERMES_BUILD_WORKSPACE?.trim(),
+  );
   if (!config) {
-    return { configured: false, healthy: false, error: "not_configured" };
+    return { configured: false, healthy: false, mode, buildWorkspaceConfigured, error: "not_configured" };
   }
+  const endpointHost = (() => {
+    try {
+      return new URL(config.apiRoot).host;
+    } catch {
+      return undefined;
+    }
+  })();
 
   try {
     const response = await fetch(config.url, {
@@ -253,10 +292,13 @@ export async function getHermesHealth(): Promise<{
       configured: true,
       healthy: response.ok,
       model: config.model,
+      mode,
+      endpointHost,
+      buildWorkspaceConfigured,
       ...(response.ok ? {} : { error: `status_${response.status}` }),
     };
   } catch {
-    return { configured: true, healthy: false, model: config.model, error: "unreachable" };
+    return { configured: true, healthy: false, model: config.model, mode, endpointHost, buildWorkspaceConfigured, error: "unreachable" };
   }
 }
 

@@ -7,6 +7,7 @@
     { "path": "/api/eos2/weekly-digest", "schedule": "0 8 * * 1" },
     { "path": "/api/adams-harness/module-builds/reconcile", "schedule": "0 2 * * *" },
     { "path": "/api/adams-harness/modules/scheduled", "schedule": "0 3 * * *" },
-    { "path": "/api/admin/platform-development/weekly-report", "schedule": "0 18 * * 5" }
+    { "path": "/api/admin/platform-development/weekly-report", "schedule": "0 18 * * 5" },
+    { "path": "/api/admin/certification-tracker/run", "schedule": "0 11 * * *" }
   ]
 }

@@ -200,7 +200,7 @@ const missionCriticalItems: { title: string; href: string; icon: React.ElementTy
   },
   {
     title: "Certification Tracker",
-    href: "/portal/admin/academy/certificates",
+    href: "/portal/admin/certification-tracker",
     icon: Award,
     featureKey: "certificationTracker",
   },

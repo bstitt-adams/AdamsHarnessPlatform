@@ -235,11 +235,11 @@ export function buildModuleDefinitionFromInterviewOrSpec(
 }
 
 export async function listAllAvailableModules(): Promise<
-  (ModuleDefinition & { interviewId?: string; specificationId?: string })[]
+  (ModuleDefinition & { interviewId?: string; specificationId?: string; isAlias?: boolean })[]
 > {
   const map = new Map<
     string,
-    ModuleDefinition & { interviewId?: string; specificationId?: string }
+    ModuleDefinition & { interviewId?: string; specificationId?: string; isAlias?: boolean }
   >();
   for (const mod of BUILTIN_MODULES) {
     map.set(mod.slug, mod);
@@ -278,6 +278,7 @@ export async function listAllAvailableModules(): Promise<
           slug: cleanSlug,
           interviewId: interview.id,
           specificationId: spec?.id,
+          isAlias: true,
         });
       }
     }

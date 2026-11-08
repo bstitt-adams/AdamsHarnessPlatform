@@ -59,6 +59,7 @@ Located at the top of the left portal navigation, automatically filtered to the 
 - **Left Navigation Quick Search**: Real-time filter input at the top of the left sidebar that searches across all navigation items and auto-expands matching sections.
 - **Team Members & Firebase Auth Sync (`/portal/admin/team-members`)**: One-click synchronization between Firebase Authentication accounts and Firestore `teamMembers` records, plus direct creation of new Firebase Auth users + Team Member profiles.
 - **Platform Development Tracker (`/portal/admin/platform-development`)**: SuperAdmin module for logging platform engineering tasks, hours, connected systems, and AI capabilities, with on-demand and automated Friday 6:00 PM Base64 PDF executive reports stored in Firestore.
+- **Asset Manager (`/portal/admin/asset-manager`)**: Local equipment inventory and assignment lifecycle with OAuth-backed Jamf Pro and NinjaOne synchronization, provider CRUD capability tests, remote asset links, bidirectional sync, and actionable target-platform remediation errors.
 - **Unified Integrations Hub (`/portal/settings?tab=integrations`)**:
   - **LLM Configuration**
   - **Hermes Integration** (Local `http://127.0.0.1:8642` or Remote HTTPS tunnel)
@@ -114,6 +115,15 @@ HERMES_MODEL=hermes-agent
 # Optional: OpenAI & Cron Secret for Weekly Development PDF Reports
 OPENAI_API_KEY=sk-...
 CRON_SECRET=your-cron-secret
+
+# Optional server-side asset integration fallbacks (the Asset Manager UI can
+# also store these securely in platformSecrets/platformSettings)
+JAMF_BASE_URL=https://your-tenant.jamfcloud.com
+JAMF_CLIENT_ID=your-jamf-client-id
+JAMF_CLIENT_SECRET=your-jamf-client-secret
+NINJAONE_REGION=app
+NINJAONE_CLIENT_ID=your-ninjaone-client-id
+NINJAONE_CLIENT_SECRET=your-ninjaone-client-secret
 ```
 
 ### 3. Seed Initial Data & Deploy Firestore Rules
@@ -149,6 +159,93 @@ Open `http://localhost:3000`.
    ```
    Hermes will listen on `http://127.0.0.1:8642`.
 3. In Adams Platform, open **Settings → Integrations → Hermes Integration** (`/portal/settings?tab=hermes`), set the URL and `API_SERVER_KEY`, click **Test Hermes**, and save.
+
+---
+
+## Hermes in Docker (local) and Azure Container Apps (remote)
+
+Settings → Integrations → Hermes controls which Hermes container the platform
+targets: **Local Hermes (Docker)**, **Remote Hermes (Azure)**, or
+**Environment variables**. Pick a mode, click **Save Settings** (or **Test
+Hermes**, which also persists on success) — the switch applies to every Hermes
+feature (interviews, module builds, certification tracker, brain sync, asset
+suggestions).
+
+The card shows the server-resolved active endpoint (`Active: Docker (local) —
+localhost:8000`), per-endpoint reachability via **Check both endpoints**
+(non-destructive ping of local + remote), a shared **Model**/**API key**
+(stored server-side in `platformSecrets/hermes`), and an optional **Build
+workspace path** that overrides `HERMES_BUILD_WORKSPACE` for module builds.
+
+### Local Docker
+
+```bash
+# Set your Hermes image, then start
+HERMES_IMAGE=<your-hermes-image> docker compose up -d hermes
+```
+
+- Default local URL: `http://localhost:8000` (port via `HERMES_PORT`).
+- Build workspace: `./hermes-workspace` on the host mounts to `/workspace` in
+  the container (`HERMES_WORKSPACE_HOST_PATH` to change). If you set a Build
+  workspace path in Settings, use the container path (`/workspace`).
+- Local mode only works while the app runs on the same machine. If the app
+  itself runs in Docker, use `http://host.docker.internal:8000`.
+
+### Azure Container Apps (remote)
+
+```bash
+az group create -n adams-hermes-rg -l eastus
+az containerapp env create -n adams-hermes-env -g adams-hermes-rg -l eastus
+az containerapp create \
+  -n adams-hermes -g adams-hermes-rg \
+  --environment adams-hermes-env \
+  --image <your-hermes-image> \
+  --ingress external --target-port 8000 \
+  --secrets hermes-api-token=<key> \
+  --env-vars HERMES_API_TOKEN=secretref:hermes-api-token
+# Prints an FQDN like https://adams-hermes.<id>.eastus.azurecontainerapps.io
+```
+
+Paste that FQDN as the **Remote URL** in Settings → Hermes, choose **Remote
+Hermes (Azure)**, click **Test Hermes**, then Save.
+
+> **Production note:** the Vercel deployment cannot reach `localhost` on your
+> dev machine — production must use Remote (Azure) or Environment mode.
+
+---
+
+## Jamf Pro and NinjaOne Asset Integrations
+
+The Asset Manager can link local `userAssets` records to Jamf Pro and NinjaOne, pull vendor inventory into Adams Platform, push local updates, and use the safest vendor-supported lifecycle for retirement.
+
+### Jamf Pro OAuth setup
+
+1. In Jamf Pro, create an API client or API role/client credential for Adams Platform.
+2. Grant the privileges required for the object types you intend to sync:
+   - Computers: read/create/update/delete computer inventory
+   - Mobile devices: read/update mobile-device inventory; create/delete depend on the tenant's supported API workflows
+   - User/location assignment fields used for ownership updates
+3. In **Asset Manager → Jamf and NinjaOne Integrations**, enter the tenant URL, OAuth client ID, and client secret.
+4. Click **Test**, then **Check CRUD**. If a privilege or endpoint is unavailable, the result lists the target-platform corrections required.
+
+### NinjaOne OAuth setup
+
+1. In NinjaOne, create an **API Services** machine-to-machine application.
+2. Enable the **Client Credentials** grant.
+3. Enable **Monitoring** for reads and **Management** for writes.
+4. Select the correct region and save the one-time client secret securely.
+5. In **Asset Manager → Jamf and NinjaOne Integrations**, enter the region, client ID, client secret, and optional organization/location/role IDs.
+6. Click **Test**, then **Check CRUD**.
+
+NinjaOne managed devices are normally created by agent enrollment and are retired through decommission rather than hard delete. Unmanaged ITAM records provide the closest full create/read/update/delete lifecycle.
+
+### Sync and lifecycle behavior
+
+- **Pull Assets** imports or matches remote records by serial number, asset tag, or identifier.
+- **Push Assets** updates a linked remote record or creates/links a vendor-supported record when available.
+- Asset detail pages expose remote links, per-record push/pull, unlink, and a safe retirement action.
+- Sync runs and remediation errors are stored in `assetSyncRuns`; remote links are stored in `assetExternalLinks`.
+- Secrets stay server-side in `platformSecrets` or server environment variables and are never returned to the browser.
 
 ---
 

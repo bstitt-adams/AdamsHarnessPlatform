@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
     for (const gen of GENERATED_MODULES) {
       bySlug.set(gen.slug, gen);
     }
-    let modules = Array.from(bySlug.values());
+    let modules = Array.from(bySlug.values()).filter((module) => !module.isAlias);
     if (!isAdminActor(actor)) {
       const visible = new Set(actor.departmentIds);
       const missing = modules

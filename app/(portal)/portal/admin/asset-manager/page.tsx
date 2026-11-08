@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useDeferredValue, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { addDoc, collection, doc, getDocs, setDoc, Timestamp, updateDoc } from "firebase/firestore";
-import { Download, FileSpreadsheet, Laptop, Loader2, Plus, Search, Upload, UserCheck } from "lucide-react";
+import { Download, FileSpreadsheet, Laptop, Loader2, Pencil, Plus, Search, Upload, UserCheck } from "lucide-react";
 import { toast } from "sonner";
 import { strFromU8, unzipSync } from "fflate";
 import { db, auth } from "@/lib/firebase";
@@ -17,10 +17,13 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AssetIntegrationsPanel } from "@/components/admin/asset-integrations-panel";
 
 const fields = ["assetTag", "assetType", "assetName", "manufacturer", "model", "serialNumber", "identifier", "status", "condition", "assignedToEmail", "phoneNumber", "carrier", "plan", "imei", "purchaseDate", "purchaseCost", "warrantyExpiration", "nextInspectionDate", "notes"] as const;
 type ImportField = (typeof fields)[number];
 type ImportRow = Record<string, string>;
+type MetricFilter = "all" | "assigned" | "unassigned" | "attention";
 
 const emptyForm = {
   assetTag: "", assetType: "laptop", assetName: "", manufacturer: "", model: "", serialNumber: "", identifier: "", status: "available" as UserAssetDoc["status"], condition: "good" as NonNullable<UserAssetDoc["condition"]>, assignedToTeamMemberId: "", phoneNumber: "", carrier: "", plan: "", imei: "", purchaseDate: "", purchaseCost: "", warrantyExpiration: "", nextInspectionDate: "", notes: "",
@@ -74,6 +77,13 @@ export default function AssetManagerPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
+  const deferredSearch = useDeferredValue(search);
+  const [metricFilter, setMetricFilter] = useState<MetricFilter>("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [assignDialogAsset, setAssignDialogAsset] = useState<UserAssetDoc | null>(null);
+  const [editingAsset, setEditingAsset] = useState<UserAssetDoc | null>(null);
+  const [editForm, setEditForm] = useState(emptyForm);
   const [importRows, setImportRows] = useState<ImportRow[]>([]);
   const [headers, setHeaders] = useState<string[]>([]);
   const [mapping, setMapping] = useState<Record<ImportField, string>>(Object.fromEntries(fields.map((field) => [field, ""])) as Record<ImportField, string>);
@@ -99,7 +109,7 @@ export default function AssetManagerPage() {
       const ref = doc(collection(db, COLLECTIONS.USER_ASSETS));
       const assignedToName = member ? `${member.firstName} ${member.lastName}`.trim() : "Unassigned";
       await setDoc(ref, { ...form, id: ref.id, identifier: form.identifier || form.serialNumber || form.assetTag, assignedToTeamMemberId: member?.id || "", assignedToName, assignedToEmail: member?.emailPrimary || "", assignedToUid: member?.firebaseUid || "", purchaseCost: Number(form.purchaseCost || 0), assignedByUid: auth?.currentUser?.uid || "", assignedByName: linkedTeamMember ? `${linkedTeamMember.firstName} ${linkedTeamMember.lastName}` : profile.email || "Administrator", assignedAt: now, createdAt: now, updatedAt: now });
-      await addDoc(collection(db, COLLECTIONS.ASSET_HISTORY), { assetId: ref.id, action: member ? "assigned" : "created", teamMemberId: member?.id || "", teamMemberName: assignedToName, performedByUid: auth?.currentUser?.uid || "", createdAt: now });
+      addDoc(collection(db, COLLECTIONS.ASSET_HISTORY), { assetId: ref.id, action: member ? "assigned" : "created", teamMemberId: member?.id || "", teamMemberName: assignedToName, performedByUid: auth?.currentUser?.uid || "", createdAt: now }).catch((error) => console.warn("Unable to write asset history", error));
       setForm(emptyForm); toast.success("Asset added"); await load();
     } catch { toast.error("Unable to save asset"); } finally { setSaving(false); }
   };
@@ -108,6 +118,10 @@ export default function AssetManagerPage() {
     if (!db) return;
     const member = members.find((item) => item.id === teamMemberId);
     const assignedToName = member ? `${member.firstName} ${member.lastName}`.trim() : "Unassigned";
+    const previousTeamMemberId = asset.assignedToTeamMemberId || "";
+    const previousTeamMemberName = asset.assignedToName || "Unassigned";
+    const performedByName = linkedTeamMember ? `${linkedTeamMember.firstName} ${linkedTeamMember.lastName}` : profile.email || "Administrator";
+    const action = member ? (previousTeamMemberId && previousTeamMemberId !== member.id ? "reassigned" : "assigned") : "unassigned";
     const now = Timestamp.now();
     try {
       await updateDoc(doc(db, COLLECTIONS.USER_ASSETS, asset.id), {
@@ -118,17 +132,31 @@ export default function AssetManagerPage() {
         assignmentMatchStatus: member ? "matched" : "not_applicable",
         assignmentReturnedAt: member ? null : now,
         status: member ? (asset.status === "available" || asset.status === "returned" ? "active" : asset.status) : "available",
+        lastAssignmentAction: action,
+        lastReassignedAt: now,
+        lastReassignedByUid: auth?.currentUser?.uid || "",
+        lastReassignedByName: performedByName,
+        lastReassignedFromTeamMemberId: previousTeamMemberId,
+        lastReassignedFromTeamMemberName: previousTeamMemberName,
+        lastReassignedToTeamMemberId: member?.id || "",
+        lastReassignedToTeamMemberName: assignedToName,
         updatedAt: now,
       });
-      await addDoc(collection(db, COLLECTIONS.ASSET_HISTORY), {
+      addDoc(collection(db, COLLECTIONS.ASSET_HISTORY), {
         assetId: asset.id,
-        action: member ? "assigned" : "unassigned",
+        action,
         teamMemberId: member?.id || "",
         teamMemberName: assignedToName,
+        fromTeamMemberId: previousTeamMemberId,
+        fromTeamMemberName: previousTeamMemberName,
+        toTeamMemberId: member?.id || "",
+        toTeamMemberName: assignedToName,
+        reassignedByUid: auth?.currentUser?.uid || "",
+        reassignedByName: performedByName,
         performedByUid: auth?.currentUser?.uid || "",
-        performedByName: linkedTeamMember ? `${linkedTeamMember.firstName} ${linkedTeamMember.lastName}` : profile.email || "Administrator",
+        performedByName,
         createdAt: now,
-      });
+      }).catch((error) => console.warn("Unable to write asset history", error));
       toast.success(member ? `${asset.assetName} assigned to ${assignedToName}` : `${asset.assetName} unassigned`);
       setAssets((current) => current.map((item) => item.id === asset.id ? {
         ...item,
@@ -139,10 +167,68 @@ export default function AssetManagerPage() {
         assignmentMatchStatus: member ? "matched" : "not_applicable",
         assignmentReturnedAt: member ? undefined : now,
         status: member ? (asset.status === "available" || asset.status === "returned" ? "active" : asset.status) : "available",
+        lastAssignmentAction: action,
+        lastReassignedAt: now,
+        lastReassignedByUid: auth?.currentUser?.uid || "",
+        lastReassignedByName: performedByName,
+        lastReassignedFromTeamMemberId: previousTeamMemberId,
+        lastReassignedFromTeamMemberName: previousTeamMemberName,
+        lastReassignedToTeamMemberId: member?.id || "",
+        lastReassignedToTeamMemberName: assignedToName,
         updatedAt: now,
       } : item));
-    } catch {
+    } catch (error) {
+      console.error("Unable to update asset assignment", error);
       toast.error("Unable to update asset assignment");
+    }
+  };
+
+  const openEditAsset = (asset: UserAssetDoc) => {
+    setEditingAsset(asset);
+    setEditForm({
+      ...emptyForm,
+      assetTag: asset.assetTag || "",
+      assetType: asset.assetType || "other",
+      assetName: asset.assetName || "",
+      manufacturer: asset.manufacturer || "",
+      model: asset.model || "",
+      serialNumber: asset.serialNumber || "",
+      identifier: asset.identifier || "",
+      status: asset.status || "available",
+      condition: asset.condition || "good",
+      assignedToTeamMemberId: asset.assignedToTeamMemberId || "",
+      phoneNumber: asset.phoneNumber || "",
+      carrier: asset.carrier || "",
+      plan: asset.plan || "",
+      imei: asset.imei || "",
+      purchaseDate: asset.purchaseDate || "",
+      purchaseCost: String(asset.purchaseCost || ""),
+      warrantyExpiration: asset.warrantyExpiration || "",
+      nextInspectionDate: asset.nextInspectionDate || "",
+      notes: asset.notes || "",
+    });
+  };
+
+  const saveAssetChanges = async () => {
+    if (!db || !editingAsset || !editForm.assetName.trim()) return toast.error("Asset name is required");
+    setSaving(true);
+    const updated = {
+      ...editForm,
+      assetName: editForm.assetName.trim(),
+      identifier: editForm.identifier || editForm.serialNumber || editForm.assetTag,
+      purchaseCost: Number(editForm.purchaseCost || 0),
+      updatedAt: Timestamp.now(),
+    };
+    try {
+      await updateDoc(doc(db, COLLECTIONS.USER_ASSETS, editingAsset.id), updated);
+      setAssets((current) => current.map((item) => item.id === editingAsset.id ? { ...item, ...updated } : item));
+      setEditingAsset(null);
+      toast.success("Asset updated");
+    } catch (error) {
+      console.error("Unable to update asset", error);
+      toast.error("Unable to update asset");
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -182,15 +268,42 @@ export default function AssetManagerPage() {
     const link = document.createElement("a"); link.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); link.download = "adams-asset-import-template.csv"; link.click(); URL.revokeObjectURL(link.href);
   };
 
-  const filtered = useMemo(() => assets.filter((asset) => JSON.stringify(asset).toLowerCase().includes(search.toLowerCase())), [assets, search]);
+  const filtered = useMemo(() => {
+    const metricFiltered = assets.filter((asset) => {
+      if (metricFilter === "assigned") return Boolean(asset.assignedToTeamMemberId);
+      if (metricFilter === "unassigned") return !asset.assignedToTeamMemberId;
+      if (metricFilter === "attention") return asset.status === "maintenance" || asset.status === "lost";
+      return true;
+    });
+    const term = deferredSearch.trim().toLowerCase();
+    if (!term) return metricFiltered;
+    return metricFiltered.filter((asset) => [asset.assetName, asset.assetTag, asset.serialNumber, asset.identifier, asset.assignedToName, asset.assignedToEmail, asset.carrier, asset.status, asset.assetType, asset.phoneNumber].some((value) => String(value || "").toLowerCase().includes(term)));
+  }, [assets, deferredSearch, metricFilter]);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [deferredSearch, metricFilter, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage = Math.min(currentPage, totalPages);
+  const paginatedAssets = filtered.slice((safePage - 1) * pageSize, safePage * pageSize);
+  const firstVisible = paginatedAssets.length ? (safePage - 1) * pageSize + 1 : 0;
+  const lastVisible = (safePage - 1) * pageSize + paginatedAssets.length;
   const count = (status: UserAssetDoc["status"]) => assets.filter((asset) => asset.status === status).length;
   const assignedCount = assets.filter((asset) => Boolean(asset.assignedToTeamMemberId)).length;
+  const unassignedCount = assets.length - assignedCount;
 
   return <div className="space-y-6 p-6">
     <div><h1 className="flex items-center gap-2 text-2xl font-bold"><Laptop className="h-6 w-6 text-primary" />Asset Manager</h1><p className="text-sm text-muted-foreground">Manage the full lifecycle of Adams Electric phones, laptops, iPads, hotspots, and other assigned equipment.</p></div>
-    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[["Total", assets.length], ["Assigned", assignedCount], ["Available", count("available")], ["Attention", count("maintenance") + count("lost")]].map(([label, value]) => <Card key={label}><CardHeader className="pb-1"><CardDescription>{label}</CardDescription></CardHeader><CardContent className="text-3xl font-bold">{value}</CardContent></Card>)}</div>
+    <AssetIntegrationsPanel onInventoryChanged={() => void load()} />
+    <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{[
+      { label: "Total", value: assets.length, filter: "all" as MetricFilter },
+      { label: "Assigned", value: assignedCount, filter: "assigned" as MetricFilter },
+      { label: "Unassigned", value: unassignedCount, filter: "unassigned" as MetricFilter },
+      { label: "Attention", value: count("maintenance") + count("lost"), filter: "attention" as MetricFilter },
+    ].map((metric) => <button key={metric.filter} type="button" className="text-left" onClick={() => setMetricFilter(metric.filter)}><Card className={metricFilter === metric.filter ? "border-primary ring-2 ring-primary/20" : "hover:border-primary/50"}><CardHeader className="pb-1"><CardDescription>{metric.label}</CardDescription></CardHeader><CardContent className="text-3xl font-bold">{metric.value}</CardContent></Card></button>)}</div>
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_420px]">
-      <Card><CardHeader><CardTitle>Company Asset Inventory</CardTitle><div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search asset, serial, tag, employee, carrier..." /></div></CardHeader><CardContent className="overflow-x-auto">{loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : <Table><TableHeader><TableRow><TableHead>Asset</TableHead><TableHead>Tag / Serial</TableHead><TableHead>Assigned To</TableHead><TableHead>Status</TableHead><TableHead>Warranty</TableHead><TableHead className="min-w-[220px]">Assign</TableHead></TableRow></TableHeader><TableBody>{filtered.map((asset) => <TableRow key={asset.id}><TableCell><Link className="font-medium text-primary hover:underline" href={`/portal/admin/asset-manager/${asset.id}`}>{asset.assetName}</Link><div className="text-xs text-muted-foreground">{asset.assetType} · {[asset.manufacturer, asset.model].filter(Boolean).join(" ")}</div></TableCell><TableCell>{asset.assetTag || asset.serialNumber || asset.identifier || "—"}</TableCell><TableCell>{asset.assignedToTeamMemberId ? <Link className="text-primary hover:underline" href={`/portal/admin/team-members/${asset.assignedToTeamMemberId}`}>{asset.assignedToName}</Link> : "Unassigned"}</TableCell><TableCell><Badge variant="outline" className="capitalize">{asset.status}</Badge></TableCell><TableCell>{asset.warrantyExpiration || "—"}</TableCell><TableCell><Select value={asset.assignedToTeamMemberId || "unassigned"} onValueChange={(teamMemberId) => void assignAsset(asset, teamMemberId)}><SelectTrigger className="w-[220px]"><div className="flex items-center gap-2"><UserCheck className="h-4 w-4 text-muted-foreground" /><SelectValue /></div></SelectTrigger><SelectContent><SelectItem value="unassigned">Unassigned</SelectItem>{members.map((member) => <SelectItem key={member.id} value={member.id}>{member.firstName} {member.lastName}</SelectItem>)}</SelectContent></Select></TableCell></TableRow>)}</TableBody></Table>}</CardContent></Card>
+      <Card><CardHeader><CardTitle>Company Asset Inventory</CardTitle><div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search asset, serial, tag, employee, carrier..." /></div><div className="flex flex-wrap items-center justify-between gap-3 text-sm text-muted-foreground"><span>Showing {firstVisible}-{lastVisible} of {filtered.length} filtered assets · {assets.length} total{metricFilter !== "all" ? ` · ${metricFilter}` : ""}</span><div className="flex flex-wrap items-center gap-2">{metricFilter !== "all" ? <Button variant="ghost" size="sm" onClick={() => setMetricFilter("all")}>Clear filter</Button> : null}<Select value={String(pageSize)} onValueChange={(value) => setPageSize(Number(value))}><SelectTrigger className="h-8 w-[110px]"><SelectValue /></SelectTrigger><SelectContent>{[5, 10, 20].map((size) => <SelectItem key={size} value={String(size)}>{size} / page</SelectItem>)}</SelectContent></Select><Button variant="outline" size="sm" disabled={safePage <= 1} onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}>Previous</Button><span className="min-w-16 text-center">Page {safePage} of {totalPages}</span><Button variant="outline" size="sm" disabled={safePage >= totalPages} onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}>Next</Button></div></div></CardHeader><CardContent className="overflow-x-auto">{loading ? <Loader2 className="mx-auto h-6 w-6 animate-spin" /> : <Table><TableHeader><TableRow><TableHead>Asset</TableHead><TableHead>Tag / Serial</TableHead><TableHead>Assigned To</TableHead><TableHead>Status</TableHead><TableHead>Warranty</TableHead><TableHead className="min-w-[220px]">Assign</TableHead></TableRow></TableHeader><TableBody>{paginatedAssets.map((asset) => <TableRow key={asset.id}><TableCell><Link className="font-medium text-primary hover:underline" href={`/portal/admin/asset-manager/${asset.id}`}>{asset.assetName}</Link><div className="text-xs text-muted-foreground">{asset.assetType} · {[asset.manufacturer, asset.model].filter(Boolean).join(" ")}</div><Button type="button" variant="link" size="sm" className="mt-1 h-auto p-0" onClick={() => openEditAsset(asset)}><Pencil className="mr-1 h-3 w-3" />Edit</Button></TableCell><TableCell>{asset.assetTag || asset.serialNumber || asset.identifier || "—"}</TableCell><TableCell>{asset.assignedToTeamMemberId ? <Link className="text-primary hover:underline" href={`/portal/admin/team-members/${asset.assignedToTeamMemberId}`}>{asset.assignedToName}</Link> : "Unassigned"}{asset.lastReassignedByName ? <div className="mt-1 text-xs text-muted-foreground">{asset.lastAssignmentAction === "reassigned" ? "Reassigned" : asset.lastAssignmentAction === "unassigned" ? "Unassigned" : "Assigned"} by {asset.lastReassignedByName}{asset.lastReassignedAt?.toDate ? ` · ${asset.lastReassignedAt.toDate().toLocaleString()}` : ""}</div> : null}</TableCell><TableCell><Badge variant="outline" className="capitalize">{asset.status}</Badge></TableCell><TableCell>{asset.warrantyExpiration || "—"}</TableCell><TableCell><Button variant="outline" size="sm" onClick={() => setAssignDialogAsset(asset)}><UserCheck className="mr-2 h-4 w-4" />{asset.assignedToTeamMemberId ? "Reassign" : "Assign"}</Button></TableCell></TableRow>)}</TableBody></Table>}</CardContent></Card>
       <Card><CardHeader><CardTitle>Add and Assign Asset</CardTitle><CardDescription>Capture inventory, lifecycle, ownership, cellular, purchase, and warranty details.</CardDescription></CardHeader><CardContent className="grid gap-3 sm:grid-cols-2 xl:grid-cols-2">
         <div><Label>Asset type</Label><Select value={form.assetType} onValueChange={(assetType) => setForm({ ...form, assetType })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["laptop", "cell phone", "ipad", "hotspot", "tablet", "other"].map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent></Select></div>
         <div><Label>Asset name *</Label><Input value={form.assetName} onChange={(e) => setForm({ ...form, assetName: e.target.value })} /></div>
@@ -201,5 +314,28 @@ export default function AssetManagerPage() {
       </CardContent></Card>
     </div>
     <Card><CardHeader><CardTitle className="flex items-center gap-2"><FileSpreadsheet className="h-5 w-5" />Spreadsheet Import and Column Mapping</CardTitle><CardDescription>Download the Adams template or upload an Excel or CSV spreadsheet, preview columns, map fields, and upsert by asset tag, serial number, or identifier.</CardDescription></CardHeader><CardContent className="space-y-4"><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={downloadTemplate}><Download className="mr-2 h-4 w-4" />Download Template</Button><label className="inline-flex cursor-pointer items-center rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground"><Upload className="mr-2 h-4 w-4" />Upload Spreadsheet<input type="file" accept=".xlsx,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv" className="hidden" onChange={(e) => void handleSpreadsheet(e.target.files?.[0])} /></label></div>{headers.length > 0 && <><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{fields.map((field) => <div key={field}><Label className="capitalize">{field.replace(/([A-Z])/g, " $1")}</Label><Select value={mapping[field] || "skip"} onValueChange={(value) => setMapping({ ...mapping, [field]: value === "skip" ? "" : value })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="skip">Do not import</SelectItem>{headers.map((header) => <SelectItem key={header} value={header}>{header}</SelectItem>)}</SelectContent></Select></div>)}</div><p className="text-sm text-muted-foreground">Ready to import {importRows.length} rows. Existing matching assets will be updated.</p><Button disabled={saving || !mapping.assetName} onClick={() => void runImport()}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Upload className="mr-2 h-4 w-4" />}Import Assets</Button></>}</CardContent></Card>
+    <Dialog open={Boolean(assignDialogAsset)} onOpenChange={(open) => !open && setAssignDialogAsset(null)}>
+      <DialogContent>
+        <DialogHeader><DialogTitle>{assignDialogAsset?.assignedToTeamMemberId ? "Reassign Asset" : "Assign Asset"}</DialogTitle><DialogDescription>{assignDialogAsset?.assetName}</DialogDescription></DialogHeader>
+        <Select value={assignDialogAsset?.assignedToTeamMemberId || "unassigned"} onValueChange={(teamMemberId) => { if (assignDialogAsset) void assignAsset(assignDialogAsset, teamMemberId); setAssignDialogAsset(null); }}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="unassigned">Unassigned</SelectItem>{members.map((member) => <SelectItem key={member.id} value={member.id}>{member.firstName} {member.lastName}</SelectItem>)}</SelectContent>
+        </Select>
+      </DialogContent>
+    </Dialog>
+    <Dialog open={Boolean(editingAsset)} onOpenChange={(open) => !open && setEditingAsset(null)}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-4xl">
+        <DialogHeader><DialogTitle>Edit Asset</DialogTitle><DialogDescription>Update inventory, lifecycle, cellular, purchase, warranty, and notes for {editingAsset?.assetName}.</DialogDescription></DialogHeader>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <div><Label>Asset type</Label><Select value={editForm.assetType} onValueChange={(assetType) => setEditForm({ ...editForm, assetType })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["laptop", "cell phone", "ipad", "hotspot", "tablet", "other"].map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent></Select></div>
+          <div><Label>Asset name *</Label><Input value={editForm.assetName} onChange={(e) => setEditForm({ ...editForm, assetName: e.target.value })} /></div>
+          {["assetTag", "serialNumber", "identifier", "manufacturer", "model", "phoneNumber", "carrier", "plan", "imei", "purchaseDate", "purchaseCost", "warrantyExpiration", "nextInspectionDate"].map((key) => <div key={key}><Label className="capitalize">{key.replace(/([A-Z])/g, " $1")}</Label><Input type={key.toLowerCase().includes("date") || key === "warrantyExpiration" ? "date" : key === "purchaseCost" ? "number" : "text"} value={String(editForm[key as keyof typeof editForm])} onChange={(e) => setEditForm({ ...editForm, [key]: e.target.value })} /></div>)}
+          <div><Label>Status</Label><Select value={editForm.status} onValueChange={(status) => setEditForm({ ...editForm, status: status as UserAssetDoc["status"] })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["available", "active", "maintenance", "returned", "retired", "lost"].map((status) => <SelectItem key={status} value={status}>{status}</SelectItem>)}</SelectContent></Select></div>
+          <div><Label>Condition</Label><Select value={editForm.condition} onValueChange={(condition) => setEditForm({ ...editForm, condition: condition as NonNullable<UserAssetDoc["condition"]> })}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{["new", "good", "fair", "damaged"].map((condition) => <SelectItem key={condition} value={condition}>{condition}</SelectItem>)}</SelectContent></Select></div>
+          <div className="sm:col-span-2"><Label>Notes</Label><Textarea value={editForm.notes} onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })} /></div>
+        </div>
+        <div className="flex justify-end gap-2"><Button variant="outline" onClick={() => setEditingAsset(null)}>Cancel</Button><Button disabled={saving} onClick={() => void saveAssetChanges()}>{saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Pencil className="mr-2 h-4 w-4" />}Save Changes</Button></div>
+      </DialogContent>
+    </Dialog>
   </div>;
 }

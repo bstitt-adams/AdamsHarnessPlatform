@@ -11,7 +11,7 @@ import {
   serializeDoc,
   writeAuditLog,
 } from "@/lib/adams-harness/server-store";
-import { getHermesRun, startHermesRun } from "@/lib/hermes/client";
+import { getHermesRun, resolveHermesBuildWorkspace, startHermesRun } from "@/lib/hermes/client";
 import {
   compareCommits,
   ensurePullRequest,
@@ -165,7 +165,7 @@ export async function startModuleBuildRun(
   build: ModuleBuildDoc,
   spec: SolutionSpecificationDoc,
 ): Promise<ModuleBuildDoc> {
-  const workspace = process.env.HERMES_BUILD_WORKSPACE?.trim();
+  const workspace = await resolveHermesBuildWorkspace();
   if (!workspace) {
     // Deploy directly into the dynamic Solution App catalog when no local Git workspace is attached
     const now = new Date() as unknown as ModuleBuildDoc["deployedAt"];

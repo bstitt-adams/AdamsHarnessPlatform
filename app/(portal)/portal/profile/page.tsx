@@ -949,7 +949,16 @@ export default function ProfilePage() {
             </CardHeader>
             <CardContent>
               {linkedTeamMember ? (
-                <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-4">
+                  {linkedTeamMember.mustChangePassword ? (
+                    <Alert className="border-amber-200 bg-amber-50 text-amber-900 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
+                      <Key className="h-4 w-4" />
+                      <AlertDescription>
+                        Password reset required. Your imported account was provisioned with a temporary password; change it before using this account regularly.
+                      </AlertDescription>
+                    </Alert>
+                  ) : null}
+                  <div className="grid gap-4 md:grid-cols-2">
                   <div>
                     <p className="text-sm text-muted-foreground">Job Title</p>
                     <p className="font-medium">{linkedTeamMember.title || "—"}</p>
@@ -981,6 +990,7 @@ export default function ProfilePage() {
                   <div>
                     <p className="text-sm text-muted-foreground">Home Phone</p>
                     <p className="font-medium">{linkedTeamMember.homePhone || "—"}</p>
+                  </div>
                   </div>
                 </div>
               ) : (
