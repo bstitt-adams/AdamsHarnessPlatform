@@ -15,6 +15,10 @@ import {
 } from "@/lib/adams-harness/interview";
 import { analyzeInterviewAttachment } from "@/lib/adams-harness/attachment-analyzer";
 import {
+  MAX_INTERVIEW_ATTACHMENT_BYTES,
+  storeInterviewAttachmentBase64,
+} from "@/lib/adams-harness/attachment-files";
+import {
   canAccessInterview,
   getDb,
   httpErrorResponse,
@@ -72,7 +76,16 @@ export async function POST(
       );
     }
 
+    if (file.size > MAX_INTERVIEW_ATTACHMENT_BYTES) {
+      return NextResponse.json({ error: "Attachment exceeds the 10 MB limit" }, { status: 413 });
+    }
     const buffer = Buffer.from(await file.arrayBuffer());
+    const storedFile = await storeInterviewAttachmentBase64({
+      interviewId: id,
+      fileName: file.name,
+      mimeType: file.type || "application/octet-stream",
+      buffer,
+    });
     const analysis = await analyzeInterviewAttachment(
       buffer,
       file.name,
@@ -88,7 +101,7 @@ export async function POST(
       .join("\n");
 
     const userMessage = newMessage("user", userContent);
-    const updatedAttachments = [...(interview.attachments || []), analysis];
+    const updatedAttachments = [...(interview.attachments || []), { ...analysis, fileId: storedFile.fileId }];
 
     // Pre-populate discovered systems / copiedData from the attachment
     const sheetColumns = (analysis.sheets || []).flatMap((s) =>

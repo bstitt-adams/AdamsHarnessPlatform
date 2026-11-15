@@ -1,0 +1,14 @@
+node_modules
+.next
+.next-*
+.git
+.vercel
+.env
+.env.*
+!.env.example
+*.log
+hermes-workspace
+coverage
+*.tmp.json
+Dockerfile
+.dockerignore

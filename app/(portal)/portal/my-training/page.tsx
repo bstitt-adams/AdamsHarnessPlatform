@@ -16,6 +16,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
 import { COLLECTIONS, type UserTrainingCertDoc } from "@/lib/schema";
+import { MAX_ARTIFACT_BYTES, uploadTrainingArtifact } from "@/lib/training/artifact-upload";
 import { useUserProfile } from "@/contexts/user-profile-context";
 import {
   Card,
@@ -97,7 +98,7 @@ const TRAINING_CATEGORIES = [
   "Other",
 ];
 
-const MAX_ARTIFACT_BYTES = 700 * 1024; // ~700 KB raw file (~933 KB Base64, safely within Firestore's 1 MB document limit)
+const ARTIFACT_LIMIT_LABEL = "15 MB";
 
 function getExpirationStatus(expirationDate: string): {
   label: string;
@@ -171,8 +172,8 @@ export default function MyTrainingAndCertsPage() {
     artifactFileName: "",
     artifactMimeType: "",
     artifactSize: 0,
-    artifactBase64: "",
   });
+  const [artifactFile, setArtifactFile] = useState<File | null>(null);
 
   const viewedName = linkedTeamMember
     ? `${linkedTeamMember.firstName} ${linkedTeamMember.lastName}`.trim()
@@ -294,26 +295,16 @@ export default function MyTrainingAndCertsPage() {
   const handleFileChange = (file: File | undefined) => {
     if (!file) return;
     if (file.size > MAX_ARTIFACT_BYTES) {
-      toast.error(
-        "File is too large for Base64 Firestore storage. Please upload a file under 700 KB (PDF, PNG, JPG)."
-      );
+      toast.error(`File is too large. Please upload a file under ${ARTIFACT_LIMIT_LABEL} (PDF, PNG, JPG).`);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      setFormData((prev) => ({
-        ...prev,
-        artifactFileName: file.name,
-        artifactMimeType: file.type || "application/octet-stream",
-        artifactSize: file.size,
-        artifactBase64: result,
-      }));
-    };
-    reader.onerror = () => {
-      toast.error("Failed to read file");
-    };
-    reader.readAsDataURL(file);
+    setArtifactFile(file);
+    setFormData((prev) => ({
+      ...prev,
+      artifactFileName: file.name,
+      artifactMimeType: file.type || "application/octet-stream",
+      artifactSize: file.size,
+    }));
   };
 
   const handleSaveTrainingCert = async () => {
@@ -330,7 +321,7 @@ export default function MyTrainingAndCertsPage() {
       toast.error("Training Expiration Date is required");
       return;
     }
-    if (!formData.artifactBase64) {
+    if (!artifactFile) {
       toast.error("Please attach your training/certification artifact file");
       return;
     }
@@ -340,10 +331,11 @@ export default function MyTrainingAndCertsPage() {
       const hours = formData.trainingHours
         ? Number(formData.trainingHours)
         : undefined;
+      const memberId = targetMemberId || targetUid;
 
       const certDocRef = await addDoc(collection(db, COLLECTIONS.USER_TRAINING_CERTS), {
         userId: targetUid || targetMemberId,
-        teamMemberId: targetMemberId || targetUid,
+        teamMemberId: memberId,
         userName: viewedName,
         userEmail: targetEmail,
         trainingTitle: formData.trainingTitle.trim(),
@@ -367,10 +359,25 @@ export default function MyTrainingAndCertsPage() {
         artifactFileName: formData.artifactFileName,
         artifactMimeType: formData.artifactMimeType,
         artifactSize: formData.artifactSize,
-        artifactBase64: formData.artifactBase64,
         createdAt: Timestamp.now(),
         updatedAt: Timestamp.now(),
       });
+
+      // Upload artifact to Firebase Storage and attach the path/URL to the cert
+      try {
+        const artifact = await uploadTrainingArtifact(memberId, certDocRef.id, artifactFile);
+        await updateDoc(certDocRef, {
+          artifactPath: artifact.path,
+          artifactUrl: artifact.url,
+          artifactContentType: artifact.contentType,
+          artifactSize: artifact.size,
+          artifactUploadedAt: Timestamp.now(),
+          updatedAt: Timestamp.now(),
+        });
+      } catch (uploadError) {
+        console.error("Artifact upload failed:", uploadError);
+        toast.error("Cert saved but the file upload failed — attach the file again from the cert row");
+      }
 
       // Automatically sync training completion & expiration dates to the Adams Master Calendar
       try {
@@ -440,8 +447,8 @@ export default function MyTrainingAndCertsPage() {
         artifactFileName: "",
         artifactMimeType: "",
         artifactSize: 0,
-        artifactBase64: "",
       });
+      setArtifactFile(null);
       setUploadOpen(false);
       await loadTraining();
     } catch (err) {
@@ -453,6 +460,16 @@ export default function MyTrainingAndCertsPage() {
   };
 
   const handleDownloadArtifact = (item: UserTrainingCertDoc) => {
+    // Prefer the stored download URL; fall back to legacy Base64 artifacts.
+    if (item.artifactUrl || item.artifactPath) {
+      const url = item.artifactUrl;
+      if (!url) {
+        toast.error("Artifact link unavailable — refresh and try again");
+        return;
+      }
+      window.open(url, "_blank", "noopener");
+      return;
+    }
     if (!item.artifactBase64) return;
     const link = document.createElement("a");
     link.href = item.artifactBase64.startsWith("data:")
@@ -464,36 +481,37 @@ export default function MyTrainingAndCertsPage() {
     document.body.removeChild(link);
   };
 
-  const handleAttachArtifact = (file: File | undefined) => {
+  const handleAttachArtifact = async (file: File | undefined) => {
     const firestore = db;
     if (!firestore || !artifactTarget || !file) return;
     if (file.size > MAX_ARTIFACT_BYTES) {
-      toast.error("File is too large for Base64 Firestore storage. Please upload a file under 700 KB.");
+      toast.error(`File is too large. Please upload a file under ${ARTIFACT_LIMIT_LABEL}.`);
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
-      void updateDoc(doc(firestore, COLLECTIONS.USER_TRAINING_CERTS, artifactTarget.id), {
+    const memberId = artifactTarget.teamMemberId || artifactTarget.userId;
+    try {
+      const artifact = await uploadTrainingArtifact(memberId, artifactTarget.id, file);
+      await updateDoc(doc(firestore, COLLECTIONS.USER_TRAINING_CERTS, artifactTarget.id), {
         artifactFileName: file.name,
-        artifactMimeType: file.type || "application/octet-stream",
-        artifactSize: file.size,
-        artifactBase64: result,
+        artifactMimeType: artifact.contentType,
+        artifactSize: artifact.size,
+        artifactPath: artifact.path,
+        artifactUrl: artifact.url,
+        artifactContentType: artifact.contentType,
+        artifactUploadedAt: Timestamp.now(),
         artifactStatus: "received",
         followUpStatus: "resolved",
         followUpRequirement: "",
         notificationStatus: "monitoring",
         updatedAt: Timestamp.now(),
-      }).then(async () => {
-        toast.success("Certification artifact attached and follow-up resolved");
-        setArtifactTarget(null);
-        await loadTraining();
-      }).catch((error) => {
-        console.error("Unable to attach certification artifact", error);
-        toast.error("Unable to attach certification artifact");
       });
-    };
-    reader.readAsDataURL(file);
+      toast.success("Certification artifact attached and follow-up resolved");
+      setArtifactTarget(null);
+      await loadTraining();
+    } catch (error) {
+      console.error("Unable to attach certification artifact", error);
+      toast.error("Unable to attach certification artifact");
+    }
   };
 
   const handleDeleteUploadedCert = async (item: UserTrainingCertDoc) => {
@@ -759,12 +777,13 @@ export default function MyTrainingAndCertsPage() {
 
                 <div className="space-y-1.5">
                   <Label htmlFor="artifactFile">
-                    Attachment Artifact (PDF, PNG, JPG, WEBP — stored as Base64) *
+                    Attachment Artifact (PDF, PNG, JPG, WEBP — up to {ARTIFACT_LIMIT_LABEL}) *
                   </Label>
                   <Input
                     id="artifactFile"
                     type="file"
                     accept=".pdf,image/png,image/jpeg,image/webp"
+                    capture="environment"
                     onChange={(e) => handleFileChange(e.target.files?.[0])}
                   />
                   {formData.artifactFileName && (
@@ -801,7 +820,7 @@ export default function MyTrainingAndCertsPage() {
                     !formData.trainingTitle.trim() ||
                     !formData.issuingOrganization.trim() ||
                     !formData.expirationDate.trim() ||
-                    !formData.artifactBase64
+                    !artifactFile
                   }
                 >
                   {savingUpload ? (
@@ -955,8 +974,8 @@ export default function MyTrainingAndCertsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="text-sm">{item.jobsite || "—"}</div>
-                          <Badge variant={item.artifactBase64 ? "default" : "secondary"} className="mt-1">
-                            {item.artifactBase64 ? "Artifact attached" : item.artifactStatus === "needs_review" ? "Review required" : "Missing artifact"}
+                          <Badge variant={item.artifactBase64 || item.artifactPath ? "default" : "secondary"} className="mt-1">
+                            {item.artifactBase64 || item.artifactPath ? "Artifact attached" : item.artifactStatus === "needs_review" ? "Review required" : "Missing artifact"}
                           </Badge>
                           {item.followUpRequirement ? <div className="mt-1 max-w-[220px] text-xs text-amber-700">{item.followUpRequirement}</div> : null}
                         </TableCell>
@@ -983,7 +1002,7 @@ export default function MyTrainingAndCertsPage() {
                               variant="ghost"
                               size="icon"
                               title="Preview Artifact"
-                              disabled={!item.artifactBase64}
+                              disabled={!item.artifactBase64 && !item.artifactUrl}
                               onClick={() => setPreviewRecord(item)}
                             >
                               <Eye className="h-4 w-4" />
@@ -992,7 +1011,7 @@ export default function MyTrainingAndCertsPage() {
                               variant="ghost"
                               size="icon"
                               title="Download Artifact"
-                              disabled={!item.artifactBase64}
+                              disabled={!item.artifactBase64 && !item.artifactUrl}
                               onClick={() => handleDownloadArtifact(item)}
                             >
                               <Download className="h-4 w-4" />
@@ -1162,18 +1181,18 @@ export default function MyTrainingAndCertsPage() {
                 </div>
               </div>
 
-              {previewRecord.artifactMimeType?.startsWith("image/") ? (
+              {previewRecord.artifactMimeType?.startsWith("image/") || previewRecord.artifactContentType?.startsWith("image/") ? (
                 <div className="flex justify-center border rounded-lg p-2 bg-black/5">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={previewRecord.artifactBase64}
+                    src={previewRecord.artifactUrl || previewRecord.artifactBase64}
                     alt={previewRecord.trainingTitle}
                     className="max-h-[480px] object-contain rounded"
                   />
                 </div>
               ) : (
                 <iframe
-                  src={previewRecord.artifactBase64}
+                  src={previewRecord.artifactUrl || previewRecord.artifactBase64}
                   title={previewRecord.trainingTitle}
                   className="w-full h-[480px] border rounded-lg"
                 />

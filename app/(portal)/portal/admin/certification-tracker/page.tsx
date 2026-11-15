@@ -57,6 +57,7 @@ export default function CertificationTrackerPage() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("all");
   const [metricFilter, setMetricFilter] = useState<MetricFilter>("all");
+  const [mcOnly, setMcOnly] = useState(false);
 
   const load = useCallback(async () => {
     if (!db) return;
@@ -86,7 +87,7 @@ export default function CertificationTrackerPage() {
     current: certs.filter((item) => certStatus(item).key === "current").length,
     dueSoon: certs.filter((item) => certStatus(item).key === "dueSoon").length,
     expired: certs.filter((item) => certStatus(item).key === "expired").length,
-    artifact: certs.filter((item) => !item.artifactBase64).length,
+    artifact: certs.filter((item) => !item.artifactBase64 && !item.artifactPath).length,
     unmatched: certs.filter((item) => item.teamMemberId.startsWith("unmatched-")).length,
   }), [certs]);
 
@@ -95,11 +96,12 @@ export default function CertificationTrackerPage() {
     return certs.filter((item) => {
       const status = certStatus(item).key;
       if (metricFilter !== "all") {
-        if (metricFilter === "artifact" && item.artifactBase64) return false;
+        if (metricFilter === "artifact" && (item.artifactBase64 || item.artifactPath)) return false;
         if (metricFilter === "unmatched" && !item.teamMemberId.startsWith("unmatched-")) return false;
         if (["current", "dueSoon", "expired"].includes(metricFilter) && status !== metricFilter) return false;
       }
       if (typeFilter !== "all" && (item.certificationType || item.trainingTitle) !== typeFilter) return false;
+      if (mcOnly && !memberById.get(item.teamMemberId)?.missionCritical) return false;
       if (!term) return true;
       return [item.userName, item.trainingTitle, item.certificationType, item.jobsite, item.issuingOrganization, item.authorizedTrainer, item.credentialId, item.sourceSheet, item.followUpRequirement]
         .some((value) => String(value || "").toLowerCase().includes(term));
@@ -108,7 +110,7 @@ export default function CertificationTrackerPage() {
       const bDays = daysUntil(b.expirationDate) ?? 99999;
       return aDays - bDays || a.userName.localeCompare(b.userName);
     });
-  }, [certs, metricFilter, search, typeFilter]);
+  }, [certs, metricFilter, search, typeFilter, mcOnly, memberById]);
 
   const exportReport = () => {
     const rows = [
@@ -200,7 +202,12 @@ export default function CertificationTrackerPage() {
         <CardHeader>
           <CardTitle>Management Report</CardTitle>
           <CardDescription>Showing {filtered.length} of {certs.length} certification records. Expiration dates are sorted by urgency.</CardDescription>
-          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]"><div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search employee, certification, jobsite, provider, trainer, card, or follow-up..." /></div><Select value={typeFilter} onValueChange={setTypeFilter}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All certification types</SelectItem>{certificationTypes.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent></Select></div>
+          <div className="grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]"><div className="relative"><Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" /><Input className="pl-9" value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search employee, certification, jobsite, provider, trainer, card, or follow-up..." /></div><Select value={typeFilter} onValueChange={setTypeFilter}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="all">All certification types</SelectItem>{certificationTypes.map((type) => <SelectItem key={type} value={type}>{type}</SelectItem>)}</SelectContent></Select>
+            <label className="flex items-center gap-2 text-sm md:col-span-2">
+              <input type="checkbox" checked={mcOnly} onChange={(e) => setMcOnly(e.target.checked)} className="h-4 w-4" />
+              Mission Critical employees only
+            </label>
+          </div>
         </CardHeader>
         <CardContent className="overflow-x-auto">
           {loading ? <div className="flex justify-center p-8"><Loader2 className="h-6 w-6 animate-spin" /></div> : <Table><TableHeader><TableRow><TableHead>Employee</TableHead><TableHead>Certification</TableHead><TableHead>Jobsite</TableHead><TableHead>Completed / Expires</TableHead><TableHead>Status</TableHead><TableHead>Artifact</TableHead><TableHead>Follow-up</TableHead></TableRow></TableHeader><TableBody>{filtered.map((item) => {

@@ -65,6 +65,7 @@ import {
   Save,
   ExternalLink,
   Sparkles,
+  Users,
   Wand2,
   BookOpen,
   GraduationCap,
@@ -86,6 +87,7 @@ import {
   type LessonDoc,
 } from "@/lib/firebase-lms";
 import type { ContentType } from "@/types/academy";
+import type { TeamMemberDoc } from "@/lib/schema";
 import {
   AISyllabusGenerator,
   AILessonGenerator,
@@ -222,9 +224,68 @@ export default function CourseContentBuilderPage() {
     contentType: "video" | "text" | "assignment";
   } | null>(null);
 
+  // Assignment dialog state
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [assignMembers, setAssignMembers] = useState<{ id: string; name: string; firebaseUid?: string }[]>([]);
+  const [assignSelected, setAssignSelected] = useState<Set<string>>(new Set());
+  const [assignDueDate, setAssignDueDate] = useState("");
+  const [assigning, setAssigning] = useState(false);
+
   useEffect(() => {
     loadCourseContent();
   }, [courseId]);
+
+  useEffect(() => {
+    if (!assignDialogOpen || assignMembers.length) return;
+    void (async () => {
+      try {
+        const { collection, getDocs } = await import("firebase/firestore");
+        const { db } = await import("@/lib/firebase");
+        const { COLLECTIONS } = await import("@/lib/schema");
+        if (!db) return;
+        const snap = await getDocs(collection(db, COLLECTIONS.TEAM_MEMBERS));
+        setAssignMembers(
+          snap.docs
+            .map((d) => {
+              const m = d.data() as TeamMemberDoc;
+              return { id: d.id, name: `${m.firstName} ${m.lastName}`.trim() || m.emailPrimary || d.id, firebaseUid: m.firebaseUid };
+            })
+            .sort((a, b) => a.name.localeCompare(b.name)),
+        );
+      } catch (error) {
+        console.error("Failed to load members:", error);
+        toast.error("Failed to load team members");
+      }
+    })();
+  }, [assignDialogOpen, assignMembers.length]);
+
+  async function submitAssignments() {
+    setAssigning(true);
+    try {
+      const { auth } = await import("@/lib/firebase");
+      const token = await auth?.currentUser?.getIdToken();
+      const response = await fetch("/api/admin/academy/assignments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          courseId,
+          teamMemberIds: [...assignSelected],
+          ...(assignDueDate ? { dueDate: assignDueDate } : {}),
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Assignment failed");
+      const assigned = (data.results || []).filter((r: { status: string }) => r.status === "assigned").length;
+      const skipped = (data.results || []).length - assigned;
+      toast.success(`${assigned} member${assigned === 1 ? "" : "s"} assigned${skipped ? `, ${skipped} skipped` : ""}`);
+      setAssignDialogOpen(false);
+      setAssignSelected(new Set());
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Assignment failed");
+    } finally {
+      setAssigning(false);
+    }
+  }
 
   async function loadCourseContent() {
     try {
@@ -615,12 +676,59 @@ export default function CourseContentBuilderPage() {
       </div>
 
       {/* Add Section Button */}
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" onClick={() => setAssignDialogOpen(true)}>
+          <Users className="mr-2 h-4 w-4" />
+          Assign to Members
+        </Button>
         <Button onClick={() => openModuleDialog()}>
           <Plus className="mr-2 h-4 w-4" />
           Add Section
         </Button>
       </div>
+
+      {/* Assign Course Dialog */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Assign Course to Team Members</DialogTitle>
+            <DialogDescription>Creates enrollments for members with portal accounts.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-2">
+              <Label>Due date (optional)</Label>
+              <Input type="date" value={assignDueDate} onChange={(e) => setAssignDueDate(e.target.value)} />
+            </div>
+            <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border p-2">
+              {assignMembers.length === 0 ? (
+                <p className="p-2 text-sm text-muted-foreground">Loading members…</p>
+              ) : assignMembers.map((member) => (
+                <label key={member.id} className="flex items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-muted">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={assignSelected.has(member.id)}
+                    onChange={(e) => setAssignSelected((prev) => {
+                      const next = new Set(prev);
+                      if (e.target.checked) next.add(member.id); else next.delete(member.id);
+                      return next;
+                    })}
+                  />
+                  <span className="flex-1 truncate">{member.name}</span>
+                  {!member.firebaseUid && <Badge variant="outline" className="text-xs">no account</Badge>}
+                </label>
+              ))}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAssignDialogOpen(false)}>Cancel</Button>
+            <Button onClick={() => void submitAssignments()} disabled={assigning || assignSelected.size === 0}>
+              {assigning ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Assign {assignSelected.size ? `(${assignSelected.size})` : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Modules/Sections List */}
       {modules.length === 0 ? (

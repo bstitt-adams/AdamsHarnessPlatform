@@ -8,7 +8,7 @@
  * Uses nodemailer for SMTP transport
  */
 
-import nodemailer from "nodemailer";
+import nodemailer, { type SendMailOptions, type Transporter } from "nodemailer";
 
 // Email account configuration
 export interface EmailAccount {
@@ -73,7 +73,7 @@ export const EMAIL_ACCOUNTS: Record<string, Omit<EmailAccount, "password">> = {
 /**
  * Create a nodemailer transporter for a specific account
  */
-function createTransporter(accountId: "adams" | "gmail"): nodemailer.Transporter {
+function createTransporter(accountId: "adams" | "gmail"): Transporter {
   const account = EMAIL_ACCOUNTS[accountId];
   const password = accountId === "adams" 
     ? process.env.ADAMS_SMTP_PASSWORD 
@@ -108,7 +108,7 @@ export async function sendEmail(
     const account = EMAIL_ACCOUNTS[accountId];
     const transporter = createTransporter(accountId);
 
-    const mailOptions: nodemailer.SendMailOptions = {
+    const mailOptions: SendMailOptions = {
       from: `"${account.name}" <${account.email}>`,
       to: Array.isArray(message.to) ? message.to.join(", ") : message.to,
       subject: message.subject,

@@ -819,6 +819,12 @@ export interface TeamMemberDoc {
   mattermostUserId?: string; // Links to Mattermost user ID for playbook assignments
   departmentIds?: string[]; // Reference IDs to departments
   supervisorId?: string; // Reference ID to supervising team member
+  // Mission-critical pilot scoping — true for employees in the safety pilot cohort
+  missionCritical?: boolean;
+  // Safety-gated emergency contacts (visible only to Safety dept / admins via /api/safety/worker)
+  emergencyContacts?: { name: string; relationship: string; phone: string }[];
+  photoPath?: string; // Storage path to worker photo (Safety-gated)
+  preferredLanguage?: "en" | "es";
   createdAt: Timestamp;
   updatedAt: Timestamp;
 }
@@ -1005,6 +1011,47 @@ export interface AssetSyncRunDoc {
 }
 
 export type HardhatQrStatus = "active" | "inactive" | "revoked";
+export type SafetyRequestType = "request" | "observation" | "near_miss" | "hazard";
+export type SafetyRequestStatus = "open" | "triaged" | "in_progress" | "resolved" | "closed";
+
+export interface SafetyRequestDoc {
+  id: string;
+  type: SafetyRequestType;
+  title: string;
+  description: string;
+  jobsite?: string;
+  /** Hide submitter identity from triage listings; uid is still stored for ownership/audit. */
+  anonymous?: boolean;
+  submittedByUid?: string;
+  submittedByName?: string;
+  photoPaths?: string[];
+  status: SafetyRequestStatus;
+  priority?: "low" | "normal" | "high" | "urgent";
+  triageNotes?: string;
+  resolvedAt?: Timestamp;
+  resolvedByEmail?: string;
+  createdAt: Timestamp;
+  updatedAt: Timestamp;
+}
+
+export type InspectionItemResult = "pass" | "fail" | "na";
+
+export interface VehicleInspectionDoc {
+  id: string;
+  vehicleNumber: string;
+  vinOrPlate?: string;
+  mileage?: number;
+  driverUid: string;
+  driverName: string;
+  /** checklist item id → pass/fail/na */
+  checklist: Record<string, InspectionItemResult>;
+  defectNotes?: string;
+  photoPaths?: string[];
+  /** Derived: failed any required item → "defects"; explicit out-of-service flag wins. */
+  outcome: "passed" | "defects" | "out_of_service";
+  createdAt: Timestamp;
+}
+
 export type HardhatQrEventAction =
   | "generated"
   | "activated"
@@ -1012,7 +1059,8 @@ export type HardhatQrEventAction =
   | "revoked"
   | "rotated"
   | "printed"
-  | "scanned";
+  | "scanned"
+  | "emergency_contact_viewed";
 
 /** Public token assigned to a physical hardhat label. The document ID is the scan token. */
 export interface HardhatQrCodeDoc {
@@ -1232,7 +1280,14 @@ export interface UserTrainingCertDoc {
   artifactFileName?: string;
   artifactMimeType?: string;
   artifactSize?: number;
-  artifactBase64?: string; // Base64 encoded data URI or raw base64
+  artifactBase64?: string; // Base64 encoded data URI or raw base64 (deprecated — use artifactPath)
+  // Firebase Storage-backed artifact (replaces artifactBase64 for new uploads)
+  artifactPath?: string;        // storage path: training-certs/{teamMemberId}/{certId}/{filename}
+  artifactContentType?: string;
+  artifactUploadedAt?: Timestamp;
+  artifactUrl?: string;         // cached download URL for display
+  // Idempotent reminder stages sent to this cert's owner: stage → sent timestamp
+  remindersSent?: Record<string, Timestamp>;
   sourceWorkbook?: string;
   sourceSheet?: string;
   sourceRow?: number;
@@ -2664,6 +2719,10 @@ export const COLLECTIONS = {
   ASSET_EXTERNAL_LINKS: "assetExternalLinks",
   ASSET_SYNC_RUNS: "assetSyncRuns",
   HARDHAT_QR_CODES: "hardhatQrCodes",
+  SAFETY_REQUESTS: "safetyRequests",
+  VEHICLE_INSPECTIONS: "vehicleInspections",
+  SITEDOCS_SYNC_RUNS: "sitedocsSyncRuns",
+  INTERVIEW_ATTACHMENT_FILES: "interviewAttachmentFiles",
   HARDHAT_QR_EVENTS: "hardhatQrEvents",
   IMAGES: "images",
   OFFICE_LOCATIONS: "officeLocations",

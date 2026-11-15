@@ -16,6 +16,11 @@ const MAX_HISTORY_MESSAGES = 40;
 export { REQUIRED_COVERAGE_KEYS };
 export type { InterviewFacts };
 
+export const READY_FOR_PRD_MESSAGE =
+  "Thank you — I now have enough information to create the Product Requirements Document (PRD) for your request. " +
+  "The PRD is being generated and your interview has been submitted to the Adams Electric team. " +
+  "A team member will review it and follow up with you on your request.";
+
 export function emptyInterviewFacts(): InterviewFacts {
   return {
     task: null,

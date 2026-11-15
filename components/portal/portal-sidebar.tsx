@@ -98,6 +98,7 @@ import {
   Wrench,
   X,
   Laptop,
+  QrCode,
   Lightbulb,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -275,7 +276,7 @@ const adminItems: { title: string; href: string; icon: React.ElementType; badge?
     featureKey: "moduleBuilds",
   },
   {
-    title: "Interview PRDs",
+    title: "Interview Requirements (AI)",
     href: "/portal/admin/interviews",
     icon: Bot,
     badge: "AI",
@@ -298,6 +299,12 @@ const adminItems: { title: string; href: string; icon: React.ElementType; badge?
     href: "/portal/admin/asset-manager",
     icon: Laptop,
     featureKey: "assetManager",
+  },
+  {
+    title: "Hardhat QR Codes",
+    href: "/portal/admin/hardhat-qr",
+    icon: QrCode,
+    featureKey: "hardhatQr",
   },
   {
     title: "Time / Automations",
@@ -396,6 +403,23 @@ const adamsBusinessItems: { title: string; href: string; icon: React.ElementType
     icon: Database,
     featureKey: "backups",
   },
+];
+
+export type PortalNavItem = {
+  title: string;
+  href: string;
+  icon: React.ElementType;
+  badge?: string;
+  featureKey: FeatureKey;
+};
+
+/** Flat nav groups used by the sidebar and the Ctrl+K command palette. */
+export const PORTAL_NAV_GROUPS: { section: string; items: PortalNavItem[] }[] = [
+  { section: "My Mission Critical", items: myMissionCriticalItems },
+  { section: "Mission Critical", items: missionCriticalItems },
+  { section: "Adams Business", items: adamsBusinessItems },
+  { section: "Solutions & Modules", items: projectManagementItems },
+  { section: "Admin", items: adminItems },
 ];
 
 export function PortalSidebar() {

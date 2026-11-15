@@ -273,6 +273,8 @@ async function main() {
     membersWritten: 0,
     assetsMatched: 0,
     assetsAlreadyLinked: 0,
+    assetsInactiveAssignee: 0,
+    assetsDuplicateIdentifiers: 0,
     errors: [] as string[],
   };
 
@@ -387,6 +389,7 @@ async function main() {
       company: "Adams Electric",
       role: existingMember?.role || "team",
       status: "active",
+      missionCritical: true,
       authProvisioned: Boolean(firebaseUid),
       mustChangePassword: Boolean(firebaseUid),
       temporaryPasswordSetAt: firebaseUid ? now : null,
@@ -426,6 +429,44 @@ async function main() {
     else stats.assetsMatched++;
   }
 
+  // Flag assets assigned to inactive members and assets with duplicate serial/tag identifiers.
+  const memberDocs = await db.collection("teamMembers").get();
+  const memberStatusById = new Map(memberDocs.docs.map((d) => [d.id, String(d.data().status || "active")]));
+  const serialToAssetId = new Map<string, string>();
+  const tagToAssetId = new Map<string, string>();
+  for (const assetSnap of assets.docs) {
+    const asset = assetSnap.data();
+    const serial = String(asset.serialNumber || "").trim().toLowerCase();
+    const tag = String(asset.assetTag || "").trim().toLowerCase();
+    const attention: string[] = [];
+
+    const assigneeStatus = asset.assignedToTeamMemberId ? memberStatusById.get(String(asset.assignedToTeamMemberId)) : undefined;
+    if (asset.assignedToTeamMemberId && assigneeStatus !== "active") {
+      attention.push("inactive-assignee");
+      stats.assetsInactiveAssignee++;
+    }
+    if (serial) {
+      if (serialToAssetId.has(serial) && serialToAssetId.get(serial) !== assetSnap.id) {
+        attention.push("duplicate-serial");
+        stats.assetsDuplicateIdentifiers++;
+      } else serialToAssetId.set(serial, assetSnap.id);
+    }
+    if (tag) {
+      if (tagToAssetId.has(tag) && tagToAssetId.get(tag) !== assetSnap.id) {
+        attention.push("duplicate-asset-tag");
+        stats.assetsDuplicateIdentifiers++;
+      } else tagToAssetId.set(tag, assetSnap.id);
+    }
+
+    const existing = Array.isArray(asset.assignmentAttention) ? asset.assignmentAttention : [];
+    const next = [...new Set(attention)];
+    if (next.length !== existing.length || next.some((value) => !existing.includes(value))) {
+      if (!DRY_RUN) {
+        await assetSnap.ref.set({ assignmentAttention: next, updatedAt: now }, { merge: true });
+      }
+    }
+  }
+
   if (!DRY_RUN) {
     await db.collection("adamsAuditLogs").add({
       entityType: "data_import",
@@ -442,6 +483,8 @@ async function main() {
         authUsersLinked: stats.authUsersLinked,
         assetsMatched: stats.assetsMatched,
         assetsAlreadyLinked: stats.assetsAlreadyLinked,
+        assetsInactiveAssignee: stats.assetsInactiveAssignee,
+        assetsDuplicateIdentifiers: stats.assetsDuplicateIdentifiers,
         errors: stats.errors.slice(0, 50),
       },
       createdAt: now,

@@ -152,8 +152,8 @@ export function PublicInterview() {
         if (!res.ok) throw new Error(typeof data?.error === "string" ? data.error : `Failed (${res.status})`);
         setInterview(data.interview);
         setMessages(data.interview.messages);
-        if (data.prd?.id) toast.success(`PRD v${data.prd.version} generated`);
-        if (data.prdError) toast.error(data.prdError);
+        if (data.prd?.id) toast.success("Your request has been submitted — the team will follow up");
+        if (data.prdError) console.error("PRD generation deferred to admin review:", data.prdError);
         setInput("");
       }
     } catch (error) {
@@ -267,9 +267,9 @@ export function PublicInterview() {
             <div className="mt-4 flex items-start gap-3 rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-sm">
               <CheckCircle2 className="mt-0.5 size-5 shrink-0 text-green-600 dark:text-green-400" />
               <div>
-                <p className="font-medium">Requirements captured</p>
+                <p className="font-medium">We have enough information to create your Product Requirements Document</p>
                 <p className="text-muted-foreground">
-                  The interview has everything needed for a specification. The Adams Electric team will review it and follow up.
+                  Your interview has been submitted and the PRD is being generated. An Adams Electric team member will review your request and follow up with you.
                 </p>
               </div>
             </div>

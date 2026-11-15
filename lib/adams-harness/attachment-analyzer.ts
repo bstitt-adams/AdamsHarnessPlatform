@@ -20,6 +20,8 @@ export interface ExcelSheetAnalysis {
 
 export interface InterviewAttachmentAnalysis {
   id: string;
+  /** interviewAttachmentFiles id of the stored Base64 original. */
+  fileId?: string;
   fileName: string;
   fileType: InterviewAttachmentFileType;
   sizeBytes: number;

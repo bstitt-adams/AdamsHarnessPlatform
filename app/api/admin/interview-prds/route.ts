@@ -24,10 +24,15 @@ export async function GET(request: NextRequest) {
   try {
     await requireAdmin(request);
     const db = getDb();
-    const [interviewsSnap, departmentsSnap, prds] = await Promise.all([
+    const [interviewsSnap, departmentsSnap, prds, failedBuildsSnap] = await Promise.all([
       db.collection(COLLECTIONS.PROCESS_INTERVIEWS).get(),
       db.collection(COLLECTIONS.DEPARTMENTS).get(),
       listInterviewPrds(),
+      db.collection(COLLECTIONS.MODULE_BUILDS)
+        .where("status", "==", "failed")
+        .orderBy("updatedAt", "desc")
+        .limit(50)
+        .get(),
     ]);
     const interviews = interviewsSnap.docs
       .map((docSnap) => {
@@ -55,6 +60,7 @@ export async function GET(request: NextRequest) {
           serializeInterviewPrd(prd),
         ]),
       ),
+      failedBuilds: failedBuildsSnap.docs.map(serializeDoc),
     });
   } catch (error) {
     const authError = authErrorResponse(error);

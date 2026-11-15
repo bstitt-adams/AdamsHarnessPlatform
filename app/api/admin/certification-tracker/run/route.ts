@@ -7,6 +7,11 @@ import { requestHermesStructured } from "@/lib/hermes/client";
 import { sendEmail } from "@/lib/email-service";
 import { resolveTeamsConfig } from "@/lib/mail/teams-bot";
 import { COLLECTIONS, type TeamMemberDoc, type UserTrainingCertDoc } from "@/lib/schema";
+import {
+  computeReminderStage,
+  shouldSendStage,
+  type ReminderStage,
+} from "@/lib/certifications/reminder-policy";
 
 const FAR_FUTURE = "9999-12-31";
 const DAY_MS = 86_400_000;
@@ -40,11 +45,13 @@ function escapeHtml(value: string) {
 }
 
 async function authorize(request: NextRequest) {
-  const cronHeader = request.headers.get("x-vercel-cron") === "1";
+  // Vercel Cron automatically sends `Authorization: Bearer ${CRON_SECRET}` when
+  // the CRON_SECRET env var is set. The x-vercel-cron header is client-spoofable
+  // and must NOT grant access on its own.
   const cronSecret = process.env.CRON_SECRET;
   const bearer = request.headers.get("authorization");
   const cronSecretValid = Boolean(cronSecret && bearer === `Bearer ${cronSecret}`);
-  if (!cronHeader && !cronSecretValid) await requireAdmin(request);
+  if (!cronSecretValid) await requireAdmin(request);
 }
 
 async function run(request: NextRequest) {
@@ -58,23 +65,24 @@ async function run(request: NextRequest) {
     ]);
     const certs = certSnap.docs.map((item) => ({ id: item.id, ...item.data() }) as UserTrainingCertDoc);
     const members = memberSnap.docs.map((item) => ({ id: item.id, ...item.data() }) as TeamMemberDoc);
+    const hasArtifact = (item: UserTrainingCertDoc) => Boolean(item.artifactBase64 || item.artifactPath);
     const needsAttention = certs.filter((item) => {
       const days = daysUntil(item.expirationDate);
-      return days !== null && days <= 60 || !item.artifactBase64 || item.followUpStatus === "open" || item.teamMemberId.startsWith("unmatched-");
+      return days !== null && days <= 60 || !hasArtifact(item) || item.followUpStatus === "open" || item.teamMemberId.startsWith("unmatched-");
     });
     const expired = needsAttention.filter((item) => (daysUntil(item.expirationDate) ?? 1) < 0);
     const dueSoon = needsAttention.filter((item) => {
       const days = daysUntil(item.expirationDate);
       return days !== null && days >= 0 && days <= 60;
     });
-    const missingArtifacts = needsAttention.filter((item) => !item.artifactBase64);
+    const missingArtifacts = needsAttention.filter((item) => !hasArtifact(item));
     const unmatched = needsAttention.filter((item) => item.teamMemberId.startsWith("unmatched-"));
     const sample = needsAttention.slice(0, 30).map((item) => ({
       employee: item.userName,
       certification: item.certificationType || item.trainingTitle,
       expirationDate: item.expirationDate === FAR_FUTURE ? "none" : item.expirationDate,
       jobsite: item.jobsite || "",
-      artifactStatus: item.artifactStatus || (item.artifactBase64 ? "received" : "missing"),
+      artifactStatus: item.artifactStatus || (hasArtifact(item) ? "received" : "missing"),
       followUp: item.followUpRequirement || "",
     }));
 
@@ -130,6 +138,107 @@ async function run(request: NextRequest) {
     }
 
     const memberById = new Map(members.map((member) => [member.id, member]));
+
+    // ---- Per-employee reminder engine (email only) ----
+    const dryRun = ["1", "true"].includes(request.nextUrl.searchParams.get("dryRun") || "");
+    const scope = request.nextUrl.searchParams.get("scope");
+    const missionCriticalOnly = scope === "mission-critical";
+    const origin = request.nextUrl.origin;
+    const nowMs = Date.now();
+    const safetyEscalationRecipients = Array.from(new Set(members
+      .filter((m) => m.status === "active" && m.emailPrimary)
+      .filter((m) => m.workforceDepartmentName === "Safety" || m.role === "admin" || m.role === "superadmin")
+      .map((m) => m.emailPrimary)));
+
+    type ReminderResult = {
+      certId: string;
+      memberId: string;
+      memberName: string;
+      stage: ReminderStage;
+      to: string;
+      cc: string[];
+      status: "sent" | "dry_run" | "failed" | "skipped";
+      detail?: string;
+    };
+    const reminders: ReminderResult[] = [];
+    const reminderWrites: { certId: string; stage: ReminderStage | "cleared" }[] = [];
+
+    const emailFor = (stage: ReminderStage, cert: UserTrainingCertDoc, memberName: string, lang: string | undefined) => {
+      const days = daysUntil(cert.expirationDate);
+      const certName = cert.certificationType || cert.trainingTitle || "certification";
+      const link = `${origin}/portal/my-training?cert=${cert.id}`;
+      const es = lang === "es";
+      const subject = es
+        ? `Acción requerida: su certificación ${certName} ${days !== null && days < 0 ? "venció" : `vence en ${days} días`}`
+        : `Action required: your ${certName} certification ${days !== null && days < 0 ? "has expired" : `expires in ${days} days`}`;
+      const body = es
+        ? `Hola ${memberName},\n\nSu certificación "${certName}" ${days !== null && days < 0 ? `venció hace ${Math.abs(days)} días` : `vence el ${cert.expirationDate}`}.\n\nSuba su certificado renovado aquí para detener los recordatorios: ${link}\n\n— Adams Platform (Departamento de Seguridad)`
+        : `Hi ${memberName},\n\nYour "${certName}" certification ${days !== null && days < 0 ? `expired ${Math.abs(days)} days ago` : `expires on ${cert.expirationDate}`}.\n\nUpload your renewed certificate here to stop reminders: ${link}\n\n— Adams Platform (Safety Department)`;
+      return { subject, body };
+    };
+
+    for (const cert of certs) {
+      const member = memberById.get(cert.teamMemberId);
+      const days = daysUntil(cert.expirationDate);
+      const stage = computeReminderStage(days);
+
+      // Stop condition: renewed expiration pushed out of the window → clear sent stages
+      if (stage === null) {
+        if (cert.remindersSent && Object.keys(cert.remindersSent).length > 0 && !dryRun) {
+          reminderWrites.push({ certId: cert.id, stage: "cleared" });
+        }
+        continue;
+      }
+      if (!member || member.status !== "active" || !member.emailPrimary) continue;
+      if (missionCriticalOnly && !member.missionCritical) continue;
+      if (!shouldSendStage(stage, cert.remindersSent, nowMs)) continue;
+
+      const memberName = `${member.firstName} ${member.lastName}`.trim() || member.emailPrimary;
+      const supervisor = member.supervisorId ? memberById.get(member.supervisorId) : undefined;
+      const cc: string[] = [];
+      if (days !== null && days < 0 && supervisor?.emailPrimary) cc.push(supervisor.emailPrimary);
+      const to = member.emailPrimary;
+      const extraCc = stage === "safety_escalation" ? safetyEscalationRecipients : cc;
+      const msg = emailFor(stage, cert, memberName, member.preferredLanguage);
+
+      if (dryRun) {
+        reminders.push({ certId: cert.id, memberId: member.id, memberName, stage, to, cc: extraCc, status: "dry_run" });
+        continue;
+      }
+      try {
+        const result = await sendEmail("adams", {
+          to,
+          ...(extraCc.length ? { cc: extraCc } : {}),
+          subject: msg.subject,
+          text: msg.body,
+          html: `<p>${escapeHtml(msg.body).replaceAll("\n", "<br>")}</p>`,
+        });
+        reminders.push({ certId: cert.id, memberId: member.id, memberName, stage, to, cc: extraCc, status: result.success ? "sent" : "failed", detail: result.success ? undefined : result.error });
+        if (result.success) reminderWrites.push({ certId: cert.id, stage });
+      } catch (error) {
+        reminders.push({ certId: cert.id, memberId: member.id, memberName, stage, to, cc: extraCc, status: "failed", detail: error instanceof Error ? error.message : "send_failed" });
+      }
+    }
+
+    if (!dryRun && reminderWrites.length > 0) {
+      const batch = adminDb.batch();
+      for (const write of reminderWrites.slice(0, 400)) {
+        const ref = adminDb.collection(COLLECTIONS.USER_TRAINING_CERTS).doc(write.certId);
+        if (write.stage === "cleared") {
+          batch.update(ref, { remindersSent: {}, notificationStatus: "monitoring", updatedAt: now });
+        } else {
+          batch.update(ref, {
+            [`remindersSent.${write.stage}`]: now,
+            notificationStatus: write.stage === "safety_escalation" ? "escalated" : "notified",
+            lastNotificationAt: now,
+            updatedAt: now,
+          });
+        }
+      }
+      await batch.commit();
+    }
+    // ---- End per-employee reminder engine ----
+
     const affectedSupervisorIds = new Set(
       needsAttention
         .map((item) => memberById.get(item.teamMemberId)?.supervisorId)
@@ -176,18 +285,20 @@ async function run(request: NextRequest) {
     }
     delivery.telegram = "queued_no_safety_chat_configured";
 
-    for (let index = 0; index < needsAttention.length; index += 400) {
-      const batch = adminDb.batch();
-      for (const item of needsAttention.slice(index, index + 400)) {
-        const days = daysUntil(item.expirationDate);
-        batch.update(item.id ? adminDb.collection(COLLECTIONS.USER_TRAINING_CERTS).doc(item.id) : adminDb.collection(COLLECTIONS.USER_TRAINING_CERTS).doc(), {
-          notificationStatus: days !== null && days < 0 ? "escalated" : "notified",
-          lastNotificationAt: now,
-          nextFollowUpAt: days !== null && days < 0 ? addDays(1) : days !== null && days <= 30 ? addDays(7) : addDays(30),
-          updatedAt: now,
-        });
+    if (!dryRun) {
+      for (let index = 0; index < needsAttention.length; index += 400) {
+        const batch = adminDb.batch();
+        for (const item of needsAttention.slice(index, index + 400)) {
+          const days = daysUntil(item.expirationDate);
+          batch.update(item.id ? adminDb.collection(COLLECTIONS.USER_TRAINING_CERTS).doc(item.id) : adminDb.collection(COLLECTIONS.USER_TRAINING_CERTS).doc(), {
+            notificationStatus: days !== null && days < 0 ? "escalated" : "notified",
+            lastNotificationAt: now,
+            nextFollowUpAt: days !== null && days < 0 ? addDays(1) : days !== null && days <= 30 ? addDays(7) : addDays(30),
+            updatedAt: now,
+          });
+        }
+        await batch.commit();
       }
-      await batch.commit();
     }
 
     return NextResponse.json({
@@ -203,6 +314,14 @@ async function run(request: NextRequest) {
         unmatched: unmatched.length,
       },
       queuedActions,
+      dryRun,
+      scope: scope || "all",
+      reminders: {
+        sent: reminders.filter((r) => r.status === "sent").length,
+        failed: reminders.filter((r) => r.status === "failed").length,
+        dryRun: dryRun ? reminders : undefined,
+        detail: dryRun ? undefined : reminders,
+      },
     });
   } catch (error) {
     if (error instanceof ApiAuthError) return authErrorResponse(error);

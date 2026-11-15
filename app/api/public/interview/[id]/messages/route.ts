@@ -12,8 +12,8 @@ import {
   serializeDoc,
 } from "@/lib/adams-harness/server-store";
 import { HermesError } from "@/lib/hermes/client";
-import { createInterviewPrd } from "@/lib/adams-harness/interview-prds";
-import type { AuthenticatedActor } from "@/lib/auth/server-auth";
+import { generatePrdOnInterviewReady } from "@/lib/adams-harness/interview-prds";
+import { READY_FOR_PRD_MESSAGE } from "@/lib/adams-harness/interview";
 import { COLLECTIONS } from "@/lib/schema";
 
 function clientKey(request: NextRequest): string {
@@ -97,29 +97,30 @@ export async function POST(
       tx.update(ref, updatedFields);
     });
 
-    const updated = (await ref.get()).data() as ProcessInterviewDoc;
+    let updated = (await ref.get()).data() as ProcessInterviewDoc;
     let prd = null;
     let prdError = null;
-    if (wantsYolo && updated.readyForSpecification) {
-      const actor: AuthenticatedActor = {
-        uid: "public-interview-yolo",
-        email: "interview-assistant@adams-electric.com",
-        role: "team",
-        departmentIds: [interview.departmentId],
-      };
-      try {
-        prd = await createInterviewPrd({
-          interviewId: id,
-          actor,
-          adminContext: "Generated from the public interview `yolo` command using AI-recommended best-practice responses.",
-        });
-      } catch (error) {
-        prdError = error instanceof Error ? error.message : "PRD generation failed";
-      }
+    // First transition to ready: tell the respondent, then generate the PRD once.
+    if (updated.readyForSpecification && !interview.readyForSpecification) {
+      const result = await generatePrdOnInterviewReady({
+        interviewId: id,
+        departmentId: interview.departmentId,
+        ...(wantsYolo
+          ? { adminContext: "Generated from the public interview `yolo` command using AI-recommended best-practice responses." }
+          : {}),
+      });
+      prd = result.prd;
+      prdError = result.error;
+      await ref.update({
+        messages: [...updated.messages, newMessage("assistant", READY_FOR_PRD_MESSAGE)],
+        prdGeneratedAt: prd ? new Date() : null,
+        updatedAt: new Date(),
+      });
+      updated = (await ref.get()).data() as ProcessInterviewDoc;
     }
 
     return NextResponse.json({
-      interview: serializeDoc({ ...updated, id: ref.id }),
+      interview: serializeDoc({ ...updated, id: ref.id, publicSessionToken: undefined }),
       assistantMessage: turn.assistantMessage,
       ...(prd ? { prd: serializeDoc(prd) } : {}),
       ...(prdError ? { prdError } : {}),

@@ -25,6 +25,7 @@ import {
   DocumentReference,
 } from "firebase/firestore";
 import { db } from "./firebase";
+import { COLLECTIONS, type TeamMemberDoc } from "./schema";
 import type {
   Course,
   CourseModule,
@@ -177,6 +178,9 @@ export interface EnrollmentDoc {
   lastAccessedAt: Timestamp | null;
   certificateIssuedAt: Timestamp | null;
   certificateId: string | null;
+  /** Set once the completion has been synced to userTrainingCerts. */
+  certificationSyncedAt?: Timestamp | null;
+  assignedBy?: string;
 }
 
 export interface LessonProgressDoc {
@@ -963,6 +967,58 @@ async function updateEnrollmentProgress(
   }
 
   await updateDoc(enrollmentRef, updates);
+
+  // On first completion, sync a certification record to the training tracker
+  if (progressPercentage === 100) {
+    try {
+      await syncCourseCompletionToCertification(enrollmentId, courseId);
+    } catch (error) {
+      console.error("Failed to sync course completion to certification tracker:", error);
+    }
+  }
+}
+
+/** Create a userTrainingCerts record when a learner finishes a course. */
+async function syncCourseCompletionToCertification(
+  enrollmentId: string,
+  courseId: string,
+): Promise<void> {
+  if (!db) return;
+  const enrollmentSnap = await getDoc(doc(db, LMS_COLLECTIONS.ENROLLMENTS, enrollmentId));
+  if (!enrollmentSnap.exists()) return;
+  const enrollment = enrollmentSnap.data() as EnrollmentDoc;
+  if (enrollment.certificationSyncedAt) return;
+
+  const course = await getCourse(courseId);
+  const memberSnap = await getDocs(
+    query(collection(db, COLLECTIONS.TEAM_MEMBERS), where("firebaseUid", "==", enrollment.userId), limit(1))
+  );
+  const member = memberSnap.empty ? null : (memberSnap.docs[0].data() as TeamMemberDoc);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const certsRef = collection(db, COLLECTIONS.USER_TRAINING_CERTS);
+  const certRef = doc(certsRef);
+  await setDoc(certRef, {
+    id: certRef.id,
+    userId: enrollment.userId,
+    teamMemberId: member?.id || `unmatched-${enrollment.userId}`,
+    userName: member ? `${member.firstName} ${member.lastName}`.trim() : enrollment.userId,
+    userEmail: member?.emailPrimary || "",
+    trainingTitle: course?.title || "Adams Academy course",
+    trainingCategory: "adams_academy",
+    issuingOrganization: "Adams Academy",
+    completionDate: today,
+    expirationDate: "9999-12-31",
+    source: "lms_course_completion",
+    sourceCourseId: courseId,
+    enrollmentId,
+    artifactStatus: "not_required",
+    followUpStatus: "not_required",
+    notificationStatus: "monitoring",
+    createdAt: Timestamp.now(),
+    updatedAt: Timestamp.now(),
+  });
+  await updateDoc(enrollmentSnap.ref, { certificationSyncedAt: Timestamp.now() });
 }
 
 // ============================================================================

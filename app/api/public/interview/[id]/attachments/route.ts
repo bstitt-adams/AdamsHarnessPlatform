@@ -6,6 +6,12 @@ import {
   runInterviewTurn,
 } from "@/lib/adams-harness/interview";
 import { analyzeInterviewAttachment } from "@/lib/adams-harness/attachment-analyzer";
+import { READY_FOR_PRD_MESSAGE } from "@/lib/adams-harness/interview";
+import { generatePrdOnInterviewReady } from "@/lib/adams-harness/interview-prds";
+import {
+  MAX_INTERVIEW_ATTACHMENT_BYTES,
+  storeInterviewAttachmentBase64,
+} from "@/lib/adams-harness/attachment-files";
 import { isRateLimited } from "@/lib/adams-harness/rate-limit";
 import {
   getDb,
@@ -14,6 +20,9 @@ import {
   serializeDoc,
 } from "@/lib/adams-harness/server-store";
 import { COLLECTIONS } from "@/lib/schema";
+
+const MAX_PUBLIC_ATTACHMENTS = 15;
+const MAX_PUBLIC_ATTACHMENT_TOTAL_BYTES = 50 * 1024 * 1024;
 
 function clientKey(request: NextRequest): string {
   const fwd = request.headers.get("x-forwarded-for");
@@ -63,7 +72,29 @@ export async function POST(
       );
     }
 
+    if (interview.status === "completed") {
+      return NextResponse.json({ error: "Interview is completed" }, { status: 400 });
+    }
+    if (file.size > MAX_INTERVIEW_ATTACHMENT_BYTES) {
+      return NextResponse.json({ error: "Attachment exceeds the 10 MB limit" }, { status: 413 });
+    }
+    // Unauthenticated endpoint: cap total storage per interview to prevent Firestore abuse.
+    const priorAttachments = interview.attachments || [];
+    const priorBytes = priorAttachments.reduce((sum, a) => sum + (a.sizeBytes || 0), 0);
+    if (priorAttachments.length >= MAX_PUBLIC_ATTACHMENTS || priorBytes + file.size > MAX_PUBLIC_ATTACHMENT_TOTAL_BYTES) {
+      return NextResponse.json(
+        { error: `Attachment limit reached (${MAX_PUBLIC_ATTACHMENTS} files / ${MAX_PUBLIC_ATTACHMENT_TOTAL_BYTES / 1024 / 1024} MB per interview)` },
+        { status: 413 },
+      );
+    }
+
     const buffer = Buffer.from(await file.arrayBuffer());
+    const storedFile = await storeInterviewAttachmentBase64({
+      interviewId: id,
+      fileName: file.name,
+      mimeType: file.type || "application/octet-stream",
+      buffer,
+    });
     const analysis = await analyzeInterviewAttachment(
       buffer,
       file.name,
@@ -79,7 +110,7 @@ export async function POST(
       .join("\n");
 
     const userMessage = newMessage("user", userContent);
-    const updatedAttachments = [...(interview.attachments || []), analysis];
+    const updatedAttachments = [...(interview.attachments || []), { ...analysis, fileId: storedFile.fileId }];
 
     const sheetColumns = (analysis.sheets || []).flatMap((s) =>
       s.columns.slice(0, 8),
@@ -122,8 +153,20 @@ export async function POST(
 
     await ref.update(updatedFields);
 
-    const updated = (await ref.get()).data() as ProcessInterviewDoc;
+    let updated = (await ref.get()).data() as ProcessInterviewDoc;
+    let prdError: string | null = null;
+    if (updated.readyForSpecification && !interview.readyForSpecification) {
+      const result = await generatePrdOnInterviewReady({ interviewId: id, departmentId: interview.departmentId });
+      prdError = result.error;
+      await ref.update({
+        messages: [...updated.messages, newMessage("assistant", READY_FOR_PRD_MESSAGE)],
+        prdGeneratedAt: result.prd ? new Date() : null,
+        updatedAt: new Date(),
+      });
+      updated = (await ref.get()).data() as ProcessInterviewDoc;
+    }
     return NextResponse.json({
+      ...(prdError ? { prdError } : {}),
       interview: serializeDoc({
         ...updated,
         id: ref.id,

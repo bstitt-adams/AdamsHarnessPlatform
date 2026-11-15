@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import {
+  AlertTriangle,
   ArrowRight,
   Bot,
   CheckCircle2,
+  ChevronRight,
   FileText,
   GitBranch,
   Loader2,
@@ -46,6 +48,9 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { adamsFetch, adamsFetchJson } from "@/lib/adams-harness/client-api";
+import type { PrdChatMessage, PrdSystemDiagram } from "@/lib/adams-harness/types";
+import { PrdCollaborationPanel } from "@/components/portal/prd-collaboration-panel";
+import { InterviewAttachmentsList } from "@/components/portal/interview-attachments-list";
 
 interface Department {
   id: string;
@@ -89,6 +94,8 @@ interface InterviewPrd {
   id: string;
   interviewId: string;
   departmentId: string;
+  aiChat?: PrdChatMessage[];
+  systemDiagram?: PrdSystemDiagram;
   title: string;
   version: number;
   status: "draft" | "in_review" | "staged" | "deploying" | "deployed" | "superseded" | "archived";
@@ -121,6 +128,7 @@ interface AdminInterviewPayload {
   departments: Department[];
   prds: InterviewPrd[];
   latestPrds: Record<string, InterviewPrd>;
+  failedBuilds?: { id: string; slug?: string; failureReason?: string; updatedAt?: string }[];
 }
 
 const requestKindLabels: Record<InterviewPrd["requestKind"], string> = {
@@ -157,6 +165,7 @@ export default function AdminInterviewsPage() {
   const [departments, setDepartments] = useState<Map<string, Department>>(new Map());
   const [prds, setPrds] = useState<InterviewPrd[]>([]);
   const [latestPrds, setLatestPrds] = useState<Record<string, InterviewPrd>>({});
+  const [failedBuilds, setFailedBuilds] = useState<NonNullable<AdminInterviewPayload["failedBuilds"]>>([]);
   const [selectedInterviewId, setSelectedInterviewId] = useState("");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -175,6 +184,7 @@ export default function AdminInterviewsPage() {
       setDepartments(new Map(data.departments.map((department) => [department.id, department])));
       setPrds(data.prds);
       setLatestPrds(data.latestPrds);
+      setFailedBuilds(data.failedBuilds ?? []);
       if (!selectedInterviewId && data.interviews.length > 0) {
         setSelectedInterviewId(data.interviews[0].id);
       }
@@ -358,10 +368,10 @@ export default function AdminInterviewsPage() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <Bot className="h-6 w-6 text-primary" /> Interview PRD Manager
+            <Bot className="h-6 w-6 text-primary" /> Interview Requirements Manager
           </h1>
           <p className="text-sm text-muted-foreground">
-            Review submitted interviews, generate platform-aware requirements, stage accepted designs, and deploy solution apps.
+            This is where AI-generated requirements from captured interviews live. Review interviews, generate PRDs, stage accepted designs, and deploy solution apps — each requirement flows Draft → In Review → Staged → Deploying → Deployed.
           </p>
         </div>
         <Button variant="outline" onClick={() => void load()} disabled={loading}>
@@ -400,7 +410,60 @@ export default function AdminInterviewsPage() {
             <div className="text-3xl font-bold">{prds.filter((prd) => prd.status === "deployed").length}</div>
           </CardContent>
         </Card>
+        <Card className={failedBuilds.length > 0 ? "border-destructive" : ""}>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium uppercase text-muted-foreground">Failed Builds</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className={`text-3xl font-bold ${failedBuilds.length > 0 ? "text-destructive" : ""}`}>{failedBuilds.length}</div>
+          </CardContent>
+        </Card>
       </div>
+
+      {/* Requirements pipeline funnel */}
+      <Card>
+        <CardContent className="flex flex-wrap items-center gap-2 py-4">
+          {(["draft", "in_review", "staged", "deploying", "deployed"] as const).map((stage, index) => {
+            const count = prds.filter((prd) => prd.status === stage).length;
+            return (
+              <div key={stage} className="flex items-center gap-2">
+                {index > 0 && <ChevronRight className="h-4 w-4 text-muted-foreground" />}
+                <button
+                  type="button"
+                  onClick={() => setStatusFilter(stage)}
+                  className={`flex items-center gap-2 rounded-full border px-3 py-1 text-sm transition-colors ${statusFilter === stage ? "border-primary bg-primary/10" : "hover:bg-muted"}`}
+                >
+                  <span className="font-medium">{statusLabels[stage]}</span>
+                  <Badge variant="secondary">{count}</Badge>
+                </button>
+              </div>
+            );
+          })}
+          {failedBuilds.length > 0 && (
+            <div className="ml-auto flex items-center gap-2 text-sm text-destructive">
+              <AlertTriangle className="h-4 w-4" />
+              <span className="font-medium">{failedBuilds.length} build{failedBuilds.length === 1 ? "" : "s"} failed</span>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {failedBuilds.length > 0 && (
+        <Card className="border-destructive">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-destructive">Failed module builds — review and redeploy</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {failedBuilds.slice(0, 5).map((build) => (
+              <div key={build.id} className="flex items-center justify-between gap-3 rounded-md border p-2 text-sm">
+                <span className="font-mono">{build.slug || build.id}</span>
+                <span className="truncate text-muted-foreground">{build.failureReason || "Unknown failure"}</span>
+                <Button asChild variant="outline" size="sm"><Link href="/portal/admin/modules">Open Module Builds</Link></Button>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-6 xl:grid-cols-[440px_minmax(0,1fr)]">
         <Card className="min-h-[700px]">
@@ -530,6 +593,9 @@ export default function AdminInterviewsPage() {
                   ) : (
                     <p className="text-sm text-muted-foreground">None recorded.</p>
                   )}
+                </div>
+                <div className="md:col-span-2">
+                  <InterviewAttachmentsList interviewId={selectedInterview.id} />
                 </div>
               </CardContent>
             </Card>
@@ -672,6 +738,14 @@ export default function AdminInterviewsPage() {
                     </div>
                   </div>
                 </div>
+                <PrdCollaborationPanel
+                  prdId={selectedPrd.id}
+                  locked={selectedPrd.status === "deployed"}
+                  initialChat={selectedPrd.aiChat || []}
+                  initialDiagram={selectedPrd.systemDiagram || null}
+                  currentContent={prdContent}
+                  onApplyContent={setPrdContent}
+                />
               </CardContent>
             </Card>
           ) : selectedInterview ? (

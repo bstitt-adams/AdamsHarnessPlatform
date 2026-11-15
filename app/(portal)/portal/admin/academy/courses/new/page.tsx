@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { toast } from "sonner";
@@ -18,8 +18,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { ArrowLeft, Loader2, Save, Plus, X } from "lucide-react";
-import { createCourse, getCategories, type CategoryDoc } from "@/lib/firebase-lms";
+import { ArrowLeft, Presentation, Loader2, Save, Plus, X } from "lucide-react";
+import { createCourse, createLesson, createModule, getCategories, type CategoryDoc } from "@/lib/firebase-lms";
+import { parsePptxSlides, slideToHtml } from "@/lib/training/pptx-parser";
 import type { DifficultyLevel } from "@/types/academy";
 import { useEffect } from "react";
 
@@ -27,6 +28,8 @@ export default function NewCoursePage() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [categories, setCategories] = useState<CategoryDoc[]>([]);
+  const [importingPptx, setImportingPptx] = useState(false);
+  const pptxInputRef = useRef<HTMLInputElement>(null);
 
   // Form state
   const [title, setTitle] = useState("");
@@ -90,6 +93,50 @@ export default function NewCoursePage() {
     setPrerequisites(prerequisites.filter((_, i) => i !== index));
   };
 
+  const handlePptxImport = async (file: File) => {
+    setImportingPptx(true);
+    try {
+      const buffer = await file.arrayBuffer();
+      const { slides } = parsePptxSlides(buffer);
+      if (!slides.length) {
+        toast.error("No slides with text found in this file");
+        return;
+      }
+      const courseTitle = file.name.replace(/\.pptx?$/i, "").replace(/[-_]+/g, " ").trim();
+      const course = await createCourse({
+        title: courseTitle,
+        shortDescription: `Imported from ${file.name}`,
+        description: `Course generated from a PowerPoint deck (${slides.length} slides).`,
+        instructorName: instructorName.trim() || "Adams Electric",
+        difficultyLevel: "beginner",
+      });
+      const module = await createModule({
+        courseId: course.id,
+        title: "Course Slides",
+        description: "One lesson per slide",
+        sortOrder: 0,
+      });
+      for (const slide of slides) {
+        await createLesson({
+          moduleId: module.id,
+          courseId: course.id,
+          title: slide.title,
+          contentType: "text",
+          textContent: slideToHtml(slide),
+          sortOrder: slide.slideNumber,
+        });
+      }
+      toast.success(`Course created from ${slides.length} slides`);
+      router.push(`/portal/admin/academy/courses/${course.id}`);
+    } catch (error) {
+      console.error("PPTX import failed:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to import PowerPoint file");
+    } finally {
+      setImportingPptx(false);
+      if (pptxInputRef.current) pptxInputRef.current.value = "";
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -142,6 +189,32 @@ export default function NewCoursePage() {
           </p>
         </div>
       </div>
+
+      <Card className="border-dashed">
+        <CardContent className="flex flex-wrap items-center justify-between gap-3 py-4">
+          <div className="flex items-center gap-3">
+            <Presentation className="h-6 w-6 text-primary" />
+            <div>
+              <p className="font-medium">Import from PowerPoint</p>
+              <p className="text-sm text-muted-foreground">Upload a .pptx deck — each slide becomes a lesson</p>
+            </div>
+          </div>
+          <Button type="button" variant="outline" disabled={importingPptx} onClick={() => pptxInputRef.current?.click()}>
+            {importingPptx ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Presentation className="mr-2 h-4 w-4" />}
+            {importingPptx ? "Importing…" : "Choose .pptx file"}
+          </Button>
+          <input
+            ref={pptxInputRef}
+            type="file"
+            accept=".pptx"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handlePptxImport(file);
+            }}
+          />
+        </CardContent>
+      </Card>
 
       <form onSubmit={handleSubmit}>
         <div className="grid gap-6 lg:grid-cols-3">

@@ -73,6 +73,35 @@ export async function getLatestInterviewPrd(interviewId: string) {
   return prds[0] ?? null;
 }
 
+/**
+ * Called when a public interview first reaches readiness: generates the initial
+ * PRD exactly once. Failures are returned, not thrown, so the respondent's turn still succeeds.
+ */
+export async function generatePrdOnInterviewReady(input: {
+  interviewId: string;
+  departmentId: string;
+  adminContext?: string;
+}): Promise<{ prd: InterviewPrdDoc | null; error: string | null }> {
+  try {
+    const existing = await getLatestInterviewPrd(input.interviewId);
+    if (existing) return { prd: existing, error: null };
+    const prd = await createInterviewPrd({
+      interviewId: input.interviewId,
+      actor: {
+        uid: "public-interview-assistant",
+        email: "interview-assistant@adams-electric.com",
+        role: "team",
+        departmentIds: [input.departmentId],
+      },
+      adminContext: input.adminContext,
+    });
+    return { prd, error: null };
+  } catch (error) {
+    console.error("Automatic PRD generation failed:", error);
+    return { prd: null, error: error instanceof Error ? error.message : "PRD generation failed" };
+  }
+}
+
 export async function createInterviewPrd(input: {
   interviewId: string;
   actor: AuthenticatedActor;

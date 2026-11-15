@@ -214,6 +214,42 @@ Hermes (Azure)**, click **Test Hermes**, then Save.
 
 ---
 
+## Deploying the Web App to Azure Container Apps
+
+The production web app runs as the `web` container of the `adams-platform`
+Container App (`rg-adams-platform`), alongside the `hermes` sidecar. The image
+is built in the cloud with ACR Tasks — no local Docker required — from the
+repo `Dockerfile` (Next.js `standalone` output, enabled by `NEXT_OUTPUT=standalone`).
+
+```bash
+TAG=$(date +%Y%m%d-%H%M)
+# NEXT_PUBLIC_* values are inlined into the client bundle, so pass them as build args.
+az acr build -r adamsplatformacr -t adams-web:$TAG \
+  --build-arg NEXT_PUBLIC_FIREBASE_API_KEY=... \
+  --build-arg NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=... \
+  --build-arg NEXT_PUBLIC_FIREBASE_PROJECT_ID=... \
+  --build-arg NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=... \
+  --build-arg NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=... \
+  --build-arg NEXT_PUBLIC_FIREBASE_APP_ID=... \
+  --build-arg NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=... \
+  --build-arg NEXT_PUBLIC_APP_URL=https://<app-fqdn> \
+  --no-logs .
+az acr task list-runs -r adamsplatformacr --top 1 -o table   # wait for Succeeded
+
+az containerapp update -n adams-platform -g rg-adams-platform \
+  --container-name web --image adamsplatformacr.azurecr.io/adams-web:$TAG
+```
+
+- Server secrets (Firebase Admin, Jamf, NinjaOne, Hermes, `CRON_SECRET`) are
+  Container App secrets injected at runtime — never baked into the image.
+- On Windows, log streaming from `az acr build` can crash with a `charmap`
+  encoding error when Next.js prints `▲`; the cloud build keeps running. Use
+  `--no-logs` and poll `az acr task list-runs`, or set `PYTHONIOENCODING=utf-8`.
+- The app runs in multiple-revision mode: the previous revision stays active at
+  0% traffic for instant rollback via `az containerapp ingress traffic set`.
+
+---
+
 ## Jamf Pro and NinjaOne Asset Integrations
 
 The Asset Manager can link local `userAssets` records to Jamf Pro and NinjaOne, pull vendor inventory into Adams Platform, push local updates, and use the safest vendor-supported lifecycle for retirement.

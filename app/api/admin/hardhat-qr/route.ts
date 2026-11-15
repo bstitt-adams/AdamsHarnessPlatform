@@ -20,7 +20,29 @@ export async function GET(request: NextRequest) {
     const recordId = request.nextUrl.searchParams.get("recordId")?.trim();
     const teamMemberId = request.nextUrl.searchParams.get("teamMemberId")?.trim();
     if (!recordId && !teamMemberId) {
-      return NextResponse.json({ error: "recordId or teamMemberId is required" }, { status: 400 });
+      // No filter → list every QR code with its Team Member for the admin console.
+      const [codesSnap, membersSnap] = await Promise.all([
+        adminDb.collection(COLLECTIONS.HARDHAT_QR_CODES).orderBy("updatedAt", "desc").limit(500).get(),
+        adminDb.collection(COLLECTIONS.TEAM_MEMBERS).get(),
+      ]);
+      const memberName = (m: TeamMemberDoc) => [m.firstName, m.lastName].filter(Boolean).join(" ") || m.emailPrimary || m.id;
+      const members = new Map(membersSnap.docs.map((d) => [d.id, d.data() as TeamMemberDoc]));
+      const codes = codesSnap.docs.map((d) => {
+        const code = { id: d.id, ...d.data() } as HardhatQrCodeDoc;
+        const member = members.get(code.teamMemberId);
+        return {
+          ...serializeDoc(code),
+          teamMemberName: member ? memberName(member) : code.teamMemberName || "Unknown member",
+          teamMemberEmail: member?.emailPrimary || "",
+        };
+      });
+      const memberList = membersSnap.docs
+        .map((d) => {
+          const m = d.data() as TeamMemberDoc;
+          return { id: d.id, name: memberName(m), email: m.emailPrimary, missionCritical: m.missionCritical === true };
+        })
+        .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+      return NextResponse.json({ codes, members: memberList });
     }
 
     let code: HardhatQrCodeDoc | null = null;

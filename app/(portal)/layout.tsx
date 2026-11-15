@@ -4,6 +4,7 @@ import { PortalHeader } from "@/components/portal/portal-header";
 import { UserProfileProvider } from "@/contexts/user-profile-context";
 import { FeatureVisibilityProvider } from "@/contexts/feature-visibility-context";
 import { AffiliateOnboardingWizard } from "@/components/portal/affiliate-onboarding-wizard";
+import { CommandPalette } from "@/components/portal/command-palette";
 
 export default function PortalLayout({
   children,
@@ -21,6 +22,7 @@ export default function PortalLayout({
           </SidebarInset>
         </SidebarProvider>
         <AffiliateOnboardingWizard />
+        <CommandPalette />
       </FeatureVisibilityProvider>
     </UserProfileProvider>
   );

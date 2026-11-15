@@ -329,6 +329,24 @@ export const patchInterviewPrdSchema = z.strictObject({
   status: z.enum(["draft", "in_review", "staged", "archived"]).optional(),
 });
 
+export interface PrdChatMessage {
+  role: "user" | "assistant";
+  content: string;
+  /** Present on assistant turns that proposed a rewritten PRD. */
+  proposedContent?: string;
+  changeSummary?: string[];
+  authorEmail?: string;
+  createdAt: string;
+}
+
+export interface PrdSystemDiagram {
+  mermaid: string;
+  features: { name: string; functions: string[] }[];
+  integrationNotes: string;
+  generatedAt: string;
+  generatedByEmail?: string;
+}
+
 export interface InterviewPrdDoc {
   id: string;
   interviewId: string;
@@ -347,6 +365,10 @@ export interface InterviewPrdDoc {
   integrationRecommendations: { name: string; description: string }[];
   adminNotes?: string;
   requiresRegeneration?: boolean;
+  /** Collaborative AI chat used to refine this PRD. */
+  aiChat?: PrdChatMessage[];
+  /** AI-generated platform-fit diagram (Mermaid) with feature/function breakdown. */
+  systemDiagram?: PrdSystemDiagram;
   canonicalHash: string;
   specificationId?: string;
   latestBuildId?: string;

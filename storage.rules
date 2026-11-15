@@ -73,5 +73,39 @@ service firebase.storage {
                       isValidDocumentType() && 
                       isValidFileSize(25);
     }
+
+    // Training/certification artifacts (phone uploads). Path:
+    // training-certs/{teamMemberId}/{certId}/{fileName}
+    function memberOwnsPath(memberId) {
+      let member = firestore.get(/databases/(default)/documents/teamMembers/$(memberId)).data;
+      return member.firebaseUid == request.auth.uid ||
+             member.authUid == request.auth.uid ||
+             member.emailPrimary == request.auth.token.email;
+    }
+
+    function isPlatformAdmin() {
+      return isAuthenticated() &&
+             firestore.get(/databases/(default)/documents/users/$(request.auth.uid)).data.role in ['admin', 'superadmin'];
+    }
+
+    match /training-certs/{memberId}/{certId}/{fileName} {
+      allow read: if isAuthenticated() && (memberOwnsPath(memberId) || isPlatformAdmin());
+      allow write: if isAuthenticated() &&
+                      (memberOwnsPath(memberId) || isPlatformAdmin()) &&
+                      (isValidImageType() || request.resource.contentType == 'application/pdf') &&
+                      isValidFileSize(15);
+    }
+
+    // Vehicle inspection defect photos: vehicle-inspections/{inspectionId}/{fileName}
+    match /vehicle-inspections/{inspectionId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidImageType() && isValidFileSize(15);
+    }
+
+    // Safety Request Box photo evidence: safety-requests/{requestId}/{fileName}
+    match /safety-requests/{requestId}/{fileName} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && isValidImageType() && isValidFileSize(15);
+    }
   }
 }

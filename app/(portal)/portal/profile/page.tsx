@@ -38,6 +38,8 @@ import {
   Save,
   Plus,
   X,
+  HeartPulse,
+  Trash2,
   Briefcase,
   Target,
   Users,
@@ -176,6 +178,8 @@ export default function ProfilePage() {
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [linkedAssets, setLinkedAssets] = useState<UserAssetDoc[]>([]);
   const [assetsLoading, setAssetsLoading] = useState(false);
+  const [emergencyContacts, setEmergencyContacts] = useState<{ name: string; relationship: string; phone: string }[]>([]);
+  const [savingEmergency, setSavingEmergency] = useState(false);
   
   const [profile, setProfile] = useState({
     id: "current-user",
@@ -253,6 +257,34 @@ export default function ProfilePage() {
       })
       .finally(() => setAssetsLoading(false));
   }, [linkedTeamMember]);
+
+  // Load emergency contacts from the linked Team Member record
+  useEffect(() => {
+    if (linkedTeamMember?.emergencyContacts) {
+      setEmergencyContacts(linkedTeamMember.emergencyContacts);
+    }
+  }, [linkedTeamMember?.id]);
+
+  const saveEmergencyContacts = async () => {
+    if (!db || !linkedTeamMember) {
+      toast.error("No linked team member record found");
+      return;
+    }
+    setSavingEmergency(true);
+    try {
+      const { doc: docRef, updateDoc, Timestamp } = await import("firebase/firestore");
+      await updateDoc(docRef(db, COLLECTIONS.TEAM_MEMBERS, linkedTeamMember.id), {
+        emergencyContacts: emergencyContacts.filter((c) => c.name.trim() || c.phone.trim()),
+        updatedAt: Timestamp.now(),
+      });
+      toast.success("Emergency contacts saved — visible only to Safety personnel");
+    } catch (error) {
+      console.error("Failed to save emergency contacts:", error);
+      toast.error("Failed to save emergency contacts");
+    } finally {
+      setSavingEmergency(false);
+    }
+  };
 
   // Password change state
   const [passwordForm, setPasswordForm] = useState({
@@ -730,6 +762,31 @@ export default function ProfilePage() {
                     {userRoles.find((r) => r.id === profile.role)?.description}
                   </p>
                 </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><HeartPulse className="h-5 w-5 text-primary" /> Emergency Contacts</CardTitle>
+              <CardDescription>Shown to Safety personnel when your hard-hat QR code is scanned. Not visible to the public.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {emergencyContacts.map((contact, index) => (
+                <div key={index} className="grid gap-2 rounded-lg border p-3 md:grid-cols-[1fr_1fr_1fr_auto]">
+                  <Input placeholder="Name" value={contact.name} onChange={(e) => setEmergencyContacts((prev) => prev.map((c, i) => i === index ? { ...c, name: e.target.value } : c))} />
+                  <Input placeholder="Relationship (e.g., Spouse)" value={contact.relationship} onChange={(e) => setEmergencyContacts((prev) => prev.map((c, i) => i === index ? { ...c, relationship: e.target.value } : c))} />
+                  <Input placeholder="Phone" value={contact.phone} onChange={(e) => setEmergencyContacts((prev) => prev.map((c, i) => i === index ? { ...c, phone: e.target.value } : c))} />
+                  <Button variant="ghost" size="icon" onClick={() => setEmergencyContacts((prev) => prev.filter((_, i) => i !== index))}><Trash2 className="h-4 w-4" /></Button>
+                </div>
+              ))}
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" onClick={() => setEmergencyContacts((prev) => [...prev, { name: "", relationship: "", phone: "" }])}>
+                  <Plus className="mr-2 h-4 w-4" /> Add contact
+                </Button>
+                <Button size="sm" onClick={() => void saveEmergencyContacts()} disabled={savingEmergency || !linkedTeamMember}>
+                  {savingEmergency ? "Saving…" : "Save emergency contacts"}
+                </Button>
               </div>
             </CardContent>
           </Card>

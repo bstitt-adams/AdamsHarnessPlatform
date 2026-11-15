@@ -32,6 +32,7 @@ import {
   EyeOff,
   Save,
   TestTube,
+  HardHat,
   CheckCircle,
   XCircle,
   AlertCircle,
@@ -167,6 +168,16 @@ function SettingsPageContent() {
     webhookUrl: "",
   });
 
+  // SiteDocs integration settings
+  const [sitedocsConfig, setSitedocsConfig] = useState({
+    apiKey: "",
+    baseUrl: "",
+    hasStoredKey: false,
+    lastSyncSummary: "",
+  });
+  const [sitedocsTesting, setSitedocsTesting] = useState(false);
+  const [sitedocsSyncing, setSitedocsSyncing] = useState(false);
+
   // Social links settings
   const [socialLinks, setSocialLinks] = useState({
     linkedin: { url: "", visible: true },
@@ -199,6 +210,17 @@ function SettingsPageContent() {
         
         if (docSnap.exists()) {
           const data = docSnap.data() as PlatformSettingsDoc;
+
+          const sitedocs = (data as unknown as Record<string, unknown>).sitedocs as { baseUrl?: string; lastSyncStats?: { workersMatched?: number; certsCreated?: number } } | undefined;
+          if (sitedocs) {
+            setSitedocsConfig((prev) => ({
+              ...prev,
+              baseUrl: sitedocs.baseUrl || prev.baseUrl,
+              lastSyncSummary: sitedocs.lastSyncStats
+                ? `Last sync: ${sitedocs.lastSyncStats.workersMatched ?? 0} workers matched, ${sitedocs.lastSyncStats.certsCreated ?? 0} certs`
+                : prev.lastSyncSummary,
+            }));
+          }
           
           // Load integrations into apiKeys state
           if (data.integrations) {
@@ -610,6 +632,50 @@ function SettingsPageContent() {
     }
   };
 
+  const testSitedocs = async () => {
+    setSitedocsTesting(true);
+    try {
+      const token = await auth?.currentUser?.getIdToken();
+      const response = await fetch("/api/admin/sitedocs/test", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({
+          ...(sitedocsConfig.apiKey ? { apiKey: sitedocsConfig.apiKey } : {}),
+          ...(sitedocsConfig.baseUrl ? { baseUrl: sitedocsConfig.baseUrl } : {}),
+          persist: true,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || "Connection failed");
+      toast.success("SiteDocs connection verified");
+      setSitedocsConfig((prev) => ({ ...prev, apiKey: "", hasStoredKey: true }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "SiteDocs connection failed");
+    } finally {
+      setSitedocsTesting(false);
+    }
+  };
+
+  const runSitedocsSync = async () => {
+    setSitedocsSyncing(true);
+    try {
+      const token = await auth?.currentUser?.getIdToken();
+      const response = await fetch("/api/admin/sitedocs/sync", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Sync failed");
+      const s = data.stats || {};
+      toast.success(`Sync complete: ${s.workersMatched ?? 0} workers matched, ${s.certsCreated ?? 0} certifications`);
+      setSitedocsConfig((prev) => ({ ...prev, lastSyncSummary: `Last sync: ${s.workersMatched ?? 0} workers matched, ${s.certsCreated ?? 0} certs` }));
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "SiteDocs sync failed");
+    } finally {
+      setSitedocsSyncing(false);
+    }
+  };
+
   const toggleWebhookEvent = (eventType: WebhookEventType) => {
     setWebhookEvents(prev => ({ ...prev, [eventType]: !prev[eventType] }));
     setHasChanges(true);
@@ -665,6 +731,7 @@ function SettingsPageContent() {
               <TabsTrigger value="gbrain">AdamsBrain (GBrain)</TabsTrigger>
               <TabsTrigger value="telegram">Telegram</TabsTrigger>
               <TabsTrigger value="teams">Microsoft Teams</TabsTrigger>
+              <TabsTrigger value="sitedocs">SiteDocs</TabsTrigger>
             </TabsList>
 
             {/* LLM Configuration Sub-Tab */}
@@ -1073,6 +1140,51 @@ function SettingsPageContent() {
 
           <TeamsUsersManager />
             </TabsContent>
+
+        {/* SiteDocs Integration Tab */}
+        <TabsContent value="sitedocs" className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><HardHat className="h-5 w-5" /> SiteDocs</CardTitle>
+              <CardDescription>Safety management sync — pulls SiteDocs workers and certifications into the certification tracker. Workers are matched to team members by email only.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label htmlFor="sitedocsApiKey">API key</Label>
+                  <Input
+                    id="sitedocsApiKey"
+                    type="password"
+                    value={sitedocsConfig.apiKey}
+                    onChange={(e) => setSitedocsConfig({ ...sitedocsConfig, apiKey: e.target.value })}
+                    placeholder={sitedocsConfig.hasStoredKey ? "•••••••• (stored)" : "SiteDocs API token"}
+                  />
+                  <p className="text-xs text-muted-foreground">Stored server-side in platformSecrets — never returned to the browser.</p>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="sitedocsBaseUrl">Base URL</Label>
+                  <Input
+                    id="sitedocsBaseUrl"
+                    value={sitedocsConfig.baseUrl}
+                    onChange={(e) => setSitedocsConfig({ ...sitedocsConfig, baseUrl: e.target.value })}
+                    placeholder="https://api-1.sitedocs.com"
+                  />
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3">
+                <Button variant="outline" onClick={() => void testSitedocs()} disabled={sitedocsTesting}>
+                  {sitedocsTesting ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <TestTube className="mr-2 h-4 w-4" />}
+                  Save &amp; Test Connection
+                </Button>
+                <Button variant="outline" onClick={() => void runSitedocsSync()} disabled={sitedocsSyncing}>
+                  {sitedocsSyncing ? <RefreshCw className="mr-2 h-4 w-4 animate-spin" /> : <RefreshCw className="mr-2 h-4 w-4" />}
+                  Sync Workers &amp; Certifications
+                </Button>
+                {sitedocsConfig.lastSyncSummary && <Badge variant="secondary">{sitedocsConfig.lastSyncSummary}</Badge>}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
           </Tabs>
         </TabsContent>
 
