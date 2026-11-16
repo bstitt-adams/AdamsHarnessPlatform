@@ -180,6 +180,8 @@ function timestampToDate(value: unknown): Date | null {
 }
 
 async function adminFetch(input: string, init: RequestInit = {}) {
+  // On direct loads/refreshes, wait for Firebase to restore the persisted session.
+  await auth?.authStateReady();
   const user = auth?.currentUser;
   if (!user) throw new Error("Please sign in again");
   const token = await user.getIdToken();

@@ -50,6 +50,7 @@ export function AssetExternalLinksPanel({ assetId, onChanged }: { assetId: strin
   useEffect(() => { void load(); }, [load]);
 
   const adminFetch = useCallback(async (path: string, init: RequestInit = {}) => {
+    await auth?.authStateReady();
     const user = auth?.currentUser;
     if (!user) throw new Error("Please sign in again before syncing this asset");
     const token = await user.getIdToken();

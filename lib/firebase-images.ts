@@ -182,6 +182,8 @@ export async function uploadImage(
 }
 
 async function imageApiHeaders(): Promise<HeadersInit> {
+  // On direct loads/refreshes, wait for Firebase to restore the persisted session.
+  await auth?.authStateReady();
   const token = await auth?.currentUser?.getIdToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }

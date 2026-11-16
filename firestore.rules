@@ -1114,6 +1114,48 @@ service cloud.firestore {
       allow create: if isAuthenticated() && request.resource.data.odUserId == request.auth.uid;
       allow update: if isHarnessAdmin();
     }
+    // Admin-managed site configuration written directly by admin pages
+    // (Book-a-Call, Navigation Manager, Page Designer). Previously unmatched → default-deny.
+    match /meetingTypes/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /navigation_header/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /navigation_footer/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /navigation_animations/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /page_designs/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /page_design_history/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /page_layout_templates/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /page_ai_conversations/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /page_ux_reviews/{id} {
+      allow read, write: if isAdmin();
+    }
+    // Revenue admin (bundles, coupons, carts, settings) — only used by /portal/admin/revenue.
+    match /courseBundles/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /coupons/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /shoppingCarts/{id} {
+      allow read, write: if isAdmin();
+    }
+    match /revenueSettings/{id} {
+      allow read, write: if isAdmin();
+    }
     match /interviewAttachmentFiles/{id} {
       allow read: if isAdmin();
       allow write: if false;

@@ -143,6 +143,7 @@ export function AssetIntegrationsPanel({ onInventoryChanged }: { onInventoryChan
   const [lastResult, setLastResult] = useState<{ provider: ProviderKey; action: string; result: ActionResult } | null>(null);
 
   const adminFetch = useCallback(async (path: string, init: RequestInit = {}) => {
+    await auth?.authStateReady();
     const user = auth?.currentUser;
     if (!user) throw new Error("Please sign in again before managing integrations");
     const token = await user.getIdToken();

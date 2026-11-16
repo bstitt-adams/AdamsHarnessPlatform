@@ -22,6 +22,7 @@ const OUTCOME_STYLES: Record<VehicleInspectionDoc["outcome"], { label: string; c
 };
 
 async function authHeaders(): Promise<HeadersInit> {
+  await auth?.authStateReady();
   const token = await auth?.currentUser?.getIdToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }

@@ -45,3 +45,7 @@ next-env.d.ts
 .env*
 hermes-workspace/
 .next-verify/
+
+# Admin CRUD / Playwright test output (contains test admin credentials)
+test-results/
+playwright-report/

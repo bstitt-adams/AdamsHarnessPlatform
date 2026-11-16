@@ -39,6 +39,7 @@ const STATUS_COLORS: Record<SafetyRequestStatus, string> = {
 };
 
 async function authHeaders(): Promise<HeadersInit> {
+  await auth?.authStateReady();
   const token = await auth?.currentUser?.getIdToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }

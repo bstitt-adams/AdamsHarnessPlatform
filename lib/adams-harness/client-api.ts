@@ -6,6 +6,8 @@ export async function adamsFetch(
   path: string,
   init: RequestInit = {},
 ): Promise<Response> {
+  // On direct loads/refreshes, wait for Firebase to restore the persisted session.
+  await auth?.authStateReady();
   const user = auth?.currentUser;
   if (!user) {
     throw new Error("Not signed in");

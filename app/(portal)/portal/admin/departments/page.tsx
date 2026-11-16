@@ -90,7 +90,7 @@ function MemberPicker({
       <Label>{label}</Label>
       <ScrollArea className="h-40 rounded-md border p-3">
         <div className="space-y-2">
-          {members.map((m) => (
+          {(members || []).map((m) => (
             <label key={m.id} className="flex items-center gap-2 text-sm">
               <Checkbox
                 checked={selected.includes(m.id)}
@@ -149,8 +149,8 @@ export default function DepartmentsAdminPage() {
           "/api/adams-harness/team-members",
         ),
       ]);
-      setDepartments(deptData.departments);
-      setTeamMembers(memberData.teamMembers);
+      setDepartments(deptData.departments || []);
+      setTeamMembers(memberData.teamMembers || []);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Failed to load departments");
     } finally {
@@ -182,8 +182,8 @@ export default function DepartmentsAdminPage() {
       name: dept.name,
       code: dept.code,
       description: dept.description,
-      ownerIds: dept.ownerIds,
-      memberIds: dept.memberIds,
+      ownerIds: dept.ownerIds || [],
+      memberIds: dept.memberIds || [],
       isActive: dept.isActive,
     });
     setDialogOpen(true);
@@ -298,10 +298,10 @@ export default function DepartmentsAdminPage() {
                       <Badge variant="outline">{dept.code}</Badge>
                     </TableCell>
                     <TableCell className="text-sm">
-                      {dept.ownerIds.map(memberLabel).join(", ") || "-"}
+                      {(dept.ownerIds || []).map(memberLabel).join(", ") || "-"}
                     </TableCell>
                     <TableCell className="text-sm">
-                      {dept.memberIds.map(memberLabel).join(", ") || "-"}
+                      {(dept.memberIds || []).map(memberLabel).join(", ") || "-"}
                     </TableCell>
                     <TableCell>
                       <Badge variant={dept.isActive ? "default" : "secondary"}>
