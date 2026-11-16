@@ -15,6 +15,9 @@ import {
 } from "firebase/firestore";
 import { COLLECTIONS, type EventDoc, type EventRegistration } from "@/lib/schema";
 import { LMS_COLLECTIONS, type CoursePurchaseDoc } from "@/lib/firebase-lms";
+import { adminDb } from "@/lib/firebase-admin";
+import { Timestamp as AdminTimestamp } from "firebase-admin/firestore";
+import { enrollUser } from "@/lib/academy/server";
 import Stripe from "stripe";
 
 export async function POST(request: NextRequest) {
@@ -268,7 +271,8 @@ async function handleRefund(charge: Stripe.Charge) {
 // ============================================================================
 
 async function handleCourseCheckoutCompleted(session: Stripe.Checkout.Session) {
-  if (!db) return;
+  // Admin SDK: the browser SDK has no auth context in a webhook and is denied by rules.
+  if (!adminDb) return;
 
   const userId = session.metadata?.userId;
   const courseIds = session.metadata?.courseIds?.split(",") || [];
@@ -281,44 +285,23 @@ async function handleCourseCheckoutCompleted(session: Stripe.Checkout.Session) {
 
   // Update all purchase records
   for (const purchaseId of purchaseIds) {
-    const purchaseRef = doc(db, LMS_COLLECTIONS.COURSE_PURCHASES, purchaseId);
-    const purchaseSnap = await getDoc(purchaseRef);
+    const purchaseRef = adminDb.collection(LMS_COLLECTIONS.COURSE_PURCHASES).doc(purchaseId);
+    const purchaseSnap = await purchaseRef.get();
 
-    if (!purchaseSnap.exists()) {
+    if (!purchaseSnap.exists) {
       console.error("Purchase not found:", purchaseId);
       continue;
     }
 
     const purchase = purchaseSnap.data() as CoursePurchaseDoc;
 
-    // Update purchase status
-    await updateDoc(purchaseRef, {
+    await purchaseRef.update({
       paymentStatus: "paid",
       stripePaymentIntentId: session.payment_intent,
-      purchasedAt: Timestamp.now(),
+      purchasedAt: AdminTimestamp.now(),
     });
 
-    // Create enrollment for this course
-    const enrollmentData = {
-      id: "",
-      userId: purchase.odUserId,
-      courseId: purchase.courseId,
-      enrolledAt: Timestamp.now(),
-      completedAt: null,
-      progressPercentage: 0,
-      lastAccessedAt: null,
-      certificateIssuedAt: null,
-      certificateId: null,
-      purchaseId: purchaseId,
-    };
-
-    await addDoc(collection(db, LMS_COLLECTIONS.ENROLLMENTS), enrollmentData);
-
-    // Increment course enrollment count
-    const courseRef = doc(db, LMS_COLLECTIONS.COURSES, purchase.courseId);
-    await updateDoc(courseRef, {
-      enrollmentCount: increment(1),
-    });
+    await enrollUser({ uid: purchase.odUserId, courseId: purchase.courseId, source: "purchase", purchaseId });
 
     console.log(`Enrollment created for course ${purchase.courseId}, user ${purchase.odUserId}`);
   }

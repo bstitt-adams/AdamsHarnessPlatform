@@ -1069,25 +1069,23 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isHarnessAdmin();
     }
+    // LMS student records: students may READ their own; all writes go through
+    // /api/academy (Admin SDK) so enrolment, progress, grades and certificates can't be forged.
     match /lms_enrollments/{id} {
       allow read: if isHarnessAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
-      allow create: if isHarnessAdmin() || (isAuthenticated() && request.resource.data.userId == request.auth.uid);
-      allow update: if isHarnessAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid && request.resource.data.userId == request.auth.uid);
-      allow delete: if isHarnessAdmin() || (isAuthenticated() && resource.data.userId == request.auth.uid);
+      allow write: if isHarnessAdmin();
     }
     match /lms_lesson_progress/{id} {
       allow read: if isHarnessAdmin() || (isAuthenticated() && resource.data.odUserId == request.auth.uid);
-      allow create, update: if isHarnessAdmin() || (isAuthenticated() && request.resource.data.odUserId == request.auth.uid);
-      allow delete: if isHarnessAdmin() || (isAuthenticated() && resource.data.odUserId == request.auth.uid);
+      allow write: if isHarnessAdmin();
     }
     match /lms_quiz_attempts/{id} {
       allow read: if isHarnessAdmin() || (isAuthenticated() && resource.data.odUserId == request.auth.uid);
-      allow create, update: if isHarnessAdmin() || (isAuthenticated() && request.resource.data.odUserId == request.auth.uid);
+      allow write: if isHarnessAdmin();
     }
     match /lms_certificates/{id} {
       allow read: if isHarnessAdmin() || (isAuthenticated() && resource.data.odUserId == request.auth.uid);
-      allow create: if isHarnessAdmin() || (isAuthenticated() && request.resource.data.odUserId == request.auth.uid);
-      allow update: if isHarnessAdmin();
+      allow create, update: if isHarnessAdmin();
     }
     match /lms_settings/{id} {
       allow read: if isAuthenticated();

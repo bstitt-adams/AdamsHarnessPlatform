@@ -22,6 +22,7 @@ import {
   increment,
   writeBatch,
   onSnapshot,
+  getCountFromServer,
   DocumentReference,
 } from "firebase/firestore";
 import { db } from "./firebase";
@@ -1455,28 +1456,21 @@ export async function getAcademyStats(): Promise<{
 }> {
   if (!db) throw new Error("Firebase not initialized");
 
-  const [coursesSnap, workshopsSnap] = await Promise.all([
-    getDocs(collection(db, LMS_COLLECTIONS.COURSES)).catch(() => null),
-    getDocs(collection(db, LMS_COLLECTIONS.WORKSHOPS)).catch(() => null),
+  // Aggregate counts (no lessonCount field is maintained on courses).
+  const count = (name: string) =>
+    getCountFromServer(collection(db!, name)).then((s) => s.data().count).catch((error) => {
+      console.error(`Academy stats: failed to count ${name}`, error);
+      return 0;
+    });
+  const [totalCourses, totalLessons, totalWorkshops, totalEnrollments, totalCertificates] = await Promise.all([
+    count(LMS_COLLECTIONS.COURSES),
+    count(LMS_COLLECTIONS.LESSONS),
+    count(LMS_COLLECTIONS.WORKSHOPS),
+    count(LMS_COLLECTIONS.ENROLLMENTS),
+    count(LMS_COLLECTIONS.CERTIFICATES),
   ]);
 
-  let totalLessons = 0;
-  let totalEnrollments = 0;
-  if (coursesSnap) {
-    coursesSnap.forEach((docSnap) => {
-      const data = docSnap.data();
-      totalLessons += Number(data.lessonCount || data.lessons || 0);
-      totalEnrollments += Number(data.enrollmentCount || 0);
-    });
-  }
-
-  return {
-    totalCourses: coursesSnap ? coursesSnap.size : 0,
-    totalLessons,
-    totalWorkshops: workshopsSnap ? workshopsSnap.size : 0,
-    totalEnrollments,
-    totalCertificates: 0,
-  };
+  return { totalCourses, totalLessons, totalWorkshops, totalEnrollments, totalCertificates };
 }
 
 // ============================================================================

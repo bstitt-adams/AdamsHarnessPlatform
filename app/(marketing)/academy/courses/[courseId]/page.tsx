@@ -7,14 +7,12 @@ import { useUserProfile } from "@/contexts/user-profile-context";
 import { useCourseCart } from "@/contexts/course-cart-context";
 import { 
   getCourse, 
-  getModules, 
-  getLessons,
   getEnrollment,
-  enrollInCourse,
   CourseDoc, 
   CourseModuleDoc, 
   LessonDoc 
 } from "@/lib/firebase-lms";
+import { enrollInCourseApi, getCurrentUid } from "@/lib/academy/student-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -75,14 +73,10 @@ export default function CourseDetailPage() {
 
       setCourse(courseData);
 
-      // Load modules and lessons
-      const modulesData = await getModules(courseId);
-      const modulesWithLessons = await Promise.all(
-        modulesData.map(async (mod) => {
-          const lessons = await getLessons(mod.id);
-          return { ...mod, lessons };
-        })
-      );
+      // Public syllabus (titles only) — lesson content is served only to enrolled students.
+      const outlineRes = await fetch(`/api/public/academy/courses/${encodeURIComponent(courseId)}/outline`);
+      const outline = outlineRes.ok ? ((await outlineRes.json()) as { modules: ModuleWithLessons[] }) : { modules: [] };
+      const modulesWithLessons = outline.modules;
       setModules(modulesWithLessons);
 
       // Expand first module by default
@@ -91,9 +85,9 @@ export default function CourseDetailPage() {
       }
 
       // Check enrollment status
-      if (isAuthenticated && profile.id) {
-        const enrollment = await getEnrollment(profile.id, courseId);
-        setIsEnrolled(!!enrollment);
+      if (isAuthenticated) {
+        const uid = await getCurrentUid();
+        if (uid) setIsEnrolled(!!(await getEnrollment(uid, courseId)));
       }
     } catch (error) {
       console.error("Error loading course:", error);
@@ -108,17 +102,15 @@ export default function CourseDetailPage() {
       return;
     }
 
-    if (!profile.id) return;
-
     setEnrolling(true);
     try {
-      await enrollInCourse(profile.id, courseId);
+      await enrollInCourseApi(courseId);
       setIsEnrolled(true);
       toast.success("Successfully enrolled in course!");
       router.push(`/portal/my-courses/${courseId}`);
     } catch (error) {
       console.error("Error enrolling:", error);
-      toast.error("Failed to enroll in course");
+      toast.error(error instanceof Error ? error.message : "Failed to enroll in course");
     } finally {
       setEnrolling(false);
     }

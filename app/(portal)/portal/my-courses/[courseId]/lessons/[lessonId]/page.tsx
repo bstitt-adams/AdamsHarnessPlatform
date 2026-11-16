@@ -4,23 +4,13 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUserProfile } from "@/contexts/user-profile-context";
-import { 
-  getCourse, 
-  getModules, 
-  getLessons, 
-  getEnrollment,
-  getLesson,
-  CourseDoc, 
-  CourseModuleDoc, 
-  LessonDoc,
-  EnrollmentDoc 
-} from "@/lib/firebase-lms";
-import { 
-  getLessonProgress, 
-  markLessonComplete, 
-  markLessonIncomplete,
-  LessonProgressDoc 
-} from "@/lib/firebase-lms-student";
+import {
+  getStudentCourse,
+  updateLessonProgressApi,
+  type StudentCourseContent,
+  type StudentLesson,
+  type StudentProgress,
+} from "@/lib/academy/student-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,115 +37,83 @@ import ReactMarkdown from "react-markdown";
 import { QuizPlayer } from "@/components/academy/quiz-player";
 import { toast } from "sonner";
 
-interface ModuleWithLessons extends CourseModuleDoc {
-  lessons: LessonDoc[];
-}
+type LessonDoc = StudentLesson;
+type ModuleWithLessons = StudentCourseContent["modules"][number];
 
 export default function LessonViewerPage() {
   const params = useParams();
   const router = useRouter();
-  const { profile, isAuthenticated } = useUserProfile();
+  const { isAuthenticated } = useUserProfile();
   const courseId = params.courseId as string;
   const lessonId = params.lessonId as string;
 
-  const [course, setCourse] = useState<CourseDoc | null>(null);
+  const [course, setCourse] = useState<StudentCourseContent["course"] | null>(null);
   const [lesson, setLesson] = useState<LessonDoc | null>(null);
   const [modules, setModules] = useState<ModuleWithLessons[]>([]);
-  const [enrollment, setEnrollment] = useState<EnrollmentDoc | null>(null);
-  const [progress, setProgress] = useState<LessonProgressDoc | null>(null);
+  const [enrollment, setEnrollment] = useState<StudentCourseContent["enrollment"]>(null);
+  const [progress, setProgress] = useState<StudentProgress | null>(null);
+  const [bestAttempt, setBestAttempt] = useState<{ score: number; passed: boolean } | null>(null);
   const [loading, setLoading] = useState(true);
   const [completing, setCompleting] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated && profile.id && courseId && lessonId) {
+    if (isAuthenticated && courseId && lessonId) {
       loadLessonData();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, profile.id, courseId, lessonId]);
+  }, [isAuthenticated, courseId, lessonId]);
 
   const loadLessonData = async () => {
-    if (!profile.id) return;
-
     setLoading(true);
     try {
-      const [courseData, lessonData, enrollmentData, modulesData] = await Promise.all([
-        getCourse(courseId),
-        getLesson(lessonId),
-        getEnrollment(profile.id, courseId),
-        getModules(courseId),
-      ]);
-
-      if (!courseData || !lessonData) {
+      // Server returns content only to enrolled students; quiz answer keys are stripped.
+      const data = await getStudentCourse(courseId);
+      const currentLesson = data.modules.flatMap((m) => m.lessons).find((l) => l.id === lessonId) || null;
+      if (!currentLesson) {
         router.push(`/portal/my-courses/${courseId}`);
         return;
       }
-
-      setCourse(courseData);
-      setLesson(lessonData);
-      setEnrollment(enrollmentData);
-
-      // Load lessons for each module
-      const modulesWithLessons = await Promise.all(
-        modulesData.map(async (mod) => {
-          const lessons = await getLessons(mod.id);
-          return { ...mod, lessons };
-        })
-      );
-      setModules(modulesWithLessons);
-
-      // Load progress
-      const progressData = await getLessonProgress(profile.id, lessonId);
-      setProgress(progressData);
+      setCourse(data.course);
+      setLesson(currentLesson);
+      setEnrollment(data.enrollment);
+      setModules(data.modules);
+      setProgress(data.progress[lessonId] || null);
+      setBestAttempt(data.bestAttempt[lessonId] || null);
     } catch (error) {
-      console.error("Error loading lesson:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to load lesson");
+      router.push(`/portal/my-courses/${courseId}`);
     } finally {
       setLoading(false);
     }
   };
 
   const handleMarkComplete = async () => {
-    if (!profile.id || !enrollment) return;
-
+    if (!enrollment) return;
     setCompleting(true);
     try {
-      const newProgress = await markLessonComplete({
-        userId: profile.id,
-        lessonId,
-        courseId,
-        enrollmentId: enrollment.id,
-      });
-      setProgress(newProgress);
+      await updateLessonProgressApi(courseId, lessonId, { action: "complete" });
+      setProgress((prev) => ({ ...(prev || { id: "", lessonId }), isCompleted: true, completedAt: new Date().toISOString() }));
       toast.success("Lesson marked as complete!");
-      
-      // Navigate to next lesson
       const nextLesson = getNextLesson();
       if (nextLesson) {
         router.push(`/portal/my-courses/${courseId}/lessons/${nextLesson.id}`);
       }
     } catch (error) {
-      console.error("Error marking complete:", error);
-      toast.error("Failed to mark lesson as complete");
+      toast.error(error instanceof Error ? error.message : "Failed to mark lesson as complete");
     } finally {
       setCompleting(false);
     }
   };
 
   const handleMarkIncomplete = async () => {
-    if (!profile.id || !enrollment) return;
-
+    if (!enrollment) return;
     setCompleting(true);
     try {
-      await markLessonIncomplete({
-        userId: profile.id,
-        lessonId,
-        courseId,
-        enrollmentId: enrollment.id,
-      });
-      setProgress(prev => prev ? { ...prev, isCompleted: false, completedAt: null } : null);
+      await updateLessonProgressApi(courseId, lessonId, { action: "incomplete" });
+      setProgress((prev) => (prev ? { ...prev, isCompleted: false, completedAt: null } : null));
       toast.success("Lesson marked as incomplete");
     } catch (error) {
-      console.error("Error marking incomplete:", error);
-      toast.error("Failed to update lesson status");
+      toast.error(error instanceof Error ? error.message : "Failed to update lesson status");
     } finally {
       setCompleting(false);
     }
@@ -293,9 +251,8 @@ export default function LessonViewerPage() {
                   <QuizPlayer
                     lessonId={lessonId}
                     courseId={courseId}
-                    enrollmentId={enrollment.id}
-                    userId={profile.id}
-                    quizContent={lesson.textContent || ""}
+                    quiz={lesson.quiz}
+                    bestAttempt={bestAttempt}
                     onComplete={() => {
                       setProgress(prev => prev ? { ...prev, isCompleted: true } : null);
                     }}

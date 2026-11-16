@@ -4,17 +4,12 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { useUserProfile } from "@/contexts/user-profile-context";
-import { 
-  getCourse, 
-  getModules, 
-  getLessons, 
-  getEnrollment,
-  CourseDoc, 
-  CourseModuleDoc, 
-  LessonDoc,
-  EnrollmentDoc 
-} from "@/lib/firebase-lms";
-import { getLessonProgress, LessonProgressDoc } from "@/lib/firebase-lms-student";
+import {
+  getStudentCourse,
+  type StudentCourseContent,
+  type StudentLesson,
+  type StudentProgress,
+} from "@/lib/academy/student-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,74 +33,41 @@ import {
   User
 } from "lucide-react";
 
-interface ModuleWithLessons extends CourseModuleDoc {
-  lessons: LessonDoc[];
-  completedLessons: number;
-}
+type LessonDoc = StudentLesson;
+type ModuleWithLessons = StudentCourseContent["modules"][number] & { completedLessons: number };
 
 export default function CoursePlayerPage() {
   const params = useParams();
   const router = useRouter();
-  const { profile, isAuthenticated } = useUserProfile();
+  const { isAuthenticated } = useUserProfile();
   const courseId = params.courseId as string;
 
-  const [course, setCourse] = useState<CourseDoc | null>(null);
+  const [course, setCourse] = useState<StudentCourseContent["course"] | null>(null);
   const [modules, setModules] = useState<ModuleWithLessons[]>([]);
-  const [enrollment, setEnrollment] = useState<EnrollmentDoc | null>(null);
-  const [lessonProgress, setLessonProgress] = useState<Record<string, LessonProgressDoc>>({});
+  const [enrollment, setEnrollment] = useState<StudentCourseContent["enrollment"]>(null);
+  const [lessonProgress, setLessonProgress] = useState<Record<string, StudentProgress>>({});
   const [loading, setLoading] = useState(true);
   const [expandedModules, setExpandedModules] = useState<Set<string>>(new Set());
 
   useEffect(() => {
-    if (isAuthenticated && profile.id && courseId) {
+    if (isAuthenticated && courseId) {
       loadCourseData();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, profile.id, courseId]);
+  }, [isAuthenticated, courseId]);
 
   const loadCourseData = async () => {
-    if (!profile.id) return;
-
     setLoading(true);
     try {
-      // Load course, enrollment, and modules in parallel
-      const [courseData, enrollmentData, modulesData] = await Promise.all([
-        getCourse(courseId),
-        getEnrollment(profile.id, courseId),
-        getModules(courseId),
-      ]);
-
-      if (!courseData) {
-        router.push("/portal/my-courses");
-        return;
-      }
-
-      setCourse(courseData);
-      setEnrollment(enrollmentData);
-
-      // Load lessons for each module
-      const modulesWithLessons = await Promise.all(
-        modulesData.map(async (mod) => {
-          const lessons = await getLessons(mod.id);
-          return { ...mod, lessons, completedLessons: 0 };
-        })
-      );
-
-      // Load progress for all lessons
-      if (enrollmentData) {
-        const progressMap: Record<string, LessonProgressDoc> = {};
-        for (const mod of modulesWithLessons) {
-          for (const lesson of mod.lessons) {
-            const progress = await getLessonProgress(profile.id, lesson.id);
-            if (progress) {
-              progressMap[lesson.id] = progress;
-            }
-          }
-          // Count completed lessons
-          mod.completedLessons = mod.lessons.filter(l => progressMap[l.id]?.isCompleted).length;
-        }
-        setLessonProgress(progressMap);
-      }
+      // One server call: enrolment-checked outline, lessons and this student's progress.
+      const data = await getStudentCourse(courseId);
+      setCourse(data.course);
+      setEnrollment(data.enrollment);
+      setLessonProgress(data.progress);
+      const modulesWithLessons: ModuleWithLessons[] = data.modules.map((mod) => ({
+        ...mod,
+        completedLessons: mod.lessons.filter((l) => data.progress[l.id]?.isCompleted).length,
+      }));
 
       setModules(modulesWithLessons);
 
@@ -118,6 +80,7 @@ export default function CoursePlayerPage() {
       }
     } catch (error) {
       console.error("Error loading course:", error);
+      router.push("/portal/my-courses");
     } finally {
       setLoading(false);
     }

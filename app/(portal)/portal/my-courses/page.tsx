@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useUserProfile } from "@/contexts/user-profile-context";
 import { getUserEnrollments, getCourse, EnrollmentDoc, CourseDoc } from "@/lib/firebase-lms";
+import { getCurrentUid } from "@/lib/academy/student-api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -31,18 +32,19 @@ export default function MyCoursesPage() {
   const [activeTab, setActiveTab] = useState("all");
 
   useEffect(() => {
-    if (isAuthenticated && profile.id) {
+    if (isAuthenticated) {
       loadEnrollments();
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated, profile.id]);
+  }, [isAuthenticated]);
 
   const loadEnrollments = async () => {
-    if (!profile.id) return;
-    
     setLoading(true);
     try {
-      const userEnrollments = await getUserEnrollments(profile.id);
+      // LMS student id is the Firebase Auth uid (matches assignments, purchases and rules).
+      const uid = await getCurrentUid();
+      if (!uid) return;
+      const userEnrollments = await getUserEnrollments(uid);
       
       // Fetch course details for each enrollment
       const enrolledCourses = await Promise.all(

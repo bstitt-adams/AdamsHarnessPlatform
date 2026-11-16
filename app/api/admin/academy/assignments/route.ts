@@ -3,8 +3,9 @@ import { ApiAuthError, authErrorResponse, requireAdmin } from "@/lib/auth/server
 import { adminDb } from "@/lib/firebase-admin";
 import { httpErrorResponse } from "@/lib/adams-harness/server-store";
 import { COLLECTIONS, type TeamMemberDoc } from "@/lib/schema";
-import { FieldValue, Timestamp } from "firebase-admin/firestore";
+import { FieldValue } from "firebase-admin/firestore";
 import { z } from "zod";
+import { enrollUser } from "@/lib/academy/server";
 
 const assignmentSchema = z.object({
   courseId: z.string().min(1),
@@ -12,7 +13,6 @@ const assignmentSchema = z.object({
   dueDate: z.string().optional(),
 });
 
-const LMS_ENROLLMENTS = "lms_enrollments";
 const LMS_COURSES = "lms_courses";
 const LMS_ASSIGNMENTS = "lms_assignments";
 
@@ -55,7 +55,6 @@ export async function POST(request: NextRequest) {
 
     const results: { teamMemberId: string; status: string }[] = [];
     const batch = adminDb.batch();
-    const now = Timestamp.now();
 
     for (const teamMemberId of [...new Set(teamMemberIds)]) {
       const memberSnap = await adminDb.collection(COLLECTIONS.TEAM_MEMBERS).doc(teamMemberId).get();
@@ -69,31 +68,19 @@ export async function POST(request: NextRequest) {
         continue;
       }
 
-      const existing = await adminDb
-        .collection(LMS_ENROLLMENTS)
-        .where("userId", "==", member.firebaseUid)
-        .where("courseId", "==", courseId)
-        .limit(1)
-        .get();
-      if (!existing.empty) {
-        results.push({ teamMemberId, status: "already_enrolled" });
-        continue;
-      }
-
-      const enrollmentRef = adminDb.collection(LMS_ENROLLMENTS).doc();
-      batch.set(enrollmentRef, {
-        id: enrollmentRef.id,
-        userId: member.firebaseUid,
+      const enrollment = await enrollUser({
+        uid: member.firebaseUid,
+        teamMemberId,
         courseId,
-        enrolledAt: now,
-        completedAt: null,
-        progressPercentage: 0,
-        lastAccessedAt: null,
-        certificateIssuedAt: null,
-        certificateId: null,
+        source: "assignment",
         assignedBy: actor.email,
         ...(dueDate ? { dueDate } : {}),
       });
+      if (!enrollment.created) {
+        results.push({ teamMemberId, status: "already_enrolled" });
+        continue;
+      }
+      const enrollmentRef = { id: enrollment.id };
 
       const assignmentRef = adminDb.collection(LMS_ASSIGNMENTS).doc();
       batch.set(assignmentRef, {
