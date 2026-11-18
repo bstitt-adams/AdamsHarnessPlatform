@@ -73,15 +73,25 @@ export async function POST(request: NextRequest) {
     if (!Number.isSafeInteger(update.update_id) || update.update_id! < 0) {
       return NextResponse.json({ success: false, error: "Invalid update ID" }, { status: 400 });
     }
-    try {
-      const reply = await handleTelegramPlatformMessage(telegramConfig, { updateId: update.update_id!, userId: fromUserId, chatId, text });
-      for (let offset = 0; offset < reply.length; offset += 3500) {
-        await sendTelegramMessage(chatId, reply.slice(offset, offset + 3500), { plainText: true });
+    // Acknowledge fast and process in the background: interpretation plus the
+    // reply-voicing pass can exceed Telegram's webhook patience, and retries
+    // during a slow turn would otherwise hit the idempotency receipt.
+    void (async () => {
+      try {
+        const reply = await handleTelegramPlatformMessage(telegramConfig, { updateId: update.update_id!, userId: fromUserId, chatId, text });
+        for (let offset = 0; offset < reply.length; offset += 3500) {
+          await sendTelegramMessage(chatId, reply.slice(offset, offset + 3500), { plainText: true });
+        }
+      } catch (error) {
+        console.error("Telegram platform message failed", { updateId: update.update_id, errorType: error instanceof Error ? error.name : "unknown" });
+        try {
+          await sendTelegramMessage(chatId, "That request could not be completed. Nothing was changed.");
+        } catch {
+          // ignore reply errors
+        }
       }
-      return NextResponse.json({ success: true });
-    } catch {
-      return NextResponse.json({ success: false, error: "Platform account authorization failed" }, { status: 403 });
-    }
+    })();
+    return NextResponse.json({ success: true });
   }
 
   try {
