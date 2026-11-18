@@ -156,8 +156,9 @@ function stripFencedJson(content: string): string {
 
 export async function requestHermesStructured<T>(
   input: HermesStructuredRequest<T>,
+  resolvedConfig?: HermesResolvedConfig,
 ): Promise<{ data: T; model: string }> {
-  const config = await resolveHermesConfig();
+  const config = resolvedConfig ?? await resolveHermesConfig();
   if (!config) {
     throw new HermesError(
       "not_configured",

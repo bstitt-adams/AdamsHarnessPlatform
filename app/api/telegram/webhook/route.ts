@@ -11,11 +11,15 @@ import { handleMailCommand } from "@/lib/mail/command-handler";
 import { sendTelegramMessage, resolveTelegramConfig } from "@/lib/mail/telegram-bot";
 import { requestHermesStructured } from "@/lib/hermes/client";
 import { queryAnyActiveBrain } from "@/lib/adams-brain/retrieval";
+import { handleTelegramPlatformMessage } from "@/lib/telegram-platform";
+import { telegramUpdateSchema, validWebhookSecret } from "@/lib/telegram-platform-policy";
+import { isRateLimited } from "@/lib/adams-harness/rate-limit";
 
 interface TelegramUpdate {
+  update_id?: number;
   message?: {
     from?: { id: number; username?: string; first_name?: string; last_name?: string };
-    chat: { id: number; username?: string };
+    chat: { id: number; username?: string; type?: string };
     text?: string;
   };
 }
@@ -32,14 +36,17 @@ export async function POST(request: NextRequest) {
   }
 
   const secretHeader = request.headers.get("x-telegram-bot-api-secret-token") || "";
-  if (telegramConfig.webhookSecret && secretHeader && secretHeader !== telegramConfig.webhookSecret) {
+  if (!validWebhookSecret(telegramConfig.webhookSecret, secretHeader)) {
     return NextResponse.json({ success: false, error: "Invalid webhook secret" }, { status: 401 });
   }
 
   const rawBody = await request.text();
+  if (rawBody.length > 32000) {
+    return NextResponse.json({ success: false, error: "Update too large" }, { status: 413 });
+  }
   let update: TelegramUpdate;
   try {
-    update = JSON.parse(rawBody);
+    update = telegramUpdateSchema.parse(JSON.parse(rawBody));
   } catch {
     return NextResponse.json({ success: false, error: "Invalid JSON" }, { status: 400 });
   }
@@ -49,10 +56,33 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
+  if (!Number.isSafeInteger(message.chat?.id) || !Number.isSafeInteger(message.from?.id)) {
+    return NextResponse.json({ success: false, error: "Invalid sender" }, { status: 400 });
+  }
   const chatId = message.chat.id.toString();
-  const fromUserId = message.from?.id ? message.from.id.toString() : chatId;
+  const fromUserId = message.from!.id.toString();
   const fromUsername = (message.from?.username || message.chat.username || "").replace(/^@/, "").toLowerCase();
   const text = message.text.trim();
+  if (isRateLimited(`telegram-message:${fromUserId}`, 20, 60_000)) {
+    return NextResponse.json({ success: false, error: "Too many requests" }, { status: 429 });
+  }
+  if (telegramConfig.platformDataEnabled) {
+    if (message.chat.type !== "private" || chatId !== fromUserId || fromUserId !== telegramConfig.platformAdminTelegramUserId) {
+      return NextResponse.json({ success: true });
+    }
+    if (!Number.isSafeInteger(update.update_id) || update.update_id! < 0) {
+      return NextResponse.json({ success: false, error: "Invalid update ID" }, { status: 400 });
+    }
+    try {
+      const reply = await handleTelegramPlatformMessage(telegramConfig, { updateId: update.update_id!, userId: fromUserId, chatId, text });
+      for (let offset = 0; offset < reply.length; offset += 3500) {
+        await sendTelegramMessage(chatId, reply.slice(offset, offset + 3500), { plainText: true });
+      }
+      return NextResponse.json({ success: true });
+    } catch {
+      return NextResponse.json({ success: false, error: "Platform account authorization failed" }, { status: 403 });
+    }
+  }
 
   try {
     if (!adminDb) {
@@ -63,27 +93,11 @@ export async function POST(request: NextRequest) {
     const channelsRef = adminDb.collection(COLLECTIONS.USER_CHAT_CHANNELS);
     const allChannelsSnap = await channelsRef.get();
 
-    let matchedDoc: FirebaseFirestore.DocumentSnapshot | undefined = allChannelsSnap.docs.find((docSnap) => {
+    const matchedDoc = allChannelsSnap.docs.find((docSnap) => {
       const data = docSnap.data();
-      if (data.isActive === false) return false;
-      if (data.telegramChatId && String(data.telegramChatId) === chatId) return true;
-      if (data.telegramUserId && String(data.telegramUserId) === fromUserId) return true;
-      if (fromUsername && data.telegramUsername && String(data.telegramUsername).replace(/^@/, "").toLowerCase() === fromUsername) {
-        return true;
-      }
-      return false;
+      return data.isActive !== false && message.chat.type === "private" && chatId === fromUserId &&
+        String(data.telegramUserId || "") === fromUserId;
     });
-
-    if (!matchedDoc && text.toLowerCase().startsWith("/start")) {
-      const args = text.split(/\s+/).slice(1);
-      const linkKey = args[0]?.trim();
-      if (linkKey) {
-        const directSnap = await channelsRef.doc(linkKey).get();
-        if (directSnap.exists) {
-          matchedDoc = directSnap;
-        }
-      }
-    }
 
     if (!matchedDoc) {
       await sendTelegramMessage(

@@ -1524,6 +1524,8 @@ export interface PlatformSettingsDoc {
   };
   // Telegram bot configuration managed by the Admin portal
   telegram?: {
+    platformDataEnabled?: boolean;
+    platformAdminTelegramUserId?: string;
     enabled?: boolean;
     botToken?: string;
     webhookSecret?: string;

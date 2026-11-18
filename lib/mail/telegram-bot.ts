@@ -12,6 +12,9 @@ export interface TelegramConfig {
   webhookSecret?: string;
   webhookUrl?: string;
   botUsername?: string;
+  platformDataEnabled?: boolean;
+  platformAdminUid?: string;
+  platformAdminTelegramUserId?: string;
 }
 
 export function getTelegramBotToken(): string | null {
@@ -32,7 +35,7 @@ export async function resolveTelegramConfig(): Promise<TelegramConfig> {
   return { enabled: Boolean(envToken), botToken: envToken || undefined };
 }
 
-export async function sendTelegramMessage(chatId: string | number, text: string): Promise<void> {
+export async function sendTelegramMessage(chatId: string | number, text: string, options?: { plainText?: boolean }): Promise<void> {
   const config = await resolveTelegramConfig();
   const token = config.botToken;
   if (!token || config.enabled === false) {
@@ -45,7 +48,8 @@ export async function sendTelegramMessage(chatId: string | number, text: string)
     body: JSON.stringify({
       chat_id: chatId,
       text,
-      parse_mode: "HTML",
+      ...(options?.plainText ? {} : { parse_mode: "HTML" }),
+      link_preview_options: { is_disabled: true },
     }),
   });
 

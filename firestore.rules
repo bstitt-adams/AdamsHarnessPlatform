@@ -947,6 +947,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /telegramPlatformCommands/{id} { allow read: if isHarnessAdmin(); allow write: if false; }
+    match /telegramPlatformEvents/{id} { allow read: if isHarnessAdmin(); allow write: if false; }
+    match /telegramPlatformUpdates/{id} { allow read: if isHarnessAdmin(); allow write: if false; }
+
     match /adamsBrains/{brainId} {
       allow read, write: if false;
     }
@@ -970,6 +974,7 @@ service cloud.firestore {
       allow read, create, update: if isAuthenticated();
       allow delete: if isHarnessAdmin();
     }
+    match /proposals/{id} { allow read, write: if isAuthenticated(); }
     match /docusealSubmissions/{id} { allow read, write: if isHarnessAdmin(); }
     match /docusealTemplates/{id} { allow read, write: if isHarnessAdmin(); }
     match /eventRegistrations/{id} {

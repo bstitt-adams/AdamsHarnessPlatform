@@ -100,6 +100,48 @@ knowledge:
 The app runs **1 replica** on purpose — one Telegram poller, one cron scheduler.
 Do not scale out.
 
+## Private admin platform access (read + confirmed writes)
+
+Separate from Hermes long-polling, the bot can be switched to the platform's
+webhook so Telegram becomes a permission-checked interface to live Firestore
+data — every module in the portal sidebar.
+
+- **Routing:** the bot uses the platform webhook (`/api/telegram/webhook`) with
+  a mandatory `webhookSecret`. Disable Hermes' poller for that token first —
+  polling and a webhook cannot coexist on one bot.
+- **Identity:** Portal → Settings → Integrations → Telegram →
+  **Private admin platform access** + your numeric Telegram user ID. The bot is
+  bound to the signed-in admin's platform account; only private chats where the
+  sender ID equals the chat ID are served.
+- **Interpretation:** natural language goes through a dedicated Hermes profile
+  (`platformdata`) with **all API toolsets disabled** — it can only propose a
+  classified intent. The platform validates module, record ID, fields and
+  ownership itself; AI output can never write directly.
+- **Reads:** allowlisted fields only; secrets, keys, contact details, file
+  paths, answer keys and artifact paths are never projected. Queries are
+  bounded (≤50 scanned, ≤10 shown, paged by `afterId`).
+- **Writes:** create/update produce a proposal; nothing saves until you reply
+  `/confirm <nonce>` within 10 minutes. `/cancel <nonce>` discards it.
+  Confirmations are single-use, expire, and re-check your role, binding, and
+  the record's version inside one transaction. Audit trail lives in
+  `telegramPlatformEvents` (and `telegramPlatformCommands` /
+  `telegramPlatformUpdates`).
+- **Scope limits:** no deletes, no purchases, no backups/restores, no sends,
+  no grades/certificates, no secrets or role changes. Generated-module writes
+  go through the same form-schema validation, photo-evidence resolution,
+  assignment derivation and record workflows as the UI.
+- **Not connected:** Proposal Creator (proposals live in browser memory),
+  Order Tracking (Coming Soon page), System Documentation (static content) —
+  the bot says so instead of inventing data.
+
+Hermes env for the interpreter (Azure `hermes` container and local Docker):
+the `platformdata` profile is created once with
+`hermes -p platformdata profile create ... --no-skills`, all
+`platform_toolsets.api_server` disabled, and its own `API_SERVER_KEY` +
+`ANTHROPIC_API_KEY` (values copied from the default profile's env — never
+committed). The web app reaches it at `<hermesApiRoot>/p/platformdata/v1`;
+`TELEGRAM_PLATFORM_INTERPRETER_URL` / `_API_KEY` can override if needed.
+
 ## Troubleshooting
 
 | Symptom | Cause / fix |

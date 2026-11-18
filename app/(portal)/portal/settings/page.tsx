@@ -157,6 +157,8 @@ function SettingsPageContent() {
     botToken: "",
     webhookSecret: "",
     webhookUrl: "",
+    platformDataEnabled: false,
+    platformAdminTelegramUserId: "",
   });
   const [teamsConfig, setTeamsConfig] = useState({
     enabled: true,
@@ -314,6 +316,8 @@ function SettingsPageContent() {
               ...prev,
               enabled: data.telegram?.enabled !== false,
               webhookUrl: data.telegram?.webhookUrl || "",
+              platformDataEnabled: data.telegram?.platformDataEnabled === true,
+              platformAdminTelegramUserId: data.telegram?.platformAdminTelegramUserId || "",
             }));
           }
           if (data.teams) {
@@ -994,6 +998,15 @@ function SettingsPageContent() {
               <div className="flex items-center justify-between rounded-lg border p-4">
                 <div><Label htmlFor="telegramEnabled">Enable Telegram</Label><p className="text-sm text-muted-foreground">Allow Telegram commands and notifications through the Adams assistant.</p></div>
                 <Switch id="telegramEnabled" checked={telegramConfig.enabled} onCheckedChange={(enabled) => { setTelegramConfig({ ...telegramConfig, enabled }); setHasChanges(true); }} />
+              </div>
+              <div className="rounded-lg border p-4 space-y-3">
+                <div className="flex items-center justify-between gap-4">
+                  <div><Label htmlFor="telegramPlatformData">Private admin platform access</Label><p className="text-sm text-muted-foreground">Link this bot to your currently signed-in admin account. Reads are scoped; supported changes require a separate confirmation.</p></div>
+                  <Switch id="telegramPlatformData" checked={telegramConfig.platformDataEnabled} onCheckedChange={(platformDataEnabled) => { setTelegramConfig({ ...telegramConfig, platformDataEnabled }); setHasChanges(true); }} />
+                </div>
+                <Label htmlFor="telegramAdminUserId">Your numeric Telegram user ID</Label>
+                <Input id="telegramAdminUserId" value={telegramConfig.platformAdminTelegramUserId} onChange={(e) => { setTelegramConfig({ ...telegramConfig, platformAdminTelegramUserId: e.target.value }); setHasChanges(true); }} placeholder="Numeric user ID, not a username or bot ID" />
+                <p className="text-xs text-muted-foreground">Before configuring this bot, disable its Hermes Telegram poller on Azure. A bot cannot use polling and a webhook together. Platform access works only in your private chat; /modules lists available data and supported changes.</p>
               </div>
               <div className="space-y-2"><Label htmlFor="telegramBotToken">Bot token</Label><Input id="telegramBotToken" type={showKeys.telegram ? "text" : "password"} value={telegramConfig.botToken} onChange={(e) => { setTelegramConfig({ ...telegramConfig, botToken: e.target.value }); setHasChanges(true); }} placeholder="123456789:AA..." /><p className="text-xs text-muted-foreground">Get this token from BotFather. It stays server-side and is never returned by the configuration endpoint.</p></div>
               <div className="space-y-2"><Label htmlFor="telegramWebhookSecret">Webhook secret (optional)</Label><Input id="telegramWebhookSecret" type="password" value={telegramConfig.webhookSecret} onChange={(e) => { setTelegramConfig({ ...telegramConfig, webhookSecret: e.target.value }); setHasChanges(true); }} placeholder="A random secret token" /></div>

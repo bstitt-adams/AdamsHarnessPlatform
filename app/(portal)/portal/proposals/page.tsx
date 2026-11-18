@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { collection, deleteDoc, doc, getDocs, orderBy, query, setDoc, Timestamp } from "firebase/firestore";
+import { auth, db } from "@/lib/firebase";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -62,6 +64,30 @@ export default function ProposalsPage() {
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const [showViewer, setShowViewer] = useState(false);
 
+  useEffect(() => {
+    if (!db) return;
+    getDocs(query(collection(db, "proposals"), orderBy("createdAt", "desc")))
+      .then((snap) => {
+        setProposals(snap.docs.map((d) => {
+          const data = d.data() as Record<string, unknown>;
+          const asDate = (v: unknown) => (v && typeof v === "object" && "toDate" in v ? (v as Timestamp).toDate() : v) as Date;
+          return { ...data, id: d.id, createdAt: asDate(data.createdAt), updatedAt: asDate(data.updatedAt) } as Proposal;
+        }));
+      })
+      .catch(() => toast.error("Failed to load proposals"));
+  }, []);
+
+  const persistProposal = (p: Proposal) => {
+    if (!db) return;
+    const { createdAt, updatedAt, ...rest } = p;
+    void setDoc(doc(db, "proposals", p.id), {
+      ...rest,
+      createdAt: createdAt instanceof Date ? Timestamp.fromDate(createdAt) : Timestamp.now(),
+      updatedAt: Timestamp.now(),
+      ownerUid: auth?.currentUser?.uid || null,
+    }).catch(() => toast.error("Failed to save proposal"));
+  };
+
   const startNewProposal = () => {
     setShowWizard(true);
   };
@@ -74,12 +100,14 @@ export default function ProposalsPage() {
   const handleSaveProposal = (updated: Proposal) => {
     setProposals((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
     setSelectedProposal(updated);
+    persistProposal(updated);
   };
 
   const handleDeleteProposal = (id: string) => {
     setProposals((prev) => prev.filter((p) => p.id !== id));
     setSelectedProposal(null);
     setShowViewer(false);
+    if (db) void deleteDoc(doc(db, "proposals", id)).catch(() => toast.error("Failed to delete proposal"));
   };
 
   const downloadProposal = (proposal: Proposal) => {
@@ -142,6 +170,7 @@ export default function ProposalsPage() {
       updatedAt: new Date(),
     } as Proposal;
     setProposals((prev) => [newProposal, ...prev]);
+    persistProposal(newProposal);
     toast.success("Document created successfully!");
   };
 
@@ -323,6 +352,7 @@ export default function ProposalsPage() {
             updatedAt: new Date(),
           } as Proposal;
           setProposals((prev) => [newProposal, ...prev]);
+          persistProposal(newProposal);
         }}
       />
 
