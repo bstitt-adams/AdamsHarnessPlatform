@@ -1,0 +1,14 @@
+import { chromium } from "@playwright/test";
+const url = "https://adams-platform.delightfulground-f63f4c08.eastus2.azurecontainerapps.io/worker/welKYpz66NwvonV3_e0XECZTa6L_884a";
+const browser = await chromium.launch();
+const page = await browser.newPage();
+const errors = [];
+page.on("console", (m) => { if (m.type() === "error") errors.push(m.text()); });
+page.on("pageerror", (e) => errors.push("PAGEERROR: " + e.message));
+const resp = await page.goto(url, { waitUntil: "networkidle", timeout: 60000 }).catch(e => { errors.push("NAV: " + e.message); return null; });
+console.log("HTTP:", resp?.status());
+await page.waitForTimeout(3000);
+const text = await page.locator("body").innerText().catch(() => "(no body)");
+console.log("=== BODY TEXT ===\n" + text.slice(0, 1500));
+console.log("=== CONSOLE ERRORS ===\n" + errors.slice(0, 10).join("\n"));
+await browser.close();

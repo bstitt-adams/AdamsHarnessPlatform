@@ -1,0 +1,14 @@
+import { config } from "dotenv";
+config({ path: ".env.local" });
+import { cert, initializeApp } from "firebase-admin/app";
+import { getFirestore } from "firebase-admin/firestore";
+const key = process.env.FIREBASE_PRIVATE_KEY?.replace(/\n/g, "\n");
+initializeApp({ credential: cert({ projectId: process.env.FIREBASE_PROJECT_ID, clientEmail: process.env.FIREBASE_CLIENT_EMAIL, privateKey: key }) });
+const db = getFirestore();
+const snap = await db.collection("platformSettings").doc("global").get();
+const h = snap.data()?.hermes;
+console.log("stored hermes settings:", JSON.stringify({ mode: h?.mode, localUrl: h?.localUrl, remoteUrl: h?.remoteUrl, model: h?.model, status: h?.status, lastTested: h?.lastTested, buildWorkspace: h?.buildWorkspace }, null, 2));
+const sec = await db.collection("platformSecrets").doc("hermes").get();
+console.log("secret apiKey present:", Boolean(sec.data()?.apiKey));
+console.log("env HERMES_API_URL set:", Boolean(process.env.HERMES_API_URL), "| HERMES_MODEL:", process.env.HERMES_MODEL || "(default)");
+process.exit(0);
