@@ -183,6 +183,8 @@ export async function generateCourseFromSlides(slides: ParsedSlide[], options: I
     messages: [{ role: "user", content: slideText }],
     schema: importedCourseInput,
     temperature: 0.3,
+    timeoutMs: 300_000,
+    maxTokens: 32768,
   });
   return data;
 }

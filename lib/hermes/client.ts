@@ -18,6 +18,8 @@ export type HermesStructuredRequest<T> = {
   messages: { role: "user" | "assistant"; content: string }[];
   schema: z.ZodType<T>;
   temperature?: number;
+  timeoutMs?: number;
+  maxTokens?: number;
 };
 
 export type HermesResolvedConfig = {
@@ -181,9 +183,10 @@ export async function requestHermesStructured<T>(
           ...input.messages,
         ],
         temperature: input.temperature ?? 0.2,
+        ...(input.maxTokens ? { max_tokens: input.maxTokens } : {}),
         response_format: { type: "json_object" },
       }),
-      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+      signal: AbortSignal.timeout(input.timeoutMs ?? REQUEST_TIMEOUT_MS),
     });
   } catch {
     throw new HermesError(
