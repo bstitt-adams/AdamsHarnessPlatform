@@ -5,8 +5,7 @@
  * Usage: npx tsx scripts/safety-import/scan.mts
  * Output: scripts/safety-import/data/manifest.json
  */
-import { writeFileSync, mkdirSync, readFileSync, statSync } from "node:fs";
-import { globSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, statSync, readdirSync } from "node:fs";
 import path from "node:path";
 
 const ROOT = "Z:\\Shared\\Safety (Main Folder)";
@@ -84,7 +83,16 @@ interface ManifestEntry {
   variants: string[]; // all file paths collapsed into this topic
 }
 
-const allFiles = globSync("**/*.ppt*", { cwd: ROOT }).map((f) => path.join(ROOT, f));
+function walk(dir: string, out: string[] = []): string[] {
+  for (const d of readdirSync(dir, { withFileTypes: true })) {
+    const p = path.join(dir, d.name);
+    if (d.isDirectory()) walk(p, out);
+    else if (d.isFile()) out.push(p);
+  }
+  return out;
+}
+
+const allFiles = walk(ROOT);
 const pptFiles = allFiles.filter((f) => /\.pptx?$/i.test(f));
 console.log(`Found ${pptFiles.length} PowerPoint files`);
 

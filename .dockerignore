@@ -12,3 +12,4 @@ coverage
 *.tmp.json
 Dockerfile
 .dockerignore
+scripts/safety-import/data
