@@ -63,6 +63,7 @@
     "googleapis": "^173.0.0",
     "html2pdf.js": "^0.14.0",
     "jspdf": "4.2.1",
+    "jszip": "^3.10.1",
     "lucide-react": "^0.556.0",
     "mammoth": "1.13.0",
     "mermaid": "12.3.0",

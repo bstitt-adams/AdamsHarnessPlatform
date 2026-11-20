@@ -26,7 +26,9 @@ import {
   MoreHorizontal,
   Layers,
   DollarSign,
+  Presentation,
 } from "lucide-react";
+import { PptxImportDialog } from "@/components/academy/pptx-import-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -166,6 +168,7 @@ export default function AcademyAdminPage() {
   const [workshops, setWorkshops] = useState<WorkshopDoc[]>([]);
   const [categories, setCategories] = useState<CategoryDoc[]>([]);
   const [useMockData, setUseMockData] = useState(false);
+  const [showPptxImport, setShowPptxImport] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -277,6 +280,10 @@ export default function AcademyAdminPage() {
               <Eye className="mr-2 h-4 w-4" />
               View Academy
             </Link>
+          </Button>
+          <Button variant="outline" onClick={() => setShowPptxImport(true)}>
+            <Presentation className="mr-2 h-4 w-4" />
+            Import PowerPoint
           </Button>
           <Button asChild>
             <Link href="/portal/admin/academy/courses/new">
@@ -779,6 +786,8 @@ export default function AcademyAdminPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      <PptxImportDialog open={showPptxImport} onOpenChange={setShowPptxImport} />
     </div>
   );
 }

@@ -238,9 +238,13 @@ export async function requestHermesStructured<T>(
 
   const validated = input.schema.safeParse(parsed);
   if (!validated.success) {
+    const detail = validated.error.issues
+      .slice(0, 5)
+      .map((issue) => `${issue.path.join(".") || "(root)"}: ${issue.message}`)
+      .join("; ");
     throw new HermesError(
       "invalid_response",
-      "Hermes response failed schema validation.",
+      `Hermes response failed schema validation. ${detail}`,
     );
   }
 
