@@ -50,3 +50,4 @@ hermes-workspace/
 test-results/
 playwright-report/
 scripts/safety-import/data/
+scripts/migrate/data/

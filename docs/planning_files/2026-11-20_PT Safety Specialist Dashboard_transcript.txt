@@ -1,0 +1,1130 @@
+Meeting transcript
+PT Safety Specialist Dashboard
+Nov 20, 2026 • 1 hour 40 minutes
+Notes were taken by AI.
+
+
+[00:00:00] Brittany Martin
+Is. Hello. Hey, Brian, how are you?
+
+[00:00:02] Brian Stitt
+Hey. Good, right. All right. No Petty Jean this morning?
+
+[00:00:10] Brittany Martin
+No. She had to go to Charlotte for onboarding to help with some onboarding
+stuff. So she's. She's doing that. I think you've met Britney before. No. Have
+we met? Oh, I've seen her in. Probably in past. And then. So Robbie may get in
+here. Robbie's just wanting to watch. He's my safety lead up in South Hill.
+Leigh Pfeiffer is probably going to jump in here. She is workforce development.
+She's the young lady that's in the Durham office who you and her brain would
+probably commingle just wonderfully. And then Tony Tackett may get in here. He's
+our director of. I just say our director of people, our director of field staff.
+He's just really. Tony and I Talk every night, 6:15 and just download our day.
+So Tony knows a lot of what you're doing and he was just excited to maybe have a
+chance to see if he had a minute. We don't. We don't necessarily need to wait on
+people because there's no telling. Well, you know, I mean, if we wait on them,
+it may be like me and you may never. You maybe keep waiting. The one thing I was
+explaining to Brittany before we got on here, and I want to. And you maybe can
+help. You'll. You will explain it better than I will, but we're all living
+dangerously with this Claude professional account and, and we can do
+spreadsheets and have them update and everything like that. But what I. I'm
+explaining to Brittany was that you. We've given you extra tools, you know, that
+other people don't have access, so you can bring it all together is. Is the big
+thing. So, you know, we, We're. I kind of. The way I have to look at it in a
+kindergarten level is we're kind of all living on this surface level, maybe one
+layer below the surface. And then we. We've given you the tools to live much
+deeper than. Than that. So in a world that I don't even know exists. Sure, sure.
+So I'm excited to learn. Okay, go ahead. How much thing.
+
+[00:00:24] Brian Stitt
+Yeah, how much time do we have? Jeff? Brit.
+
+[00:02:28] Brittany Martin
+I don't. I mean, we. I'm good until like 11. You're good until like 10:30. Yep.
+Okay.
+
+[00:02:37] Brian Stitt
+All right, good. What I like to do is. I mean, because I must. I tell people I'm
+living in 2090 in terms of the way I'm thinking and, and the things that, that
+you're about to see. So before I, you know, jump in and start showing you some
+of this technical stuff, let me, Let me ask a question first. How. What's your
+experience with like, using AI in chat to get. To kind of get work done?
+
+[00:03:09] Brittany Martin
+So I use. I use Claude and Chat and Copilot all for different things because I
+found they have strengths in different areas. So really the only thing that I
+use Copilot for is I pull numbers from my inbox in my calendar just to count,
+like, candidate submissions and interviews that I've done that are on my
+account, stuff like that. And then chat I use to like, formalize documents, and
+then Claude I use to like, analyze data and stuff.
+
+[00:03:44] Brian Stitt
+Okay, good to know. So it sounds like you're. I would call you more like an
+intermediate user, you know. You okay? Yeah. You've got some pretty good skills.
+What I mean, based on what I heard from you, is that you can. You've been able
+to identify the difference between the different chats, right? Yeah, some are
+good. Chat. Chat GPT is good for some stuff. Claude is good for some stuff. I
+mean, they all. They're all very good at manipulating text. Right. Some are
+better, you know, you. That's good. That's great. So. All right, enough of me
+talking. Let me stop
+
+[00:04:21] Brittany Martin
+for a second. Brian Lee, say hi. Visit Lee and Brian. Brian, Lee. Just. Just the
+one thing I. I explained to Brittany and Lee, you. You understand better. And
+Brittany and I, we. We've kind of given Brian some of the AI tools that are a
+lot deeper than. Than kind of what. What Adams is giving us right now. So we're
+surface level, maybe a level or two below. Brian has some things where we're
+allowing him to go much deeper. So I did share Lee a copy of your new hire just
+so he could kind of show you some different things that he could do with it. Not
+because for any other reason, but we're just exploring and trying to open all of
+our eyes to different things.
+
+[00:04:25] Leigh Pfeiffer
+Hi.
+
+[00:05:05] Brian Stitt
+So. So Lee, I'll ask you the same question that I asked Brittany. Tell me, I
+mean, tell me what you, what, what you do at Adams and how you have been using,
+like, different AI tools.
+
+[00:05:20] Leigh Pfeiffer
+Yeah, so I do use some AI, mainly supplementary. I am the workforce development
+manager and manager over project management staff. I tend to use AI to like one
+for research, to help point me to different sites and things that have
+information that I need. And then a lot of times when I am building spreadsheets
+or dashboards, when I have broken something, it's really great. Where I'm like,
+why will this vlookup not work?
+
+[00:06:01] Brian Stitt
+To go, please help. Here's the formula and
+
+[00:06:04] Leigh Pfeiffer
+it goes. This is why. So I tend to use Claude. I use a little bit of perplexity
+for research, mainly for up to date information. Yeah,
+
+[00:06:20] Brian Stitt
+that's very good. You guys are some pretty savvy users. I, I know upper plexity,
+I haven't. I know it's good. I know a lot of people say the same thing is very
+good for research. So that's, that's very good. One thing I'll want to
+highlight, probably especially for you because you mentioned the word vlookup.
+What if in this, in this little demo I'm going to show you what if you never
+have to use Vlook look up again.
+
+[00:06:50] Brittany Martin
+That would be amazing.
+
+[00:06:53] Brian Stitt
+What if you didn't have to figure out how to format a document? And some of the
+things, I don't exactly know exactly where this is going to take us, but I would
+say is that we are scratching on the surface of redefining what we call work
+because Microsoft has trained us very well on how to use their tools. And you
+don't know any other way of getting work, what we call work done without their
+tools. With the introduction of AI, we now have some options. Right? All right,
+so let me go ahead and share my screen and if at any time you, you're not
+following, you know what, you know what I'm, what I'm, what I'm talking about,
+please stop me, interrupt me and say, brian, what are you talking about? My
+wife, she laughs at me every time. Sometimes I'll slip into a deep country
+voice. I don't know. I do have roots in Alabama, so. But yeah, it happens. So
+here, what you're seeing here is a website that I just kind of put together that
+kind of acts like a slide, a slide deck of what I have. And so what this is, I'm
+calling it affectionately the Adams platform. And we're going to look at,
+explore using the software and AI, how we can streamline how Adams Electric does
+business using AI, starting with processes that keep our people safe. I'm just
+going to go to this deck really quick because it kind of does explain what
+you're going to see. So we're going to look at, you know, work at the department
+level, who owns processes, because when you hire employees, they usually have
+some, you know, secret trick that they can do to kind of help the business out.
+Right? And they're, you know, those folks are kind of expensive. You know, AI is
+kind of Challenging those, you know, those types of people. But they're good for
+different reasons now. They're good now because of their past work experience,
+not, not necessarily how well they can wield a, a spreadsheet. I'm going to show
+you this tool. The first tool that I built that I'm that is really changing the
+game is an AI interview tool that's going to understand how you do work. And
+then what that does is it actually grabs the requirements from you, what it is
+you're doing. Give me your spreadsheet and tell me how you're using your
+spreadsheet. Explain some columns that have weird names or whatever. And it's
+going to understand what you said, plus analyze your spreadsheet and then ask
+you questions based on your spreadsheet to understand what that process is. Then
+it's going to create a specification document what it's talking about here that
+will allow it to now bake your spreadsheet and process into this platform so
+that everything is standard, everything is normalized and you can get work done
+better, faster and your process now get integrated within all of the processes
+with an atoms. That's the kind of the big, no pun intended aha moment. And so
+that's what it's saying solution is built inside the portal. See. So we started
+with mission critical. Some of the projects that I'm working on now is the
+safety request box. Because my work with non profits I do a lot of try to think
+about bilingual making things bilingual as I'm making it in English. So I have
+that skill vehicles, inspections, tracking and training. One of the things that
+I want to make sure that I want to address keep in mind HR and different things
+that you guys do from an onboarding and calculation perspective. So what I did
+here is the platform actually has a learning management system built into it. I
+know that you guys also have the need to track when different things expire or
+need to be renewed. So the track, the training and certification tracker keeps
+track of it stores all of the trainings but it also based on the employees is
+integrated with the people so that as their trainings get completed, whether
+it's off on the platform or off the platform, it captures those, their
+certification date and their expected, you know, when that certification
+certification is going to expire and need to be renewed. And so the platform
+also has features baked into it to do those notifications that staff typically
+do so that you guys don't have to run around, chase people and herd cats to get,
+get everything updated. So the platform will now do the Nagging.
+
+[00:12:30] Brittany Martin
+I like that. So like, Lee, Brian, go back one. All right. If you can. So just
+like, so y', all, like in my very kindergarten, look at this, like, so safety
+request inbox. I asked Brian to do that. So I'm, I'm, I'm, I'm losing a lot of
+stuff. Like if, but if one of my people D o slyn or Luis or Robbie or somebody
+and they, they need something and they need me to see it. Like, yes, you can
+send emails, yes, you can send text, but I'm getting so much of that every day,
+all day. But this inbox, they send it there, I can immediately go there and see
+it. Lee, I wasn't aware of this. Really, the six month vehicle inspection, we're
+giving all these vehicles away. Well, like, it's going to automatically prompt
+Brittany. Like, okay, Brittany. Or like Wallace, Jonathan Wallace is getting a
+company vehicle any day now. So. All right, Wallace, your company vehicles come
+in. It's going to prompt you to, you need to take pictures of all this, the vin,
+the license plate, everything. And then in six months, it'll prompt you to take
+the same pictures. And then, then it, you know, analyzes the pictures. Like,
+well, your, your windshield is broken. You need, here's how you go get this
+fixed. Right. And then the safety calendar would be like for toolbox talks,
+right. So across or other things. But I'm running into a situation, Lee, where
+I've got a lot of minority, I've got a lot of Hispanic who. They're. They're not
+used to looking at a calendar. Right. But this inbox or this calendar here, it,
+it, you know, okay, on Monday, October 1st, we're going to do a toolbox talk on
+XYZ. And then Betty Jean has been working to get the little blurbs of
+information in English and in Spanish about that. Then my safety people will go
+into this, that safety calendar and they can upload the roster from all the
+toolbox talks they did, and then it automatically will move into the training
+and certification tracker. So that's my very k. That's what I, I've just been
+kind of throwing ideas at Brian and he's been just kind of getting everything
+started. So. Sorry, go ahead.
+
+[00:12:34] Brian Stitt
+Okay. Sorry. No, that's, I, I need that, that, that clarity. And, and, and I
+would say that we're on track with that. Sure. So the, the last thing I want to
+kind of, you know, kind of prompt you with, no pun intended. But the way this
+works, that start this interview tool that I'm about to show you, it Says before
+we build anything, we listen it. Basically you would, for example, you, Brittany
+or Lee would sit down with you, come on the site, click this interview tool and
+start chatting with the platform to tell us what you do, what you what, what.
+For example, what Jeff said, you know, he would be able to come here, type in
+something, it would build it into the platform and it kind of looks something
+like this where the AI interview is asking one question at a time about when
+something happens and what it's looking for. And this is the your response. Like
+mostly we get things to text and email somebody forward something, you know,
+some something gets missed and nobody know, nobody owns it, right? So by
+implementing this, it's going to ask you questions about trigger frequency,
+current steps, people involved. Systems use copied data. So in a sense we're
+going to get rid of copy and paste, right? It could be a goal. What are the pain
+points of the process? Desire, what do you desire? If you could ask for
+anything, how would you like it to work? And then the AI is going to work on
+that to make it happen. It has the built in notification system. How do you know
+it's done right? And then so for example, this is interesting because instead of
+you trying to bug somebody, say hey, do your certification, do your
+certification. Upload, upload, upload. So the system will keep nagging the
+person until they upload an artifact that says that the AI looks at, uses the
+vision with the AI and says, yes, this is what I'm looking for. And it can pull
+the images and I mean the text from the image to verify that the dates are
+accurate and all that good stuff. And then the notification feature is linked to
+the timing and escalation. So, so right now by default the human is the first
+person that is the person responsible for notifications. Now we're going to take
+it from the first person to be the last person. So the platform is going to do
+all the nagging and then at the end the escalation happens to the human as
+opposed to it happening first. So your response is the system has sent you 200
+messages to get your certification done. You've ignored it. What is the problem?
+Right? And it could be something logical, why they haven't done it. Sick baby,
+you know, all those different things and that's fine. And that's where your
+exceptions are. So the system can't take into account exceptions. So it's not
+just, you know, you know, blindly sending notifications that hey, got a baby,
+I'm out six weeks, leave me alone and I'll Let you know when I'm back, then
+they'll come back on. You know, if there are compliance issues that. Things that
+have to be checked off, we can do that. Adams already has platforms already. So
+with this platform, it has the ability to integrate with those other platforms
+so that you. This platform can, based on the data that's coming in from the end
+user, it will integrate. It can integrate with those platforms. Like I'm not
+going to say it can integrate with Rhumbic, so I'm not even going to try that.
+But for some of the other tool, other tools like Site Docs, what's the jamf
+NINJA one? Those things that have. That are kind of not as sensitive but still
+require people to track equipment and things like that and certifications and
+all that stuff. The user can input it there and never have to go into Jamf and
+Ninja 1 to update it the way JMF and Ninja 1 does, because it knows how it's
+structured, it knows what those platforms need to have a successful completed
+record. And now you've got a. You can have it in this platform as well as in
+those other systems for compliance purposes. For example, you may not be able to
+get rid of those. So we just integrate with them and make sure they get what
+they need. And then we can also do the reverse, which is we can chat with those
+systems, which I to be able to get information out of there as well. And I'll
+show you that in a minute. So let me just start the interview tool. And so it
+says, hey, what's your name? Let's put my name in here because I just been
+making some test stuff and then it's asking me about what it is I want to
+integrate into the platform. I say which group I'm in, I'm in safety. And this
+is the thing right here, this is the thinking part, right? So no matter what
+department you're in, you can pick one of these categories and it's going to ask
+you, it's going to put it, it's going to put the AI in context of what you're
+asking for. And how do you know work it, you know when your work is accurate. I
+mean when you know when everything is done and it completes that full circle. So
+this is what type of processor tasks? I'm just going to say onboarding because I
+got a bunch of onboarding stuff here. So the system is designed to ask good
+quality questions across all these different domains. And that's what that
+little spinning thing is. That's the AI going, it says, so Here's a good
+question. What triggers the process to start the day and how frequently does it
+happen daily, weekly or per job site? So I'm going to ask you Brittany, because
+I don't know the answer to this and I've been wanting to know the answer. So
+when you guys get a new hire, what is the first? How do you know that? Like how
+do you start getting their information?
+
+[00:20:49] Brittany Martin
+Well, it depends on where, what the source is. So let's say they put in an
+application. We would have basic information off of that, like their name, their
+address and phone number and email.
+
+[00:21:11] Brian Stitt
+Uh huh. Okay. And what, what? The application is on the Adams website.
+
+[00:21:20] Brittany Martin
+It's linked to our cura, which is our applicant tracking system.
+
+[00:21:28] Brian Stitt
+But that's on the website too, right?
+
+[00:21:30] Brittany Martin
+It. There's a link. Yeah. Yes, there's. So our current is the system that it's
+based on or based in. And then the link, it links to our website on the careers
+page. But everything is done within our couro. Our C O R O.
+
+[00:21:46] Brian Stitt
+How do you spell it? Ar. Okay, so even if we put this software name in here,
+it's going to go and look out, look up information about that.
+
+[00:21:58] Brittany Martin
+And it's web based so it should be pretty, pretty easy to tie in to different
+things. So we have three or four modules within our current. The first one is
+the applicant Tracking System, the ats. So that's where all of the applicants
+are stored and their information, we handle the background checks through there.
+So after there's an interview scheduled and we want to hire them, we make them
+an offer, we run the background check in there and then we push them to module
+number two, which is the onboarding module, which is really where the
+information is collected.
+
+[00:22:48] Brian Stitt
+Okay, and this happens infrequently, right? I mean like. Or this is happening
+like every day? Yeah, multiple times a day.
+
+[00:23:04] Brittany Martin
+We've hired 430 this year so far.
+
+[00:23:19] Brian Stitt
+So. Let's just put that in to see what it says. Well, I'm not gonna. So that,
+that whole pro. This process is a little bit longer, but as you can see here,
+you can upload whatever information. How do you download the data from Arcuro?
+
+[00:23:41] Brittany Martin
+We, we don't download everything. So module number three is the. It's called
+core hr and so that's more of an HRIS system. So everything from ATS goes into
+onboarding, everything from onboarding goes into core HR and then that's where
+it's housed. And I do download or do exports from our crew to then import into
+like our Ben admin System Employee Navigator. I do that once a week, which is a
+very antiquated process of export, manipulate, import. And then we also take
+documents from onboarding that we pull into PDF and save onto the ignite server
+
+[00:24:41] Brian Stitt
+as a personnel file. We don't have
+
+[00:24:43] Brittany Martin
+to do that anymore because the core HR will keep it. But we have it in two
+places right now because we haven't fully jumped into core HR as far as it being
+the personnel file cabinet, if you will. And then we have to manually create the
+people in Spectrum.
+
+[00:25:12] Brian Stitt
+Okay. Wow. Yeah, there's a lot of opportunity right there. So I'm, I'm going to
+do some TV cooking. So. So, but, but you kind of get the idea. It's going to go
+through all of those different checks to figure out what the triggers are. And
+you are in a sea of triggers. Yeah. So there's, there's a lot of opportunity and
+also there's a lot of opportunity for integration across those systems to make
+sure that they all get the information they need when they need it. So I have a
+phrase that I say, you only need to know what you need to know when you need to
+know it. Yeah. So for systems, they need to have it when they need to have it.
+And so you, a person being in the middle, you're that. So now you're the human
+in the loop that's responsible for trying to, keeping track inside of your head,
+all of these things when they need to be notified and updated and trying to
+decide whether we put it over here, put it over there, this particular platform
+to make sure it's everywhere. Right. So that you don't have to decide, you can
+have it. All right. Yeah, but we have to get you out of the middle. All right,
+so I'm, I'm gonna pause there and kind of show some of the early things that I
+built. This is a safety calendar that Jeff talked about. And this kind of gives
+you an idea of, of what you know. So for example, as you, as, as Adams, you
+know, has multiple sites, you can put this information here. You can see the
+bilingual nature of the calendar. And I think this 1, 2, 3, 4. And then I'm not
+sure. I don't think I have any events this month. Let's see if we can find
+something.
+
+[00:26:50] Brittany Martin
+But Lee, just. So this is my vision of having something like this on a TV in
+every safety office and every one of my job sites. So there's accountability and
+expectation. Right. If they come in and they, you know, Brian had like a three
+or four day view up there, it's like, well, it's right there. Like, okay, I'm.
+I'm holding your hand. I'm babysitting you. I'm not expecting you to look at
+your own iPad, computer, or phone for a calendar. The calendar is right there.
+You know, why was this missed? Why did this not get done? And then you would
+have access to add things to it. So to this safety calendar right now, it would
+be like, I don't mind if you had. If you had access to this. Because, I mean,
+and. And in a bigger picture, think about this. In all of our offices, we could
+add a big tv. Yeah. And then, you know, this could be more of a mission critical
+calendar where Brittany can say, you know, this, you know, whatever. You know,
+your. Your benefits change. Boom, boom, boom. So, you know, so that's where this
+was coming into play. But for right now, as far as safety, I would just start it
+out with me and Betty Jean. Okay. And, you know, probably give me Betty Jean,
+Miguel, and Julissa just at the start. Okay. But imagine. So Charleston, South
+Carolina, would just be ABC 44. Charlotte, North Carolina would be ABC 43. You
+know, like, and then you could list the buildings out like that. Yeah.
+
+[00:28:21] Brian Stitt
+Okay, so that's the first thing that Jeff had asked me to build. We haven't
+deployed it yet. So we're kind of like in the. In the phase of we've got, you
+know, infrastructure, but now we're about to move to the second stage where
+we're starting to populate it with, you know, data that's coming in continuously
+and build that cadence so that we can keep those systems up to date. So now what
+I'm going to show you is like, there's a sign in here, and I'm going to just
+kind of log in on the back end here. So I was looking at something. I see. So
+one thing I want to talk about. So if we're going to make the idea is to make
+the platform accessible to everybody. And so my initial thought, based on what
+I've been seeing, is that everyone typically, for, I guess for the. For the
+safety team, they usually have tasks that they have to do. They're assigned
+equipment, they have certification and training that needs to be kept up. They
+have orders, and then they have ideas. Right? So, so this is the concept of
+continuous improvement in terms of keeping people on task. Jeff has this program
+called Mindchuck that allow people just to kind of add a rolling list of things
+they need to work on. But also we can use the same component to have Jeff assign
+things to different teams and, you know, employee type. So all the electricians
+need to take a new update on the electrician data center basics or something
+like that. And then you can, he can just say, assign that course to all of those
+people. And then the system, as they complete it, will update their
+certification. So this everything has like a loop to it. If you can kind of
+think about everything that happens, we have to identify what those loops are
+and where the data overlaps. So, but a lot of the information that we're doing
+is people based. So people are at the center and we're adding these overlapping
+rings around people for the most part. People in cars, people in computers, keep
+people in training, people in order, people and ideas. And so we just keep
+overlapping everything around people for. For the most part. And then that's how
+we're going to build the linkages across these different data sets. So you can
+kind of see here, I don't have anything populated in here yet. You can see. So
+based on myself going through the onboarding process, you know, we want to be
+able to. I want to be able to come in and see what the serial number of my
+laptop is, my cell phone, my iPad, my vehicle My hotspot. So that's there you
+can see, you know, the simple form here, different types, you can set the
+status. You know, I lost it. You know, I've heard, heard that, that use case as
+well. So you can do that under training. You can kind of see here what it would
+look like. I'm enrolled in two courses. I've completed these, I have these
+certificates and here's my expiration. So. So everything has a loop to it in
+terms of training and certifications. You can see what courses I'm enrolled in,
+what my progress is, Anything that I need to upload, open cs, upload, training,
+certification. It's got a lot of details in here. A lot of the common tools that
+we have here. You know, we can type in the job site. That could probably be a
+drop down. That's that were that's being maintained. There's dates, has
+calendars, issue day, here's your artifact. That kind of stuff we just kind of
+go through a high level and then if there's orders, a material request, order
+that information. So that would be something that Jeff would review to be able
+to say, hey, you know, we already have that. Go look in the locker. I'm not
+buying that anymore. Another place to dump ideas here for me is a bug tracker.
+The system constantly updates documentation about what I'm building. So instead
+of me trying to write documentation of what I built, I use the AI to generate
+documentation on the different things that I'm building. So that saves time and
+creating, but it also creates an opportunity for the employees to be able to ask
+questions that they would normally ask a little question of the platform. So for
+example, if someone says I for I forgot how to enter in my time in the Rhumbix,
+which I forgot initially, you know, I would have to call, I can't remember,
+who's the Rumbix? Holly. Yeah, Holly busy. Holly's doing some other stuff. She
+doesn't have to have time to answer my dumb Rumbings question. That should have
+been paid attention, right? But this platform, we can load in the documentation
+for runbix. Holly can review it and say these are the steps. Here's some
+screenshots on how you do it in runbix. So she does it once and she doesn't have
+to do this every time. Every week a new employee comes in, which is probably
+happening. So we're going to start rolling back some of those things that, that
+are people intensive and start giving them the tools to be able to go find it
+themselves. That one.
+
+[00:34:14] Brittany Martin
+Show Britney.
+
+[00:34:16] Brian Stitt
+Yeah. So, you know, we, you know, the, the this. So what I did here is I added a
+complete form builder on steroids. So I can build a form with any kind of field
+that's. That's been known to man for building a form. And then there's some
+templates in here that we could use. This is an example of what the form looks
+like. So we get people comfortable with looking at forms here. It's already
+linked to existing data, but then, you know, see, these are real employees. So
+I've kind of uploaded some employees to be able to, you know, show how it works.
+You know, you got fields here, you have a digital signature here. Somewhere,
+somehow I can clear it or you can just type your name in here. Then that's your
+
+[00:35:17] Brittany Martin
+Brian. Hold on a second. So instead of wasting time with chances, a. The form of
+safety, which is rudimentary was the word that Joy used. This. It takes it to a
+whole new level.
+
+[00:35:30] Brian Stitt
+Yeah, and this is just.
+
+[00:35:34] Brittany Martin
+This is. Brian has created this based off a very little bit of information that
+I've given him because I can't overwhelm him right now with the breadth of
+everything. But I need you to see how easily this could correlate to like, why
+are we manually building everything? Why would we build it in Forma when it's
+basically could be built here like that and then once completed have a trigger
+automatically put it in the project file in Forma. Yes. Right.
+
+[00:36:10] Brian Stitt
+Yes. Yeah, absolutely. Now you're. Yeah, now you're cooking. I have a quick
+
+[00:36:18] Leigh Pfeiffer
+question. I'm sorry if I missed it at the start of everything. Where. What
+database does this live in? What owns this data? Is it our Azure or is it
+something else?
+
+[00:36:33] Brian Stitt
+So just laughing too. So ideally right now it's hosted in my Azure, but
+initially I wanted to put it in your Azure, but we had issues putting it in your
+Azure, so I had to put it in my Azure to. Yeah, so I have the ability to push it
+to your Azure once we can get that working.
+
+[00:36:58] Brittany Martin
+Brian, what are the issues with Azure?
+
+[00:37:01] Brian Stitt
+It's. For some reason it just won't. I think it's a permission issue, but for
+some reason it just won't. It's blocking it for something like cost or
+something. It's hard to understand. But if we had someone else that had like
+hire Azure rights or something, it can be fixed very quickly. Oh, I forgot to
+tell you about this one up here. You can just use plain language to build your
+form with AI. So you just type in what you want here and say build it. Then it
+will build it in her platform, the Atom, not my platform, the Atom. Here's a
+library of templates that I've kind of, you know, kind of found somewhere. So
+yeah, here's your templated process. If we want this, you may not understand,
+but this is how we share information across the data within the, within this
+platform. So it automatically exposes this thing called a REST API endpoint,
+which is a fancy way of saying it's a URL that you could actually import, you
+can put into Excel and it will pull up the data from the platform. That's what,
+so this is like, you know, whatever this URL is, plus some of this, this
+information on the back end will give you, you put that in Excel and you'll
+just, it'll, it'll just read that data from the platform into.
+
+[00:38:40] Brittany Martin
+So how easy is it? And this is probably a really stupid question, but if we
+wanted to connect our curo hris to this, how would you do that?
+
+[00:38:57] Brian Stitt
+Through this, I would identify what the REST API information is. Usually what I
+do to make this system really smarter is I would point it to the documentation
+for Arcuro and all of others other HR based systems and then let the AI tell me
+how, how to integrate it based on what you want, what you expect out of it. I
+need this workflow, this, this needs to talk to get the data from our current,
+pull it here, transform it like this here, and it understands the structure of
+those systems in the fields and how it relates and all that based on those
+documentation for those different platforms. So I don't have to do it by hand.
+
+[00:39:19] Brittany Martin
+Okay, so I, and that would be the case for any system that we use that has open
+API, right? Okay, yeah,
+
+[00:39:44] Brian Stitt
+yes ma'. Am. That is so the, the I would say whether acceleration happens is in
+document plate and when we have external systems, it's taking the documentation
+and understanding their API infrastructure, putting those two things together
+and letting the AI interrogate how, how those systems work and what the, what,
+what are the requirements for filling out those forms and fields so that humans
+don't have to do it anymore. And so we're making humans, you know, get humans
+out of doing robotic, I mean, you know, manual repetitive processes.
+
+[00:40:20] Brittany Martin
+And then one thing that, just because I'm, I'm very sensitive to, you know,
+confidential information and systems of record and things like that. How simple
+is it to have a one way street?
+
+[00:40:32] Brian Stitt
+Yeah, oh absolutely. You can, you could say that those systems that you already
+have in place are the systems of record. Right. So, but you could store a subset
+in this platform for knowledge management purposes. And I'll show you an example
+of why you would want to have. So this would, this platform would have a
+synchronized copy of a subset of that information across those different
+systems. Where it makes sense. Right. Okay, let's see what else is goodies. I
+don't think you haven't built the document. This is the fun part. Right. So we
+have a complete learning management system in the platform. So. And Jeff hasn't
+seen. I have some, some, some, some. Some good stuff for Jeff that he hasn't
+seen. So here. I haven't put images in here yet, but these are some of the
+different courses that you can have that you will be able to click on. I'm not
+sure if they're populated. I'm gonna go in a different way to show you what's
+happening. Let me go back one more. But this is like.
+
+[00:40:39] Brittany Martin
+Okay, yeah. Right. Self created content or purchased content, right?
+
+[00:41:57] Brian Stitt
+Yes, ma'. Am. Yep. So if I go into. Oh man, hold on, let me. Let me turn myself
+into a superhero. All right, so now the super admin. And as you notice, this
+sidebar changed the other thing that I've done. Let's say if I gave you access
+to the back end. He's like, I don't know where Brian put all this stuff. Look at
+all this stuff. I can go up here and I can just type in safety and it filters a
+list on the side. I can say there's a safety question. There's a safety calendar
+request box. So I can quickly searching, search and filter the navigation. Go
+into Academy Admin. This is showing me I have one course in here and I can do
+courses, workshops. We can create different categories. Here's your metrics up
+here. This is cool. I haven't done this yet, but I just built this this morning.
+Jeff has a ton of PowerPoints on the Z drive. This will allow me to import the
+PowerPoint and convert it into a course that will have quizzes and a final exam.
+So what about.
+
+[00:43:05] Brittany Martin
+Yeah, narration.
+
+[00:43:20] Brian Stitt
+No, it doesn't have narration. But, but I think we could get it. I can, we can
+get there. It's, it's, it's. That's like a one off. But yeah, I can totally
+create the same functionality as a. No before software. You guys have. Yeah. And
+then I can get, you know, I can grab. I mean I can use existing Images within
+the PowerPoint or you can upload your own images. But yeah, as you come up with
+those little nice to haves. They're. They're very easy to add because, you know,
+there's always a library for it. Let me see if. So if I go in here, if I say
+this is what the. If you're creating course from scratch, you give it a title,
+put it in the category instructor learning outcomes that people should get from
+it. You can upload an image, you can publish it. You guys, I don't think you
+guys are going to charge for courses. So this is just something that they always
+put there. And then you can tag it and so you can tell that this one was tagged
+in as a PowerPoint import. Then I'm going to go in here and look at Manage
+Content. And so the platform. Right now I'm running a job to import all of the
+PowerPoints off the Z drive. And. And so this is an example of the first one
+that it did. So it did. It made these, you know, you have section. It. It looked
+at the PowerPoint, identified sections and created the lessons. So if I go in
+here, it extracted this information from a text article and said this is what
+content would look like. And it kind of used AI to enhance the content. So I can
+click this button here. I guess I don't have the AI connected yet, but it would
+if, let's say if you just had bullet points here, if you click this button, it
+would write it for you. And look, search the Internet. Say this is the kind of
+content based on your bullet points that you should provide to users. So it's
+kind of contextual in a way. And then you can add an image there and save it.
+And so it pulled out 1, 2, 3, 4 sections. And then there's an exam here. It's a
+quiz. You can do. Oh, this is what I want to show. You can do videos, text,
+article assignments, you can have a PDF or you can do a live session. Depends on
+what you want to do. And you can have recorded live sessions. So you have to
+provide HR information. They would come in here as part of your onboarding
+training, would be here to say, you can go back to Rhumbix, you can go back to
+here. Here's where you would, you know, update your equipment, everything. So
+they can always go back to any of these modules for information.
+
+[00:43:24] Brittany Martin
+We could get there. Brian, let me stop you for a second. Go. Can you go back and
+show me that? Or it's fine if you can't. But the la. So the live session thing
+would be cool. So Robbie taught an hour long or is a little bit longer confined
+space. Competent person class in person at ABC 09. There's no reason that if he,
+we converted his thing, he did it in person into a live session. And I could
+reach out to Miguel, Julissa. Yeah. You know, or Teak could hopefully one day
+and say, hey, Robbie's putting on this today. If you have people that need to be
+in there, get on there, do it live. They can listen to Robbie do it. They can,
+they can take the quiz, they can do whatever they need to do. And as soon as
+they're done, it pause, populates everything in and it's done. The efficiency
+makes me so happy.
+
+[00:47:07] Brian Stitt
+Great, great. Let me see what else
+
+[00:47:13] Brittany Martin
+Saves so much drive time, you know, that saves so much, like, so much.
+
+[00:47:20] Brian Stitt
+So I, I, I kind of, I treat AI like hot sauce. So I put it on everything. So
+even Gener, you know, so even I use AI to generate the, the syllabus. So you can
+just put in some bullet points. I want to talk about this, this, this, this,
+this. Then you say generate the syllabus and then it makes a professional
+syllabus. And then you gotta, so, so think of everything in terms of speed is,
+you know what you want. You don't want to, you don't want to have to word Smith
+it. Tell to break it up in how many modules you want to do. They just want to
+get it done. It's three, three big modules. Or if it's heavy content, you can
+spread it out. So course builder, generate the quiz, it generates the quiz based
+on the content and it generates the final exam. So, yeah, you just put the
+content in, press a few AI buttons and. Oh, then you can assign it to different
+people, load the members, you can set the date. Look at that. It's already. This
+is when I talk about that continuous integration where it's. You might need to
+have access to your people. Right. And what would be cool here would be to say
+groups. Yeah. And you just check one box and say groups. All right, I think I'm,
+Let me see. I'm gonna try and go through some of the. So here's. Oh, so when you
+do the interview, this is the output of the interviews that you do. And these
+become applications that have a, a standard look and feel. So you know how you
+got to say, what does this interface look like? And what does that interface
+look like? And the AI automatically determines what the, what the metrics are
+based on what you said, it comes up with that. I don't know why this is down
+here, but let me open up, let me open up another one. I'm still working on that
+one. Which one have I Been doing QR code for hard hats.
+
+[00:47:50] Brittany Martin
+Yeah. So you can see here. I really like this idea
+
+[00:49:40] Brian Stitt
+is. I mean, every. Every interface for everything. This is your spreadsheet that
+got converted to an app, right? Yeah. And so if you have workflows in here, like
+the hard hat. Oh, this is. This is a cool one. Not sure if Jeff has seen this
+one. You know, the. The latest changes. So the idea of this app, Brittany and
+Lee, is that the. The workers need to have QR codes on their hats so that they
+can be scanned by maybe a superintendent or somebody that's on site. They want
+to see if a particular worker has a certain certification. So by us building
+this, and I spelled it's my country. Country accent hard hat, They can scan this
+with the QR code with their phone, and it would take them to a web page where
+they can see if a certain. Of a. A worker has a certain level of training or
+something like that. And Jeff could probably provide some different information
+on it. So when Jeff talks about accountability on certifications, that's. That's
+what this could culminate in. Compressing everything down to all the employees
+and users to linking them to the certification that they have taken externally
+or on the platform.
+
+[00:51:12] Brittany Martin
+Lee, like most of our QTS is already doing it. Most of them are going there
+where, you know, if you're using a piece of heavy equipment, you either have to
+have this certification card in your pocket or some way to easily access it. So
+that's where this hard hat QR code came in, mind. You scan it and it says, boom,
+Brian's got mini X certification expires on this day. Yeah.
+
+[00:51:35] Brian Stitt
+Yeah. So it automatically generates a cute, little, very bad, blurry Adams logo
+with the QR code. And then if we preview looks like this, if we had their photo,
+and then it'll be a block for certifications, safety personnel. Whatever Jeff
+wants to add in here, we can add it. And then, you know, we got Spanish as well.
+
+[00:52:01] Brittany Martin
+Because the one thing that right now, I. I don't. Lee, I don't know if you're
+aware. I don't even know if you're aware. Did you hear about the gun issue in
+qts? No. Oh, yeah. So, yeah. So it wasn't at Adams, but somebody got caught
+screwing somebody's wife. They both brought guns to the job site the next day.
+They worked for other people, and they were ready to kill each other. I have no
+way to communicate with everybody immediately, so. But Brian could put that into
+this. Right. You know, but also the certification, if. Brittany, I explained
+this to Brittany the other day. Brittany and I are working in the field. Nine
+times out of 10, maybe 9.9 times out of 10, we're both going to have hard hats
+on Brittany falls out and I'm like, Well, I can call 91 1, but who do I call?
+For Brittany in her personal life to say she's going to the hospital? Well,
+everybody won't need access to it. But depending, you know, a superintendent or
+a foreman would. Right. So you know, Jeff's the foreman, scans get Britney's
+card, hard hat QR code and it gives me that emergency contact which right now we
+don't. You know, right now I would have to call Brittany. Yeah. Or Tangie or
+probably you, Lee to get this information. And what if it's a Saturday and we're
+all like, fuck this, I ain't answering the phone on a Saturday. So that, that
+was. But yeah, the gun issue, that's a big thing. Like I didn't even know about
+it. But there's no way to talk to everybody. And I want. That's a, that actually
+brings up a really good point. So we have a contract with Alert Media right now.
+And it's initially it was create or it was adopted for emergency response
+notifications, weather notifications, stuff like that. Really the only thing
+that it's been utilized for for the last couple years is my text to groups or
+all employees saying, hey, don't forget, you know, open enrollment is starting
+or, you know, make sure that you sign up for this or do that. But I would really
+want texting and alert and that type of capability within this somehow.
+
+[00:52:23] Brian Stitt
+And I have. Okay, that's all right. Gonna make your dreams come true. Couple of
+other things. Let's see what else is good. I think everything else is kind of.
+We've, we've kind of gone over this one right here. The Adam's brain. I'm
+working on this one here. This is like all of the documentation that you guys
+for, like even what you give them that people don't read, but they need to know
+it when they need to know it. You'll be able to chat with the, all of the data
+that you give them for onboarding and be able to chat with it in here. But
+here's the big reveal. Then I'll, I'll stop talking, then you guys can tell me
+more. So as you see, we have a way of continuously integrating information
+across atoms within this platform. To your point, there is a way we can extend
+it. So you would think that people would want to, would have to Log in. I mean,
+think about the process. If I asked you, how would people get access to this
+here? You say they would have to get a login. They would, to log into the
+platform. They would do this, they would have to do that. And then they click
+over here and then it will say this and then figure out how interface works.
+Here's where we're really going with this. So I have done some initial work with
+Telegram and I have integrated this and I can ask anything from the platform
+right here. So you can see here, I've asked it what's on the calendar and it
+tells me, you know, these are older days. But it did pull back some other
+events. I've asked it who are electricians, even crudely. And so initially, I'll
+show you this I like, this is a good story. So I asked it here, show me a list
+of extracurriculars. And it gave me this here. Do you like this format or do you
+like this format? So as you can see, I can chat with any data set on the
+platform from a read only standpoint. And then you can, then I asked it show me
+everything I can access. I can access my tasks, my assets, my training,
+everything you just saw me go through is linked to Telegram. So if I, if, if I'm
+a basic employee and I have a Telegram account with an id, I can just. They
+would only access this information. So the first phase is to make it read only.
+The second phase is to make it be able to create an update. And you can see some
+of these things are read only and some of them are create and update. So what
+that means when we're talking about creating and updating, even if I gave it
+plain language like add a tag, let me see what's a good one under tasks, my
+assets. Well, my orders, I can say create order for some gloves. And then it
+would know what fields are required before I can submit that order. From a chat
+interface perspective. And it, the AI would step in is like, okay, for what
+department is it in? How many do you need? And et cetera, et cetera, et cetera.
+And then once it has all of the required information or, you know, optional
+information, then it would submit it and then it would go into whatever, you
+know.
+
+[00:54:24] Brittany Martin
+My. That's my dream. Yeah, no, Yeah.
+
+[00:58:05] Brian Stitt
+API link system for tracking it. So in the sense they would have everything in
+their hand. And to your point, this could also. Once we understood the features
+and benefits of a notification system, you would be able to use your technique
+Telegram phone and say send out a reminder to everyone to do their updates for
+their benefits by Friday. Then everybody will get a notification. And you didn't
+write anything. You just talked in your phone and it sent it out. And then you
+could tell it to create a task for everybody. And then they would have, they
+would, you know, when they come in in the morning, say, what are my tasks? And
+they say, Ricky said I need to do this. And so they have a rolling checklist of
+tasks that they can cross off to make sure that they're compliant every day. And
+that would be the worker's routine when they get their cell phone. Yeah, I'm
+sorry, go ahead.
+
+[00:58:59] Leigh Pfeiffer
+No, it's okay. Sorry. Just with tell. This is Telegram bot. Right. That we're
+looking at right now. Are we just looking at it for the sake of alerts or is
+there going to be actual data sent through for like. Like. I'm sorry you touched
+on tasks and different things like that. And just because that is an. Like, like
+Telegram's an external source. So data would have to leave Azure to go there to
+an external area. I. My brain doesn't mind it much for alerts, but I'm not. I'm
+having a hard time with the concept of security when it comes to other things
+involved with Telegram.
+
+[00:59:41] Brian Stitt
+Okay, we can, I mean, so that's just me though. I'm not in charge of any. Yeah,
+we, we can scope it. We can, we can scope it to certain things. I do have the
+ability to integrate IT teams if that would make you feel better. So yeah, I
+can. Yeah, it's
+
+[00:59:46] Leigh Pfeiffer
+thing I'm just sitting here not so much like the integration, it's that I like
+it for alerts and things like that. I get worried if we're using it for things
+beyond that because again, it lives outside of the Microsoft Azure structure and
+I am mainly viewing me in this meeting. I love all of the AI usefulness,
+everything like that. I am trained as a full stack developer so I'm perpetually
+trying to look at security. It's just how my brain operates. And so that would
+be like what data is like going to Telegram as an external source. Exactly. Is
+something that I would like to keep very close eyes on.
+
+[01:00:47] Brittany Martin
+Yeah,
+
+[01:00:48] Brian Stitt
+okay. Yeah, yeah, we can. And, and that's. That's where your expertise would
+come in in terms of curating what we, what we exchange between the two. Right?
+Yeah. But yeah, we can, we can totally do whatever it is you, you guys get to
+drive. You tell me what you want, I'll serve it up, put it with buns, lettuce,
+pickle and tomato and then you'll have it. All right. And that's, that's where I
+am so far.
+
+[01:01:19] Brittany Martin
+This is amazing. No, this is great. I really
+
+[01:01:23] Brian Stitt
+like it. I remember. Great. And Jeff said.
+
+[01:01:27] Brittany Martin
+Over here going, told you so dumb fat guy with crazy hair and tattoos. I don't
+know nothing. Resources and connection. I got people for everything. And Brian
+actually mentioned that the other day because you got a guy. Yeah. And I was
+like thinking to myself, like, in 50 years of living in Greensboro, I've never
+had an AI guy. Now I got an AI guy. Yeah, yeah. My. I'm right there with Lee
+with the, the security and the confidentiality and the access versus and
+permissions and all of those things that are my responsibility within the
+company. The Azure, obviously we have, you know, our Azure which we can work on.
+You know, the, the access permissions, all of that stuff. Within that I've. I
+have a lot more comfort than, you know, the add on stuff like obviously pulling.
+Going into the, the telegram bot and saying, you know, who are the mission
+critical electricians and having the name and the title, I think is what showed
+up on that one that you showed us an example of. Like that's fine, but I don't
+want it to have access to any more detailed information on individuals. You know
+what I mean? Like where I would have to really dive into with Lee's brain
+because I use her on stuff like this, on where those lines are, how solid and
+stable those lines are and that type of security.
+
+[01:01:37] Brian Stitt
+Jeff has. Yeah, no, I mean, as far contained. Yeah. Oh, I'm so. No, no, no, I
+was.
+
+[01:03:22] Leigh Pfeiffer
+Where I have. Sorry, you please go. I was about to say I have some questions
+just on. And I am so sorry if I missed it throughout on some of the things to do
+with AI and where the data lives, how the data is stored for this particular
+thing, like if it is stored within the database or if it's using the Azure Blob
+storage. I also used to work at Microsoft. Sorry. So when we're talking Azure, I
+get very happy because I like it very much. What model AI model are we using?
+Are we using the Azure OpenAI? Are we using a outside service?
+
+[01:04:10] Brian Stitt
+Now we're using. We're using the Cloud API. Okay. So OpenAI. I mean the. And
+that's, that's just what Jeff gave me. And it was easy. Yeah, it was easy for us
+to I guess generate an API key that way. Right now we're, we're. We. The goal
+right now is to, was just to make it work, right? Yeah, yeah. And now that the
+data, the data would be. So once we have the. Let me see. I guess once we, once
+we're solid on the data structure the data, the data can be stored anywhere. So
+I'm not. It can be, I mean, once we work out the Azure. So. Well, let me. Okay.
+Since you know a little bit. Here's here, here's. Here's what I did, which is
+very interesting. I built the project and then the goal, the initial idea was to
+put it was to create a VPS in Adam's environment, but we couldn't do that. I
+have my own Azure instance or whatever and so I use the Azure cli. Actually I
+created a Docker container and I built the app and the automation platform into
+a single Docker container. Then I noticed that, and I'm not a Microsoft person,
+I'm just as dangerous as most. But I took that Docker container and deployed it
+to Azure as a Azure container, which is the same as a Docker container. So the
+whole thing gets shoved right into Azure as a Docker container. Which means that
+I can publish, that I can lift and shift the whole thing. Once we saw the
+permissions, all the data integrations can be totally, you know, Microsoft
+integrated. So I'm, it's very easy for me to pivot from telegram to teams. So
+that's, that's not an issue storing it. And I mean, I mean the, the database is
+a postgres database, which gives me flexibility. I didn't want to use the. To do
+the setup for the. I think it's documentdb or something like that. So I use like
+a, a collection based structure versus a relational database structure which
+gives me the flexibility for us to kind of. If we go in a different direction or
+we need to integrate something, we don't have to go through normalization or
+anything like that. Very easy to kind of point, throw data over here, throw it
+over there, make a connection, do some lookups, that kind of thing. That's what
+makes us nimble.
+
+[01:07:14] Leigh Pfeiffer
+And once it's moved over to our Azure, we as Adams have full ownership. Correct.
+Okay,
+
+[01:07:23] Brian Stitt
+you do source code now. I have a question on that
+
+[01:07:29] Brittany Martin
+one. That's what I ask.
+
+[01:07:30] Leigh Pfeiffer
+I know, I know where you're going.
+
+[01:07:32] Brian Stitt
+What, what
+
+[01:07:34] Brittany Martin
+Happens if Brian gets hit by a bus. Jake, we'll hire Jake because I'm, I'm
+training Jake
+
+[01:07:41] Brian Stitt
+behind me so. Yeah now Jake's. So Jake and I work together and he's. He's kind
+of like my understudy so. Well yeah, no issues with that. If I'm dead, I can't
+get. I can't collect money anyway so as well give it to Jake. So yeah now we,
+we. There's contingency plan. Jake, Jake, he's good on the front end for
+manipulating things. He's kind of saw some. I mean probably in the next six
+months he'll probably be good enough. He has, he has great ideas as well so. And
+in the absence of a Jake you have documentation and you can really use any
+developer once they understand the structure. You can use any developer.
+
+[01:07:50] Brittany Martin
+Yeah. I was thinking about whenever you showed me, you know that you are
+documenting and, and teaching the system or recording within the system what
+you're doing while you're doing it. That gave me another level of comfort. So I
+definitely appreciate that.
+
+[01:08:46] Brian Stitt
+So one thing, here's my dig at Microsoft. So one thing I'm not doing is using
+dotnet all of the different Microsoft centric programming. I like to use open
+source technologies such as like HTML, CSS and JavaScript which is, you know any
+developer can pick up with AI and just keep making updates like I'm making
+updates. My job is to enable you guys so that even from a development standpoint
+I, I wouldn't. Because you have that interview tool. You can keep know building
+modules and spreadsheets to kind of reduce your reliance on it because that's
+going to be the new way of work and if someone comes in with something new that
+you never use and they think is great, it's like no running. Run it through the
+interview tool and we'll have it and then you can fire them. I'm just kidding.
+Get out of here. Yeah, but yeah it's, it's important to, to be able to have in
+my opinion that continuous integration which eventually could reduce your
+reliance on these third party applications. Yeah. So we can rewrite site docs.
+We can rewrite. I mean, I mean I already wrote down the Ben admin because I hate
+it. I want it
+
+[01:10:03] Brittany Martin
+Grace going yeah, yeah. I want it self contained in hours because it's so
+simple. A Bin admin system is so freaking simple that I mean. Anyway, I could
+talk about that for hours but.
+
+[01:10:29] Brian Stitt
+So. Well good. I'm glad you're happy. I like your brooch by the way. It's pretty
+cool, I think. You know, I like nice shiny objects, so. Yeah. But yeah. Le. Did
+you.
+
+[01:10:40] Brittany Martin
+Have any other questions?
+
+[01:10:46] Leigh Pfeiffer
+I do have some, but I can also send a list of my mental questions because, like,
+I was wondering things about, like, where secrets are kept, like the API keys
+and passwords and a. A bunch of weird back end stuff that I feel like might for
+Jeff and Brittany a lot. But I have. Yeah, the short,
+
+[01:11:12] Brian Stitt
+the short answer is everything is stored in the Dr. Container.
+
+[01:11:16] Leigh Pfeiffer
+Okay.
+
+[01:11:17] Brittany Martin
+And the very kindergarten redneck answer is until we get our princess to really
+jump on board, like, yeah, I'll be a dick and call Brian and tell him to kill
+this some. Like, I hate to be ugly about that, but right now kill you. But, but
+we can't. I don't want to let, like, I'm super pumped that Lee's brains
+involved. Right. I'm glad that we got Brittany involved. We got Clay involved.
+It's gonna stay small for right now. Yes. Like, no. I love a palette. Sure.
+Like, no, that.
+
+[01:11:50] Leigh Pfeiffer
+And the reason for my questions is never to shoot anything down. It's to make
+sure while we're in this stage that we're doing it in a way that Adams feels
+confident and comfortable. Right.
+
+[01:12:02] Brittany Martin
+Yeah. Well, I think, I think the one thing Lee Ikes I, I think you and I talked
+or maybe Tony mentioned it to me and I agreed. It was like, like Lee's like,
+we've given people this club pro stuff and we've made them feel like they're a
+superhero when all we've done is made them feel like we know they're all
+dangerous. Right. I mean, we can all see that in Clark's emails that he sends
+out. I mean, it's, it's so, it's just trying to be very slow and methodical. And
+if the initial, the initial rollout is just for my 22 people on my team, where
+we're like, we can do that. But I just. Yeah, no, I know, Lee. That's why we had
+to bring your crazy brain into this because you and Brian think you, you and
+Brian have the same kind of brains. Yeah, no, I,
+
+[01:12:44] Leigh Pfeiffer
+I, this is the. I really like it. I also love deep diving, a back end and
+knowing exactly how it works. And that just makes me feel better when we're
+pulling something in, especially something with AI because I love AI as a
+supplement I sent with it as a primary resource. But this looks really great. I
+just have all of the things. But especially if we're owning the source code in,
+like, our own GitHub or our own Azure, then that makes me feel better in that
+way. I have different questions on like permissions, like if things are just
+hidden behind a UI or if they're actually running through permission software.
+Like if when somebody tries to open a file, if it's just hidden away and they
+can't see it, or if they. The system legitimately looks and goes, you do not
+have access to this and hides it. That type of stuff. But this is all just me
+stuff. And I can come up with a list and I can also email it.
+
+[01:13:01] Brian Stitt
+I get more read.
+
+[01:13:47] Brittany Martin
+But Brian, what are we in, like, I mean, we're in this like $300 right now a
+month. Right. So
+
+[01:13:54] Brian Stitt
+put. I'm trying to get it back down to 200. Yeah,
+
+[01:13:58] Brittany Martin
+you shouldn't have to worry about that. So just, just 300 is fine right now.
+Wow. I mean, but that's. So that's the other thing we're trying to do is we're
+trying to explain she can come in. But no. So that's all. No, it's
+
+[01:14:11] Brian Stitt
+so it's. I think I would say that it's just ramp up costs, you know, getting
+started. But now that we've got, you know, frameworks in place for, for new
+ideas, workflow, workflow processes, that is going to. It should, it should go
+back down. We just had to kind of, you know, get clear about what's going on,
+what's connected, what systems do we have? A table's a table. You know, data's
+data. JSON's JSON. Right. So I mean, we're just shifting that stuff around and
+making it available where it needs to be made available. That shouldn't cost 300
+bucks a month. Yeah, but yeah, I would love to host everything on Atoms. Yeah,
+this is, I think this is the right way to do it. I would definitely appreciate
+Leave's involvement in terms of architecture and design. I'm not claiming that
+I'm an Azure guru by no stretch of imagination, but if we have someone that can
+inform me on some things that I may not know in Azure. I know what the databases
+are. I know how to navigate around the cli. I know how to create. What's that
+thing called? So how to basically navigate to Microsoft Graph a little bit.
+That's one of the things, Lee, that we're working on is being able to get access
+to the Microsoft graph for. Being able to connect to email and calendar for
+Jeff. We know Clock can do it. Now for some reason we're struggling to get it to
+work and get the permissions to that ad. I don't know if you know what this is.
+There's an admin consent. Once you have to. Once you enable it, once you get
+the. Those secrets, it's. For some reason it's. It's not sticking and it's like,
+it's just. It just keeps reverting back. But if there's, if you can, if, you
+know, if you know of a way that can help Clay for us to do that, then that takes
+us even to a higher level. For instead of Jeff using Claude and getting the
+morning brief, that morning brief could be even more meaningful when it gets
+converted his emails and actually the idea, the. The big vision is email and
+text messages get converted to tasks in that. In that task tool. So it's
+distilling both email and email and text messages into a single place for tasks,
+for action or delegation to Betty Jean. So that's, you know, that's. That's the
+kind of, you know, idea intelligence that we're looking to do to kind of let the
+system do a little bit help Jeff and doing some of the thinking, you know, in
+advance. So it's like, oh, yeah, I did. Beijing was supposed to order those,
+those Bojangles biscuits and you know, because Jeff said I'm having a party and,
+and they know, you know, Adams Electric employees like Bojangles biscuits, the
+Bulberry biscuits. The system already tasked Beijing to order the biscuits from
+the place they get the biscuits from. Things like that. Kind of trying to save a
+step and do some little bit of advanced thinking. Not too much because, you
+know, but, you know, but put, Putting, putting in those systems where you're.
+Those are gated approvals, things like that. So, Lee, Brian has what you and me
+and
+
+[01:17:54] Brittany Martin
+Britney don't have. A little bit, A little bit of time. I knew what he was gonna
+say.
+
+[01:18:01] Brian Stitt
+A little bit of time. Yes. Fair. Yeah. All good. Okay. No, this is great. Yeah,
+absolutely. Yeah.
+
+[01:18:13] Brittany Martin
+I would say my last question, Lee, do you. Those permission things about. For
+email and stuff, does that make sense to you?
+
+[01:18:23] Leigh Pfeiffer
+No, it does make sense. My brain is trying to figure out why Azure won't let you
+do things. Like. I was honestly, part of why I went silent was I pulled up one
+of my old friends that still works at Microsoft and I was like, hey, so.
+
+[01:18:39] Brittany Martin
+What the. What did we say about knowing people? Yeah, so I desperately need that
+on my little simplistic ask, like. Yeah, for, for my part to keep moving forward
+with Brian that him and I work on behind the scenes. Like, that's what I.
+
+[01:18:57] Leigh Pfeiffer
+Yeah, no, it My brain is trying to. Without seeing it, then it's hard for me to
+know exactly what's going on. But, yeah, I was immediately just like, what type
+of issue would we run into in this field? Like, what? Why? So that's why I went
+silent for a second, was I got posed a question that my brain wanted to know.
+
+[01:19:07] Brian Stitt
+Yeah,
+
+[01:19:22] Brittany Martin
+yeah, Nick. I think Nick is the main contact for aure. I'm not 100 on that, but
+he is. Yeah.
+
+[01:19:30] Leigh Pfeiffer
+Yeah. Because I've gone diving and wanting to use Azure for other things,
+
+[01:19:36] Brittany Martin
+but he's in. Yeah, he'll be back next, Louisiana. So Jeff was gonna go grab him.
+I'm like, no, he's out of.
+
+[01:19:41] Leigh Pfeiffer
+Yeah,
+
+[01:19:49] Brian Stitt
+Yeah. No, I'm. I'm excited for being able to, you know, to. For. For Jeff to be
+as nimble as possible, give him some superpowers and so he can wrangle those
+cats at those. On those sites. It. It is hurting cats.
+
+[01:20:08] Brittany Martin
+That's. Yes, 100%. All right, well, I gotta jump because I gotta interview in
+seven minutes. But no, Leo. I mean, Brian's got an Adam's email address. Lee,
+Brian Stitt s t I t t that. That you can reach out. I'll make sure you've got
+his, you know, cell phone stuff, so. So you two can geek out together. And then
+when we. When we. When we get off this, after my interview, Brittany and I will
+talk about just kind of some moving forwards, and we'll give you some heads up,
+Brian. All right. Much.
+
+[01:20:44] Brian Stitt
+All right, Good deal. Thank you so much. All right. You're welcome. All right,
+take care. Bye.
+
+* * * * *
+
+Attendees
+Brian Stitt*, Leigh Pfeiffer*, Brittany Martin
+
+Invited, didn't attend
+Jeff Allen*, Anthony Tackett, Robbie Adcock
+
+* TeamsMaestro users
+
+* * * * *
+
+Install TeamsMaestro www.maestrolabs.com
