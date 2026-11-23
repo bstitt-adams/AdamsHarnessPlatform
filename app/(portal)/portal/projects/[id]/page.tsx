@@ -44,8 +44,9 @@ import { toast } from "sonner";
 import { ProjectDataViews, type ProjectItem, type BoardStatus } from "@/components/projects/project-data-views";
 import { ProjectFiles } from "@/components/projects/project-files";
 import {
-  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
-} from "@/components/ui/select";
+  Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList,
+} from "@/components/ui/command";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { UserPlus, X } from "lucide-react";
 
 type MilestoneStatus = "not-started" | "in-progress" | "completed" | "blocked" | "deferred";
@@ -65,7 +66,10 @@ interface TeamMemberLite {
   name: string;
   title: string;
   initials: string;
+  isMgmt: boolean;
 }
+
+const MGMT_TITLE = /foreman|superintendent|manager|director|executive|\bvp\b|president|supervisor|\blead\b|chief|admin/i;
 
 interface ProjectDetail {
   id: string;
@@ -156,6 +160,7 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [items, setItems] = useState<ProjectItem[]>([]);
   const [members, setMembers] = useState<TeamMemberLite[]>([]);
+  const [assignOpen, setAssignOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -219,10 +224,12 @@ export default function ProjectDetailPage() {
           setMembers(membersSnap.docs.map((d) => {
             const m = d.data();
             const name = `${m.firstName || ""} ${m.lastName || ""}`.trim() || m.emailPrimary || "Unnamed";
+            const title = m.title || m.jobTitleRaw || m.workforceDepartmentName || "";
             return {
-              id: d.id, name,
-              title: m.title || m.jobTitleRaw || m.workforceDepartmentName || "",
+              id: d.id, name, title,
               initials: name.split(" ").map((w: string) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase(),
+              isMgmt: MGMT_TITLE.test(title) || m.role === "admin" || m.role === "superadmin"
+                || !!(m.isCEO || m.isCOO || m.isCTO || m.isCRO),
             };
           }));
         } else {
@@ -530,25 +537,44 @@ export default function ProjectDetailPage() {
                   <CardTitle>Team</CardTitle>
                   <CardDescription>Team members assigned to this project</CardDescription>
                 </div>
-                <Select
-                  value=""
-                  onValueChange={(v) => v && handleTeamChange(v, "add")}
-                  disabled={!members.length}
-                >
-                  <SelectTrigger className="w-48">
-                    <UserPlus className="h-4 w-4 mr-2 shrink-0" />
-                    <SelectValue placeholder={members.length ? "Assign member" : "Loading…"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {members
-                      .filter((m) => !project.teamIds.includes(m.id))
-                      .map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.name}{m.title ? ` — ${m.title}` : ""}
-                        </SelectItem>
-                      ))}
-                  </SelectContent>
-                </Select>
+                <Popover open={assignOpen} onOpenChange={setAssignOpen}>
+                  <PopoverTrigger asChild>
+                    <Button variant="outline" size="sm" disabled={!members.length}>
+                      <UserPlus className="h-4 w-4 mr-2" />
+                      Assign member
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 p-0" align="end">
+                    <Command>
+                      <CommandInput placeholder="Search first or last name…" />
+                      <CommandList>
+                        <CommandEmpty>No matching members</CommandEmpty>
+                        {([
+                          ["Management", members.filter((m) => m.isMgmt && !project.teamIds.includes(m.id))],
+                          ["All team members", members.filter((m) => !m.isMgmt && !project.teamIds.includes(m.id))],
+                        ] as const).map(([label, group]) => group.length > 0 && (
+                          <CommandGroup key={label} heading={label}>
+                            {group.map((m) => (
+                              <CommandItem
+                                key={m.id}
+                                value={`${m.name} ${m.title}`}
+                                onSelect={() => { handleTeamChange(m.id, "add"); setAssignOpen(false); }}
+                              >
+                                <Avatar className="h-6 w-6 mr-2">
+                                  <AvatarFallback className="bg-primary/10 text-primary text-[10px]">{m.initials}</AvatarFallback>
+                                </Avatar>
+                                <span className="min-w-0">
+                                  <span className="block truncate">{m.name}</span>
+                                  {m.title && <span className="block truncate text-xs text-muted-foreground">{m.title}</span>}
+                                </span>
+                              </CommandItem>
+                            ))}
+                          </CommandGroup>
+                        ))}
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
               </div>
             </CardHeader>
             <CardContent>
