@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { adminAuth, adminDb } from "@/lib/firebase-admin";
+import { entraEnabled, verifyEntraToken, type EntraIdentity } from "@/lib/auth/entra";
 import { COLLECTIONS, type TeamMemberDoc } from "@/lib/schema";
 import type { UserRole } from "@/lib/permissions";
 
@@ -58,21 +59,40 @@ export async function requireUser(request: NextRequest): Promise<AuthenticatedAc
 
   const token = extractBearerToken(request);
 
-  let decoded;
+  let entra: EntraIdentity | null = null;
+  let uid = "";
+  let email = "";
   try {
-    decoded = await adminAuth.verifyIdToken(token);
+    const decoded = await adminAuth.verifyIdToken(token);
+    uid = decoded.uid;
+    email = typeof decoded.email === "string" ? decoded.email : "";
   } catch {
-    throw new ApiAuthError(401, "Invalid or expired token");
+    // Firebase rejected — try Entra (dual-token transition window)
+    if (!entraEnabled()) throw new ApiAuthError(401, "Invalid or expired token");
+    try {
+      entra = await verifyEntraToken(token);
+      uid = entra.oid;
+      email = entra.email;
+    } catch {
+      throw new ApiAuthError(401, "Invalid or expired token");
+    }
   }
-
-  const uid = decoded.uid;
-  const email = typeof decoded.email === "string" ? decoded.email : "";
 
   let userData: Record<string, unknown> = {};
   try {
-    const userSnap = await adminDb.collection(COLLECTIONS.USERS).doc(uid).get();
+    const users = adminDb.collection(COLLECTIONS.USERS);
+    const userSnap = await users.doc(uid).get();
     if (userSnap.exists) {
       userData = userSnap.data() as Record<string, unknown>;
+    } else if (entra) {
+      // Entra user without a uid-keyed doc: match by entraOid, then email
+      const byOid = await users.where("entraOid", "==", entra.oid).limit(1).get();
+      if (!byOid.empty) {
+        userData = byOid.docs[0].data() as Record<string, unknown>;
+      } else if (entra.email) {
+        const byEmail = await users.where("email", "==", entra.email).limit(1).get();
+        if (!byEmail.empty) userData = byEmail.docs[0].data() as Record<string, unknown>;
+      }
     }
   } catch {
     throw new ApiAuthError(503, "Unable to load user record");
@@ -81,7 +101,20 @@ export async function requireUser(request: NextRequest): Promise<AuthenticatedAc
   let teamMember: TeamMemberDoc | null = null;
   try {
     const teamMembers = adminDb.collection(COLLECTIONS.TEAM_MEMBERS);
-    const byUid = await teamMembers
+    if (entra) {
+      const byOid = await teamMembers.where("entraOid", "==", entra.oid).limit(1).get();
+      if (!byOid.empty) {
+        teamMember = { id: byOid.docs[0].id, ...byOid.docs[0].data() } as TeamMemberDoc;
+      } else if (entra.email) {
+        // First sign-in before explicit linking — match on the member's email
+        const byEmail = await teamMembers.where("emailPrimary", "==", entra.email).limit(1).get();
+        if (!byEmail.empty) {
+          teamMember = { id: byEmail.docs[0].id, ...byEmail.docs[0].data() } as TeamMemberDoc;
+        }
+      }
+    }
+    if (!teamMember) {
+      const byUid = await teamMembers
       .where("firebaseUid", "==", uid)
       .limit(1)
       .get();
@@ -101,12 +134,18 @@ export async function requireUser(request: NextRequest): Promise<AuthenticatedAc
         }
       }
     }
+    }
   } catch {
     throw new ApiAuthError(503, "Unable to load team member record");
   }
 
+  // Entra app-role claim is authoritative once present; falls back to
+  // teamMember/user doc roles during the linking window.
   const role =
-    normalizeRole(teamMember?.role) ?? normalizeRole(userData.role) ?? "client";
+    entra?.roles[0] ??
+    normalizeRole(teamMember?.role) ??
+    normalizeRole(userData.role) ??
+    "client";
 
   const departmentIds = [
     ...new Set([
