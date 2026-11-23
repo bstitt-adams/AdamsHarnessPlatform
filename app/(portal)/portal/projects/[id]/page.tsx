@@ -38,10 +38,14 @@ import {
   Timer,
 } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, deleteDoc, Timestamp, collection, query, orderBy, getDocs, updateDoc } from "firebase/firestore";
+import { doc, getDoc, deleteDoc, Timestamp, collection, query, orderBy, getDocs, updateDoc, arrayUnion, arrayRemove } from "firebase/firestore";
 import { COLLECTIONS } from "@/lib/schema";
 import { toast } from "sonner";
 import { ProjectDataViews, type ProjectItem, type BoardStatus } from "@/components/projects/project-data-views";
+import {
+  Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+} from "@/components/ui/select";
+import { UserPlus, X } from "lucide-react";
 
 type MilestoneStatus = "not-started" | "in-progress" | "completed" | "blocked" | "deferred";
 
@@ -53,6 +57,13 @@ interface MilestoneDetail {
   status: MilestoneStatus;
   completedAt: Date | null;
   priority: "low" | "medium" | "high";
+}
+
+interface TeamMemberLite {
+  id: string;
+  name: string;
+  title: string;
+  initials: string;
 }
 
 interface ProjectDetail {
@@ -143,6 +154,7 @@ export default function ProjectDetailPage() {
   
   const [project, setProject] = useState<ProjectDetail | null>(null);
   const [items, setItems] = useState<ProjectItem[]>([]);
+  const [members, setMembers] = useState<TeamMemberLite[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -199,6 +211,19 @@ export default function ProjectDetailPage() {
             fields: d.data().fields || {},
             sortOrder: d.data().sortOrder || 0,
           })));
+
+          const membersSnap = await getDocs(
+            query(collection(db, COLLECTIONS.TEAM_MEMBERS), orderBy("lastName"))
+          );
+          setMembers(membersSnap.docs.map((d) => {
+            const m = d.data();
+            const name = `${m.firstName || ""} ${m.lastName || ""}`.trim() || m.emailPrimary || "Unnamed";
+            return {
+              id: d.id, name,
+              title: m.title || m.jobTitleRaw || m.workforceDepartmentName || "",
+              initials: name.split(" ").map((w: string) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase(),
+            };
+          }));
         } else {
           toast.error("Project not found");
           router.push("/portal/projects");
@@ -221,6 +246,21 @@ export default function ProjectDetailPage() {
       await updateDoc(doc(db, COLLECTIONS.PROJECTS, projectId, "items", itemId), { boardStatus: status });
     } catch {
       toast.error("Failed to update item");
+    }
+  };
+
+  const handleTeamChange = async (memberId: string, action: "add" | "remove") => {
+    if (!db || !project) return;
+    const prev = project.teamIds;
+    const next = action === "add" ? [...prev, memberId] : prev.filter((id) => id !== memberId);
+    setProject({ ...project, teamIds: next });
+    try {
+      await updateDoc(doc(db, COLLECTIONS.PROJECTS, projectId), {
+        teamIds: action === "add" ? arrayUnion(memberId) : arrayRemove(memberId),
+      });
+    } catch {
+      setProject({ ...project, teamIds: prev });
+      toast.error("Failed to update team");
     }
   };
 
@@ -473,25 +513,61 @@ export default function ProjectDetailPage() {
           {/* Team Card */}
           <Card>
             <CardHeader>
-              <CardTitle>Team</CardTitle>
-              <CardDescription>Team members assigned to this project</CardDescription>
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <CardTitle>Team</CardTitle>
+                  <CardDescription>Team members assigned to this project</CardDescription>
+                </div>
+                <Select
+                  value=""
+                  onValueChange={(v) => v && handleTeamChange(v, "add")}
+                  disabled={!members.length}
+                >
+                  <SelectTrigger className="w-48">
+                    <UserPlus className="h-4 w-4 mr-2 shrink-0" />
+                    <SelectValue placeholder={members.length ? "Assign member" : "Loading…"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {members
+                      .filter((m) => !project.teamIds.includes(m.id))
+                      .map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.name}{m.title ? ` — ${m.title}` : ""}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </CardHeader>
             <CardContent>
               {project.teamIds.length > 0 ? (
                 <div className="flex flex-wrap gap-2">
-                  {project.teamIds.map((_, i) => (
-                    <div key={i} className="flex items-center gap-2 p-2 bg-muted rounded-lg">
-                      <Avatar className="h-8 w-8">
-                        <AvatarFallback className="bg-primary/10 text-primary text-xs">
-                          T{i + 1}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="text-sm">Team Member {i + 1}</span>
-                    </div>
-                  ))}
+                  {project.teamIds.map((id) => {
+                    const m = members.find((x) => x.id === id);
+                    return (
+                      <div key={id} className="flex items-center gap-2 p-2 pr-1 bg-muted rounded-lg">
+                        <Avatar className="h-8 w-8">
+                          <AvatarFallback className="bg-primary/10 text-primary text-xs">
+                            {m?.initials || "?"}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <p className="text-sm leading-tight">{m?.name || "Unknown member"}</p>
+                          {m?.title && <p className="text-xs text-muted-foreground leading-tight">{m.title}</p>}
+                        </div>
+                        <Button
+                          variant="ghost" size="icon" className="h-6 w-6 ml-1"
+                          onClick={() => handleTeamChange(id, "remove")}
+                          title="Remove from project"
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
-                <p className="text-muted-foreground italic">No team members assigned</p>
+                <p className="text-muted-foreground italic">No team members assigned — use Assign member above</p>
               )}
             </CardContent>
           </Card>
