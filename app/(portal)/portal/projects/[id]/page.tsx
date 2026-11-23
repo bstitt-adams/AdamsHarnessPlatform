@@ -38,9 +38,10 @@ import {
   Timer,
 } from "lucide-react";
 import { db } from "@/lib/firebase";
-import { doc, getDoc, deleteDoc, Timestamp } from "firebase/firestore";
+import { doc, getDoc, deleteDoc, Timestamp, collection, query, orderBy, getDocs, updateDoc } from "firebase/firestore";
 import { COLLECTIONS } from "@/lib/schema";
 import { toast } from "sonner";
+import { ProjectDataViews, type ProjectItem, type BoardStatus } from "@/components/projects/project-data-views";
 
 type MilestoneStatus = "not-started" | "in-progress" | "completed" | "blocked" | "deferred";
 
@@ -141,6 +142,7 @@ export default function ProjectDetailPage() {
   const projectId = params.id as string;
   
   const [project, setProject] = useState<ProjectDetail | null>(null);
+  const [items, setItems] = useState<ProjectItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
 
@@ -186,6 +188,17 @@ export default function ProjectDetailPage() {
               ? data.updatedAt.toDate() 
               : new Date(),
           });
+          const itemsSnap = await getDocs(
+            query(collection(db, COLLECTIONS.PROJECTS, projectId, "items"), orderBy("sortOrder"))
+          );
+          setItems(itemsSnap.docs.map((d) => ({
+            id: d.id,
+            title: d.data().title || "Untitled",
+            sourceStatus: d.data().sourceStatus || "",
+            boardStatus: d.data().boardStatus || "todo",
+            fields: d.data().fields || {},
+            sortOrder: d.data().sortOrder || 0,
+          })));
         } else {
           toast.error("Project not found");
           router.push("/portal/projects");
@@ -200,6 +213,16 @@ export default function ProjectDetailPage() {
     
     fetchProject();
   }, [projectId, router]);
+
+  const handleItemStatusChange = async (itemId: string, status: BoardStatus) => {
+    if (!db) return;
+    setItems((prev) => prev.map((i) => (i.id === itemId ? { ...i, boardStatus: status } : i)));
+    try {
+      await updateDoc(doc(db, COLLECTIONS.PROJECTS, projectId, "items", itemId), { boardStatus: status });
+    } catch {
+      toast.error("Failed to update item");
+    }
+  };
 
   const handleDelete = async () => {
     if (!db || !projectId) return;
@@ -416,6 +439,20 @@ export default function ProjectDetailPage() {
               ) : (
                 <p className="text-muted-foreground italic text-center py-4">No milestones added yet</p>
               )}
+            </CardContent>
+          </Card>
+
+          {/* Data Views Card */}
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>Project Data</CardTitle>
+                <Badge variant="secondary">{items.length} items</Badge>
+              </div>
+              <CardDescription>Spreadsheet, card, and Kanban views — drag cards between columns to update status</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProjectDataViews items={items} onStatusChange={handleItemStatusChange} />
             </CardContent>
           </Card>
 

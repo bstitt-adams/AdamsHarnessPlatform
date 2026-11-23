@@ -65,6 +65,11 @@ service cloud.firestore {
       match /milestones/{milestoneId} {
         allow read, write: if isAuthenticated();
       }
+
+      // Data items subcollection (spreadsheet/card/kanban views)
+      match /items/{itemId} {
+        allow read, write: if isAuthenticated();
+      }
     }
 
     // Meetings collection
