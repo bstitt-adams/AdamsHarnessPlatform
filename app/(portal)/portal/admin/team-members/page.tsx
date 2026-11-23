@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { useUserProfile } from "@/contexts/user-profile-context";
 import { canDeleteUser, canEditUser, isSuperAdmin } from "@/lib/permissions";
@@ -122,6 +122,7 @@ export default function TeamMembersPage() {
     website: "",
     role: "affiliate" as "superadmin" | "admin" | "team" | "affiliate" | "consultant" | "client",
     status: "active" as "active" | "inactive" | "pending",
+    avatar: "",
     // Leadership flags
     isCEO: false,
     isCOO: false,
@@ -443,6 +444,7 @@ export default function TeamMembersPage() {
       website: member.website || "",
       role: member.role,
       status: member.status,
+      avatar: member.avatar || "",
       isCEO: member.isCEO || false,
       isCOO: member.isCOO || false,
       isCTO: member.isCTO || false,
@@ -473,11 +475,48 @@ export default function TeamMembersPage() {
       website: "",
       role: "affiliate",
       status: "active",
+      avatar: "",
       isCEO: false,
       isCOO: false,
       isCTO: false,
       isCRO: false,
     });
+  };
+
+  const avatarInputRef = useRef<HTMLInputElement>(null);
+
+  // Downscale to a 256px JPEG data URL (~20-40KB) and store on the record as base64.
+  const handleAvatarFile = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please choose an image file");
+      return;
+    }
+    const img = new Image();
+    img.onload = () => {
+      const size = 256;
+      const canvas = document.createElement("canvas");
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      const side = Math.min(img.width, img.height);
+      ctx.drawImage(
+        img,
+        (img.width - side) / 2,
+        (img.height - side) / 2,
+        side,
+        side,
+        0,
+        0,
+        size,
+        size
+      );
+      URL.revokeObjectURL(img.src);
+      setFormData((prev) => ({ ...prev, avatar: canvas.toDataURL("image/jpeg", 0.85) }));
+    };
+    img.onerror = () => toast.error("Could not read that image");
+    img.src = URL.createObjectURL(file);
   };
 
   // 1-to-1 Scheduling functions
@@ -642,6 +681,35 @@ export default function TeamMembersPage() {
                 </DialogDescription>
               </DialogHeader>
               <div className="grid gap-4 py-4">
+                <div className="flex items-center gap-4">
+                  <Avatar className="h-16 w-16">
+                    <AvatarImage src={formData.avatar} />
+                    <AvatarFallback className="text-lg">
+                      {getInitials(formData.firstName, formData.lastName) || "?"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="space-y-1">
+                    <Label>Avatar</Label>
+                    <div className="flex items-center gap-2">
+                      <Button type="button" variant="outline" size="sm" onClick={() => avatarInputRef.current?.click()}>
+                        Upload Photo
+                      </Button>
+                      {formData.avatar && (
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setFormData({ ...formData, avatar: "" })}>
+                          Remove
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">Cropped to a square, resized to 256px, stored as base64</p>
+                    <input
+                      ref={avatarInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => { handleAvatarFile(e.target.files?.[0]); if (avatarInputRef.current) avatarInputRef.current.value = ""; }}
+                    />
+                  </div>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="firstName">First Name *</Label>

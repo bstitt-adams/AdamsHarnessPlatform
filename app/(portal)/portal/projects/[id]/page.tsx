@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
@@ -67,6 +67,7 @@ interface TeamMemberLite {
   title: string;
   initials: string;
   isMgmt: boolean;
+  avatar: string;
 }
 
 const MGMT_TITLE = /foreman|superintendent|manager|director|executive|\bvp\b|president|supervisor|\blead\b|chief|admin/i;
@@ -226,7 +227,7 @@ export default function ProjectDetailPage() {
             const name = `${m.firstName || ""} ${m.lastName || ""}`.trim() || m.emailPrimary || "Unnamed";
             const title = m.title || m.jobTitleRaw || m.workforceDepartmentName || "";
             return {
-              id: d.id, name, title,
+              id: d.id, name, title, avatar: m.avatar || "",
               initials: name.split(" ").map((w: string) => w[0]).filter(Boolean).slice(0, 2).join("").toUpperCase(),
               isMgmt: MGMT_TITLE.test(title) || m.role === "admin" || m.role === "superadmin"
                 || !!(m.isCEO || m.isCOO || m.isCTO || m.isCRO),
@@ -561,6 +562,7 @@ export default function ProjectDetailPage() {
                                 onSelect={() => { handleTeamChange(m.id, "add"); setAssignOpen(false); }}
                               >
                                 <Avatar className="h-6 w-6 mr-2">
+                                  <AvatarImage src={m.avatar} />
                                   <AvatarFallback className="bg-primary/10 text-primary text-[10px]">{m.initials}</AvatarFallback>
                                 </Avatar>
                                 <span className="min-w-0">
@@ -585,6 +587,7 @@ export default function ProjectDetailPage() {
                     return (
                       <div key={id} className="flex items-center gap-2 p-2 pr-1 bg-muted rounded-lg">
                         <Avatar className="h-8 w-8">
+                          <AvatarImage src={m?.avatar} />
                           <AvatarFallback className="bg-primary/10 text-primary text-xs">
                             {m?.initials || "?"}
                           </AvatarFallback>
