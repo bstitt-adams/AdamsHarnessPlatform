@@ -42,6 +42,7 @@ import { doc, getDoc, deleteDoc, Timestamp, collection, query, orderBy, getDocs,
 import { COLLECTIONS } from "@/lib/schema";
 import { toast } from "sonner";
 import { ProjectDataViews, type ProjectItem, type BoardStatus } from "@/components/projects/project-data-views";
+import { ProjectFiles } from "@/components/projects/project-files";
 import {
   Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from "@/components/ui/select";
@@ -493,6 +494,17 @@ export default function ProjectDetailPage() {
             </CardHeader>
             <CardContent>
               <ProjectDataViews items={items} onStatusChange={handleItemStatusChange} />
+            </CardContent>
+          </Card>
+
+          {/* Files Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle>Files</CardTitle>
+              <CardDescription>Documents and attachments supporting this project</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ProjectFiles projectId={projectId} />
             </CardContent>
           </Card>
 

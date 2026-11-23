@@ -70,6 +70,11 @@ service cloud.firestore {
       match /items/{itemId} {
         allow read, write: if isAuthenticated();
       }
+
+      // File attachments subcollection (base64 payloads)
+      match /files/{fileId} {
+        allow read, write: if isAuthenticated();
+      }
     }
 
     // Meetings collection
